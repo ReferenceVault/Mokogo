@@ -1,4 +1,4 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import Footer from '@/components/Footer'
 import Logo from '@/components/Logo'
@@ -22,19 +22,15 @@ import {
   Bell,
   Heart as HeartIcon,
   Pen,
-  TrendingUp,
-  Check,
   MoreHorizontal,
   Settings,
-  Users,
-  ChevronDown
+  Users
 } from 'lucide-react'
 
 type ViewType = 'overview' | 'listings'
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const location = useLocation()
   const { user, currentListing, setCurrentListing, setUser, allListings } = useStore()
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [showArchiveModal, setShowArchiveModal] = useState(false)

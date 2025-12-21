@@ -1,9 +1,9 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useState } from 'react'
 import Footer from '@/components/Footer'
+import Header from '@/components/Header'
 import Logo from '@/components/Logo'
 import { useStore } from '@/store/useStore'
-import { Listing } from '@/types'
 import {
   MapPin,
   Star,
@@ -20,8 +20,6 @@ import {
   CheckCircle,
   XCircle,
   MessageCircle,
-  Phone,
-  Mail,
   ChevronDown,
   ChevronRight,
   Home,

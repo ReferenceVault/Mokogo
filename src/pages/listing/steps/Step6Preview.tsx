@@ -7,7 +7,7 @@ interface Step6PreviewProps {
   onPublish: () => void
 }
 
-const Step6Preview = ({ data, onChange, onPublish }: Step6PreviewProps) => {
+const Step6Preview = ({ data, onChange }: Step6PreviewProps) => {
   const [title, setTitle] = useState(data.title || '')
 
   useEffect(() => {

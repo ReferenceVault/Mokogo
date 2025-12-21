@@ -8,30 +8,9 @@ interface Step3DetailsProps {
   error?: string
 }
 
-const flatAmenities = [
-  'WiFi', 'Washing machine', 'AC', 'Geyser', 'Balcony', 'Fridge',
-  'TV', 'Wardrobe', 'Microwave', 'Gas connection', 'Water purifier', 'RO'
-]
-
-const societyAmenities = [
-  'Lift', 'Gym', 'Pool', 'CCTV', 'Park', 'Clubhouse', 'Security', 'Parking'
-]
-
 const Step3Details = ({ data, onChange, error }: Step3DetailsProps) => {
   const handleChange = (field: keyof Listing, value: any) => {
     onChange({ [field]: value })
-  }
-
-  const handleAmenityToggle = (amenity: string, type: 'flat' | 'society') => {
-    const currentList = type === 'flat' 
-      ? (data.flatAmenities || [])
-      : (data.societyAmenities || [])
-    
-    const updatedList = currentList.includes(amenity)
-      ? currentList.filter(a => a !== amenity)
-      : [...currentList, amenity]
-    
-    onChange({ [type === 'flat' ? 'flatAmenities' : 'societyAmenities']: updatedList })
   }
 
   return (

@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import Logo from '@/components/Logo'
 import { useStore } from '@/store/useStore'
 
 const RequestDetail = () => {
   const { requestId } = useParams()
-  const navigate = useNavigate()
   const { requests, updateRequest, user } = useStore()
   const [showAcceptModal, setShowAcceptModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
