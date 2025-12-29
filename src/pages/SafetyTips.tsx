@@ -1,6 +1,6 @@
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { Shield, Eye, DollarSign, CheckCircle, MessageSquare, Home, Calendar, Lock, AlertCircle, Heart } from 'lucide-react'
+import { Shield, Eye, DollarSign, CheckCircle, MessageSquare, Home, Lock, AlertCircle, Heart } from 'lucide-react'
 
 const SafetyTips = () => {
   return (

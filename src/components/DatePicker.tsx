@@ -95,7 +95,7 @@ const DatePicker = ({ value, onChange, min, placeholder = 'Select date' }: DateP
   }
 
   const isDisabled = (date: Date) => {
-    return minDate && date < minDate
+    return !!(minDate && date < minDate)
   }
 
   const days = getDaysInMonth(currentMonth)
