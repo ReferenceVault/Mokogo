@@ -4,6 +4,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
+import CustomSelect from '@/components/CustomSelect'
 
 const LandingPage = () => {
   const navigate = useNavigate()
@@ -13,6 +14,12 @@ const LandingPage = () => {
     moveInDate: '',
     maxRent: ''
   })
+
+  const searchCities = [
+    'Mumbai', 'Bangalore', 'Pune', 'Delhi NCR', 'Hyderabad', 'Chennai', 
+    'Kolkata', 'Ahmedabad', 'Jaipur', 'Lucknow', 'Chandigarh', 'Indore', 
+    'Nagpur', 'Coimbatore', 'Kochi'
+  ]
 
   // Initialize with mock listings if none exist
   useEffect(() => {
@@ -215,7 +222,7 @@ const LandingPage = () => {
     if (searchFilters.moveInDate) params.set('date', searchFilters.moveInDate)
     if (searchFilters.maxRent) params.set('maxRent', searchFilters.maxRent)
     // For now, just navigate to auth
-    navigate('/auth/phone')
+    navigate('/auth')
   }
 
   const formatRent = (amount: number) => {
@@ -305,37 +312,53 @@ const LandingPage = () => {
 
                 {/* Search Card */}
                 <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-white/80">
-                  <div className="grid md:grid-cols-4 gap-4 items-center">
-                    <input
-                      type="text"
-                      placeholder="Search by area, society, or landmark"
-                      value={searchFilters.city}
-                      onChange={(e) => setSearchFilters({ ...searchFilters, city: e.target.value })}
-                      className="h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80"
-                    />
-                    <input
-                      type="date"
-                      placeholder="Move-in date"
-                      value={searchFilters.moveInDate}
-                      onChange={(e) => setSearchFilters({ ...searchFilters, moveInDate: e.target.value })}
-                      className="h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Max Rent (₹)"
-                      value={searchFilters.maxRent}
-                      onChange={(e) => setSearchFilters({ ...searchFilters, maxRent: e.target.value })}
-                      className="h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80"
-                    />
-                    <button
-                      onClick={handleSearch}
-                      className="w-full h-[52px] btn-primary flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      Search Now
-                    </button>
+                  <div className="grid md:grid-cols-4 gap-4 items-end">
+                    <div className="[&_button]:h-[52px] [&_button]:py-0">
+                      <CustomSelect
+                        label="City"
+                        value={searchFilters.city}
+                        onValueChange={(value) => setSearchFilters({ ...searchFilters, city: value })}
+                        placeholder="Select your city"
+                        options={searchCities.map(city => ({ value: city, label: city }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-2">
+                        Move-in Date
+                      </label>
+                      <input
+                        type="date"
+                        value={searchFilters.moveInDate}
+                        onChange={(e) => setSearchFilters({ ...searchFilters, moveInDate: e.target.value })}
+                        className="w-full h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-2">
+                        Max Rent (₹)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="e.g., 20000"
+                        value={searchFilters.maxRent}
+                        onChange={(e) => setSearchFilters({ ...searchFilters, maxRent: e.target.value })}
+                        className="w-full h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-stone-700 mb-2 opacity-0">
+                        Search
+                      </label>
+                      <button
+                        onClick={handleSearch}
+                        className="w-full h-[52px] btn-primary flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Search
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -447,7 +470,7 @@ const LandingPage = () => {
             </div>
 
             <div className="text-center pt-4">
-              <Link to="/auth/phone">
+              <Link to="/explore">
                 <button className="btn-secondary">
                   Load More Listings
                 </button>
@@ -466,9 +489,10 @@ const LandingPage = () => {
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {cities.map((city) => (
-                <div
+                <Link
                   key={city.name}
-                  className="relative h-56 rounded-2xl overflow-hidden group cursor-pointer shadow-lg hover:shadow-xl transition-all border border-white/40"
+                  to={`/city/${encodeURIComponent(city.name)}`}
+                  className="relative h-56 rounded-2xl overflow-hidden group cursor-pointer shadow-lg hover:shadow-xl transition-all border border-white/40 block"
                 >
                   <img
                     src={city.image}
@@ -480,7 +504,14 @@ const LandingPage = () => {
                     <h3 className="text-2xl font-bold mb-1">{city.name}</h3>
                     <p className="text-sm text-white/80">{city.listings}+ Properties</p>
                   </div>
-                </div>
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-full p-2">
+                      <svg className="w-5 h-5 text-mokogo-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
           </section>

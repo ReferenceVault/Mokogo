@@ -75,7 +75,7 @@ const CustomSelect = ({
           {label}
         </label>
       )}
-      <div ref={selectRef} className="relative">
+      <div ref={selectRef} className="relative z-50">
         {/* Select Button */}
         <button
           type="button"
@@ -100,7 +100,7 @@ const CustomSelect = ({
 
         {/* Dropdown Menu */}
         {isOpen && (
-          <div className="absolute z-50 w-full mt-2 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-stone-200/50 overflow-hidden animate-[fadeIn_0.2s_ease-out_forwards]">
+          <div className="absolute z-[100] w-full mt-2 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-stone-200/50 overflow-hidden animate-[fadeIn_0.2s_ease-out_forwards]">
             <div className="py-2 max-h-60 overflow-y-auto overflow-x-hidden">
               {hasGroups ? (
                 Object.entries(groupedOptions).map(([group, groupOptions]) => (

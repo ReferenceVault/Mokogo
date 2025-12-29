@@ -15,34 +15,17 @@ const Step3Details = ({ data, onChange, error }: Step3DetailsProps) => {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-2">Details</h1>
-      <p className="text-gray-600 mb-6">Room and apartment details</p>
+      <h2 className="text-[1.2375rem] font-semibold text-gray-900 mb-1">Details</h2>
+      <p className="text-[0.825rem] text-gray-600 mb-4">Room and apartment details</p>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-[0.825rem]">
           {error}
         </div>
       )}
 
-      <div className="space-y-6">
-        {/* BHK Type */}
-        <div className="w-[110%]">
-          <CustomSelect
-            label="Apartment Type"
-            value={data.bhkType || ''}
-            onValueChange={(value) => handleChange('bhkType', value)}
-            placeholder="Select BHK type"
-            options={[
-              { value: '1BHK', label: '1 BHK' },
-              { value: '2BHK', label: '2 BHK' },
-              { value: '3BHK', label: '3 BHK' },
-              { value: '4BHK+', label: '4 BHK or more' }
-            ]}
-            error={error}
-          />
-        </div>
-
-        {/* Room Type */}
+      <div className="space-y-4">
+        {/* Room Type - First */}
         <div>
           <label className="block text-sm font-medium text-stone-700 mb-3">
             Room Type <span className="text-red-500">*</span>
@@ -65,19 +48,39 @@ const Step3Details = ({ data, onChange, error }: Step3DetailsProps) => {
           </div>
         </div>
 
-        {/* Furnishing */}
-        <div className="w-[110%]">
-          <CustomSelect
-            label="Furnishing"
-            value={data.furnishingLevel || ''}
-            onValueChange={(value) => handleChange('furnishingLevel', value)}
-            placeholder="Select furnishing status"
-            options={[
-              { value: 'Fully Furnished', label: 'Fully Furnished' },
-              { value: 'Semi-furnished', label: 'Semi Furnished' },
-              { value: 'Unfurnished', label: 'Unfurnished' }
-            ]}
-          />
+        {/* Apartment Type and Furnishing - Single Line */}
+        <div className="flex flex-wrap gap-4">
+          {/* BHK Type */}
+          <div className="flex-1 min-w-[200px]">
+            <CustomSelect
+              label="Apartment Type"
+              value={data.bhkType || ''}
+              onValueChange={(value) => handleChange('bhkType', value)}
+              placeholder="Select BHK type"
+              options={[
+                { value: '1BHK', label: '1 BHK' },
+                { value: '2BHK', label: '2 BHK' },
+                { value: '3BHK', label: '3 BHK' },
+                { value: '4BHK+', label: '4 BHK or more' }
+              ]}
+              error={error}
+            />
+          </div>
+
+          {/* Furnishing */}
+          <div className="flex-1 min-w-[200px]">
+            <CustomSelect
+              label="Furnishing"
+              value={data.furnishingLevel || ''}
+              onValueChange={(value) => handleChange('furnishingLevel', value)}
+              placeholder="Select furnishing status"
+              options={[
+                { value: 'Fully Furnished', label: 'Fully Furnished' },
+                { value: 'Semi-furnished', label: 'Semi Furnished' },
+                { value: 'Unfurnished', label: 'Unfurnished' }
+              ]}
+            />
+          </div>
         </div>
 
         {/* Amenities */}

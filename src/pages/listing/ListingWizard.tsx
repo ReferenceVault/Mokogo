@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Toast from '@/components/Toast'
+import Logo from '@/components/Logo'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
+import { Search, Bell, Heart as HeartIcon, LayoutGrid, Home, MessageSquare, Bookmark, Calendar, MapPin, DollarSign, Star, Clock, Plus, MoreHorizontal } from 'lucide-react'
 import Step1Photos from './steps/Step1Photos'
 import Step2Location from './steps/Step2Location'
 import Step3Details from './steps/Step3Details'
@@ -72,12 +73,23 @@ const STEPS = [
 
 const ListingWizard = () => {
   const navigate = useNavigate()
-  const { currentListing, setCurrentListing, allListings, addListing, setAllListings, user } = useStore()
+  const { currentListing, setCurrentListing, allListings, addListing, setAllListings, user, setUser } = useStore()
   const [currentStep, setCurrentStep] = useState(0)
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0])) // Only first section expanded by default
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [showToast, setShowToast] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const userName = user?.name || 'User'
+  const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
+
+  const handleLogout = () => {
+    setUser(null)
+    localStorage.removeItem('mokogo-user')
+    navigate('/')
+  }
   
   const listingDataRef = useRef<Partial<Listing>>(
     currentListing && currentListing.status === 'draft'
@@ -107,13 +119,6 @@ const ListingWizard = () => {
   )
   const [listingData, setListingData] = useState<Partial<Listing>>(listingDataRef.current)
 
-  // Check if user is authenticated
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth/phone')
-    }
-  }, [user, navigate])
-
   // Determine starting step based on draft data
   useEffect(() => {
     if (currentListing && currentListing.status === 'draft') {
@@ -124,6 +129,7 @@ const ListingWizard = () => {
       if (currentListing.rent && currentListing.moveInDate) step = 4
       if (currentListing.preferredGender) step = 5
       setCurrentStep(step)
+      setExpandedSections(new Set([step]))
     }
   }, [])
 
@@ -165,10 +171,10 @@ const ListingWizard = () => {
     }
   }, [listingData.city, listingData.locality, listingData.bhkType, listingData.roomType, listingData.rent, listingData.moveInDate, listingData.furnishingLevel, listingData.preferredGender, listingData.photos?.length])
 
-  const validateStep = (): boolean => {
+  const validateStep = (stepIndex: number): boolean => {
     const newErrors: Record<string, string> = {}
     
-    switch (STEPS[currentStep].id) {
+    switch (STEPS[stepIndex].id) {
       case 'photos':
         if (!listingData.photos || listingData.photos.length < 3) {
           newErrors.photos = 'Please add at least 3 photos'
@@ -197,23 +203,67 @@ const ListingWizard = () => {
         break
     }
 
-    setErrors(newErrors)
+    setErrors(prev => ({ ...prev, ...newErrors }))
     return Object.keys(newErrors).length === 0
   }
 
-  const handleNext = () => {
-    if (validateStep()) {
-      if (currentStep < STEPS.length - 1) {
-        setCurrentStep(prev => prev + 1)
+  const toggleSection = (index: number) => {
+    setExpandedSections(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) {
+        newSet.delete(index)
       } else {
+        newSet.add(index)
+      }
+      return newSet
+    })
+  }
+
+  const handleSectionContinue = (stepIndex: number) => {
+    if (validateStep(stepIndex)) {
+      // Collapse current section
+      setExpandedSections(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(stepIndex)
+        return newSet
+      })
+      
+      if (stepIndex < STEPS.length - 1) {
+        // Expand next section
+        const nextStep = stepIndex + 1
+        setCurrentStep(nextStep)
+        setExpandedSections(prev => {
+          const newSet = new Set(prev)
+          newSet.add(nextStep)
+          return newSet
+        })
+        // Scroll to next section
+        setTimeout(() => {
+          document.getElementById(`section-${nextStep}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 100)
+      } else {
+        // Last section - create listing
         handleCreateListing()
       }
     }
   }
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1)
+  const isSectionComplete = (stepIndex: number): boolean => {
+    switch (STEPS[stepIndex].id) {
+      case 'photos':
+        return !!(listingData.photos && listingData.photos.length >= 3)
+      case 'location':
+        return !!(listingData.city && listingData.locality)
+      case 'details':
+        return !!(listingData.bhkType && listingData.roomType && listingData.furnishingLevel)
+      case 'pricing':
+        return !!(listingData.rent && listingData.deposit && listingData.moveInDate)
+      case 'preferences':
+        return !!listingData.preferredGender
+      case 'contact':
+        return !!(listingData.contactPreference && listingData.contactNumber)
+      default:
+        return false
     }
   }
 
@@ -269,10 +319,10 @@ const ListingWizard = () => {
     return `Saved at ${lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
   }
 
-  const renderStep = () => {
-    const stepError = errors[STEPS[currentStep].id] || Object.values(errors).find(e => e)
+  const renderStepContent = (stepIndex: number) => {
+    const stepError = errors[STEPS[stepIndex].id]
     
-    switch (STEPS[currentStep].id) {
+    switch (STEPS[stepIndex].id) {
       case 'photos':
         return <Step1Photos data={listingData} onChange={handleDataChange} />
       case 'location':
@@ -290,123 +340,284 @@ const ListingWizard = () => {
     }
   }
 
-  if (!user) {
-    return null // Will redirect
-  }
 
   return (
-    <div className="min-h-screen bg-mokogo-off-white flex flex-col">
-      <Header />
-      
-      <main className="flex-1 w-full py-12" style={{ fontSize: '90%', background: 'linear-gradient(to right, rgba(255,255,255,0.05) 0%, rgba(249,250,251,0) 10%, rgba(247,168,107,0.1) 15%, rgba(247,168,107,0.15) 20%, rgba(247,168,107,0.2) 100%)' }}>
-        <div className="max-w-4xl mx-auto px-24">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">List Your Room</h1>
-            <p className="text-gray-600">Find your perfect flatmate in under 5 minutes</p>
-          </div>
-
-          {/* Progress Steps */}
-          <div className="flex items-center justify-between overflow-x-auto pb-4 mb-8">
-            {STEPS.map((step, index) => (
-              <div key={step.id} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div 
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                      index < currentStep 
-                        ? 'bg-orange-400 text-white' 
-                        : index === currentStep 
-                          ? 'bg-gradient-to-r from-orange-400 to-orange-500 text-white' 
-                          : 'bg-white text-gray-600 border-2 border-mokogo-gray'
-                    }`}
-                  >
-                    {index < currentStep ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <div className="text-current">
-                        {step.icon}
-                      </div>
-                    )}
-                  </div>
-                  <span className={`text-xs mt-2 hidden md:block ${
-                    index <= currentStep ? 'text-gray-900 font-medium' : 'text-gray-500'
-                  }`}>
-                    {step.title}
+    <div className="min-h-screen bg-stone-100 flex flex-col">
+      {/* Dashboard-style Header */}
+      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-stone-200">
+        <div className="max-w-7xl mx-auto px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-8">
+              <Logo />
+              
+              <nav className="hidden md:flex items-center space-x-1">
+                <button 
+                  onClick={() => navigate('/dashboard')}
+                  className="px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-white/50"
+                >
+                  Dashboard
+                </button>
+                <button 
+                  className="px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-lg text-gray-900"
+                >
+                  Create Listing
+                </button>
+              </nav>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="hidden lg:flex items-center bg-white/85 backdrop-blur-md rounded-xl px-4 py-2 border border-stone-200">
+                <Search className="w-4 h-4 text-gray-400 mr-3" />
+                <input 
+                  type="text" 
+                  placeholder="Search listings, areas..." 
+                  className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 w-64" 
+                />
+              </div>
+              
+              <button className="relative p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-orange-400 rounded-full"></span>
+              </button>
+              
+              <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200">
+                <HeartIcon className="w-5 h-5" />
+              </button>
+              
+              <div 
+                className="flex items-center gap-3 cursor-pointer relative"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+              >
+                <div className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center border-2 border-orange-400">
+                  <span className="text-white font-medium text-sm">
+                    {userInitial}
                   </span>
                 </div>
-                {index < STEPS.length - 1 && (
-                  <div 
-                    className={`w-12 h-0.5 mx-2 ${
-                      index < currentStep ? 'bg-orange-400' : 'bg-mokogo-gray'
-                    }`}
-                  />
-                )}
               </div>
-            ))}
+
+              {showUserMenu && (
+                <div className="absolute top-full right-4 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Click outside to close user menu */}
+      {showUserMenu && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowUserMenu(false)}
+        />
+      )}
+      
+      <div className="flex flex-1">
+        {/* Sidebar */}
+        <aside className="w-72 min-h-screen bg-white/70 backdrop-blur-md border-r border-stone-200 sticky top-16">
+          <div className="p-6">
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Workspace</h3>
+                <button className="text-gray-500 hover:text-orange-400 transition-colors duration-200">
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="space-y-1">
+                <button 
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-gray-500 hover:text-gray-900 hover:bg-white/50"
+                >
+                  <LayoutGrid className="w-4 h-4 mr-3" />
+                  <span>Overview</span>
+                </button>
+                <button 
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-gray-500 hover:text-gray-900 hover:bg-white/50"
+                >
+                  <Home className="w-4 h-4 mr-3" />
+                  <span>My Listings</span>
+                </button>
+                <button className="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-gray-500 hover:text-gray-900 hover:bg-white/50">
+                  <MessageSquare className="w-4 h-4 mr-3" />
+                  <span>Conversations</span>
+                  <span className="ml-auto text-xs bg-orange-400/20 text-orange-600 px-2 py-1 rounded-full">12</span>
+                </button>
+                <button className="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-gray-500 hover:text-gray-900 hover:bg-white/50">
+                  <Bookmark className="w-4 h-4 mr-3" />
+                  <span>Saved Properties</span>
+                </button>
+                <button className="w-full flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-gray-500 hover:text-gray-900 hover:bg-white/50">
+                  <Calendar className="w-4 h-4 mr-3" />
+                  <span>Viewings</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="mb-8">
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Quick Filters</h3>
+              <div className="space-y-2">
+                <button className="w-full flex items-center px-4 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-900 hover:bg-white/50 transition-all duration-200">
+                  <MapPin className="w-3 h-3 mr-3" />
+                  <span>Near Me</span>
+                </button>
+                <button className="w-full flex items-center px-4 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-900 hover:bg-white/50 transition-all duration-200">
+                  <DollarSign className="w-3 h-3 mr-3" />
+                  <span>Budget Friendly</span>
+                </button>
+                <button className="w-full flex items-center px-4 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-900 hover:bg-white/50 transition-all duration-200">
+                  <Star className="w-3 h-3 mr-3" />
+                  <span>Top Rated</span>
+                </button>
+                <button className="w-full flex items-center px-4 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-900 hover:bg-white/50 transition-all duration-200">
+                  <Clock className="w-3 h-3 mr-3" />
+                  <span>Recently Added</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="bg-orange-400/8 rounded-2xl p-4 border border-stone-200">
+              <div className="flex items-start space-x-3">
+                <div className="w-10 h-10 rounded-lg bg-orange-400 flex items-center justify-center flex-shrink-0">
+                  <Plus className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1">Post Your Listing</h4>
+                  <p className="text-xs text-gray-500 mb-3">Find your perfect roommate in minutes</p>
+                  <button 
+                    onClick={() => navigate('/listing/wizard')}
+                    className="text-xs font-medium text-orange-400 hover:underline"
+                  >
+                    Get Started →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 bg-stone-100">
+          <div className="max-w-[900px] mx-auto px-8 py-4">
+          {/* Page Header */}
+          <div className="mb-3">
+            <h1 className="text-[1.375rem] font-bold text-gray-900 mb-0.5">List Your Room</h1>
+            <p className="text-[0.825rem] text-gray-600">Find your perfect flatmate in under 5 minutes</p>
           </div>
 
           {/* Resume Banner */}
-          {currentListing && currentListing.status === 'draft' && currentStep > 0 && (
-            <div className="bg-mokogo-info-bg border border-mokogo-info-border rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-mokogo-info-text mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {currentListing && currentListing.status === 'draft' && (
+            <div className="bg-mokogo-info-bg border border-mokogo-info-border rounded-lg p-2 mb-3">
+              <div className="flex items-start gap-2">
+                <svg className="w-3 h-3 text-mokogo-info-text mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-mokogo-info-text">
+                <p className="text-[0.825rem] text-mokogo-info-text">
                   You're continuing a saved draft. Review your details and publish when ready.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Content Card */}
-          <div className="p-8">
-            {renderStep()}
-
-            {/* Navigation */}
-            <div className="flex justify-between pt-8 mt-8 border-t border-mokogo-gray">
-              <button
-                onClick={handleBack}
-                disabled={currentStep === 0}
-                className={`px-6 py-2.5 rounded-lg font-medium transition-colors ${
-                  currentStep === 0
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white/30 text-gray-700 border border-stone-200 hover:bg-white/50' 
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Back
-                </div>
-              </button>
-              <button
-                onClick={handleNext}
-                className="btn-primary"
-              >
-                <div className="flex items-center gap-2">
-                  {currentStep === STEPS.length - 1 ? 'Create Listing' : 'Continue'}
-                  {currentStep < STEPS.length - 1 && (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          {/* Accordion Sections */}
+          <div className="space-y-2">
+            {STEPS.map((step, index) => {
+              const isExpanded = expandedSections.has(index)
+              const isComplete = isSectionComplete(index)
+              const stepError = errors[step.id]
+              
+              return (
+                <div 
+                  key={step.id} 
+                  id={`section-${index}`}
+                  className="bg-white/70 backdrop-blur-md rounded-lg shadow-sm border border-white/35 overflow-visible transition-all"
+                >
+                  {/* Section Header */}
+                  <button
+                    onClick={() => toggleSection(index)}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                          isComplete
+                            ? 'bg-green-500 text-white' 
+                            : index === currentStep
+                              ? 'bg-orange-400 text-white'
+                              : 'bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {isComplete ? (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <div className="text-[10px]">
+                            {step.icon}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <h3 className="text-[0.9625rem] font-semibold text-gray-900">{step.title}</h3>
+                        {stepError && (
+                          <p className="text-[0.825rem] text-red-600 mt-0.5">{stepError}</p>
+                        )}
+                      </div>
+                    </div>
+                    <svg 
+                      className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
+                  </button>
+
+                  {/* Section Content */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+                      {renderStepContent(index)}
+                      
+                      {/* Section Navigation */}
+                      <div className="flex justify-end mt-4 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={() => handleSectionContinue(index)}
+                          className="btn-primary text-sm px-4 py-2"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            {index === STEPS.length - 1 ? 'Create Listing' : 'Continue'}
+                            {index < STEPS.length - 1 && (
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </button>
-            </div>
-
-            {/* Autosave indicator */}
-            {lastSaved && (
-              <div className="mt-4 text-xs text-gray-500 text-center">
-                {formatLastSaved()}
-              </div>
-            )}
+              )
+            })}
           </div>
-        </div>
-      </main>
+
+          {/* Autosave indicator */}
+          {lastSaved && (
+            <div className="mt-4 text-[0.825rem] text-gray-500 text-center">
+              {formatLastSaved()}
+            </div>
+          )}
+          </div>
+        </main>
+      </div>
 
       <Footer />
       {showToast && <Toast message="Draft saved" onClose={() => setShowToast(false)} />}

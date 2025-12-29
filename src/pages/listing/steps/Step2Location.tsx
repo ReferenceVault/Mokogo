@@ -20,18 +20,18 @@ const Step2Location = ({ data, onChange, error }: Step2LocationProps) => {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-2">Location</h1>
-      <p className="text-gray-600 mb-6">Where is the room located?</p>
+      <h2 className="text-[1.2375rem] font-semibold text-gray-900 mb-1">Location</h2>
+      <p className="text-[0.825rem] text-gray-600 mb-4">Where is the room located?</p>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-[0.825rem]">
           {error}
         </div>
       )}
 
       <div className="space-y-6">
         {/* City */}
-        <div className="w-[110%]">
+        <div className="w-full">
           <CustomSelect
             label="City"
             value={data.city || ''}
@@ -43,7 +43,7 @@ const Step2Location = ({ data, onChange, error }: Step2LocationProps) => {
         </div>
 
         {/* Locality */}
-        <div className="w-[110%]">
+        <div className="w-full">
           <label className="block text-sm font-medium text-stone-700 mb-2">
             Locality / Area <span className="text-red-500">*</span>
           </label>

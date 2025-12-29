@@ -42,6 +42,12 @@ const Dashboard = () => {
     if (currentListing && currentListing.status === 'live') {
       return
     }
+    // Clear any draft listing to start fresh
+    if (currentListing && currentListing.status === 'draft') {
+      setCurrentListing(null)
+      localStorage.removeItem('mokogo-listing')
+    }
+    // Navigate directly - user is already authenticated (they're on dashboard)
     navigate('/listing/wizard')
   }
 

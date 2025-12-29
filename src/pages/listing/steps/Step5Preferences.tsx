@@ -13,16 +13,16 @@ const Step5Preferences = ({ data, onChange, error }: Step5PreferencesProps) => {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-2">Preferences</h1>
-      <p className="text-gray-600 mb-6">Who are you looking for?</p>
+      <h2 className="text-[1.2375rem] font-semibold text-gray-900 mb-1">Preferences</h2>
+      <p className="text-[0.825rem] text-gray-600 mb-4">Who are you looking for?</p>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-[0.825rem]">
           {error}
         </div>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Gender Preference */}
         <div>
           <label className="block text-sm font-medium text-stone-700 mb-3">
@@ -50,7 +50,7 @@ const Step5Preferences = ({ data, onChange, error }: Step5PreferencesProps) => {
         </div>
 
         {/* Description */}
-        <div className="w-[110%]">
+        <div className="w-full">
           <label className="block text-sm font-medium text-stone-700 mb-2">
             Description (Optional)
           </label>

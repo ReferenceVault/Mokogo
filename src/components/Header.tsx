@@ -21,9 +21,9 @@ const Header = () => {
         {/* Middle section with Menu items */}
         <nav className="flex items-center gap-8">
           <Link 
-            to="/" 
+            to="/explore" 
             className={`text-sm font-medium transition-colors ${
-              isActive('/') 
+              isActive('/explore') || isActive('/city')
                 ? 'text-mokogo-primary font-semibold' 
                 : 'text-gray-600 hover:text-gray-900'
             }`}
@@ -31,7 +31,7 @@ const Header = () => {
             Find Rooms
           </Link>
           <Link 
-            to="/auth/phone" 
+            to="/auth" 
             className={`text-sm font-medium transition-colors ${
               isActive('/auth') || isActive('/listing') || isActive('/dashboard')
                 ? 'text-mokogo-primary font-semibold' 
@@ -40,30 +40,18 @@ const Header = () => {
           >
             List Your Room
           </Link>
-          <Link 
-            to="#" 
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            How It Works
-          </Link>
-          <Link 
-            to="#" 
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            About
-          </Link>
         </nav>
 
         {/* Right section with Log in and List a Room buttons */}
         <div className="flex items-center gap-4">
           <Link 
-            to="/auth/phone" 
+            to="/auth" 
             className="bg-orange-400 text-white px-4 py-2 rounded-full font-medium hover:bg-orange-500 transition-colors shadow-md"
           >
             Log in
           </Link>
           <Link 
-            to="/auth/phone" 
+            to="/auth" 
             className="bg-orange-400 text-white px-4 py-2 rounded-full font-medium hover:bg-orange-500 transition-colors flex items-center gap-2 shadow-md"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

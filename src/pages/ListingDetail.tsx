@@ -253,7 +253,7 @@ const ListingDetail = () => {
           <nav className="flex items-center space-x-2 text-sm">
             <Link to="/" className="text-orange-400 hover:text-orange-500">Home</Link>
             <ChevronRight className="w-4 h-4 text-gray-400" />
-            <Link to="/" className="text-orange-400 hover:text-orange-500">Find Rooms</Link>
+            <Link to="/explore" className="text-orange-400 hover:text-orange-500">Find Rooms</Link>
             <ChevronRight className="w-4 h-4 text-gray-400" />
             <span className="text-orange-400">{listing.city}</span>
             <ChevronRight className="w-4 h-4 text-gray-400" />

@@ -138,17 +138,17 @@ const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-2">Photos</h1>
-      <p className="text-gray-600 mb-6">Add photos of your space</p>
+      <h2 className="text-[1.2375rem] font-semibold text-gray-900 mb-1">Photos</h2>
+      <p className="text-[0.825rem] text-gray-600 mb-4">Add photos of your space</p>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-[0.825rem]">
           {error}
         </div>
       )}
 
       {photos.length < 3 && (
-        <div className="mb-4 p-3 bg-mokogo-info-bg border border-mokogo-info-border rounded-lg text-mokogo-info-text text-sm">
+        <div className="mb-3 p-2 bg-mokogo-info-bg border border-mokogo-info-border rounded-lg text-mokogo-info-text text-[0.825rem]">
           Please add at least 3 photos to continue ({photos.length}/3)
         </div>
       )}
@@ -159,7 +159,7 @@ const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           dragActive
             ? 'border-mokogo-primary bg-mokogo-info-bg'
             : 'border-mokogo-gray bg-gray-50 hover:border-mokogo-primary hover:bg-mokogo-info-bg/50'
@@ -173,22 +173,22 @@ const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
           onChange={handleFileInput}
           className="hidden"
         />
-        <div className="space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-full bg-mokogo-primary/10 flex items-center justify-center">
-            <svg className="w-8 h-8 text-mokogo-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="space-y-3">
+          <div className="w-12 h-12 mx-auto rounded-full bg-mokogo-primary/10 flex items-center justify-center">
+            <svg className="w-6 h-6 text-mokogo-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
           <div>
-            <p className="text-gray-900 font-medium mb-1">
+            <p className="text-[0.9625rem] text-gray-900 font-medium mb-0.5">
               Drag photos here or click to upload
             </p>
-            <p className="text-sm text-gray-600">Maximum 5 MB per photo</p>
+            <p className="text-[0.825rem] text-gray-600">Maximum 5 MB per photo</p>
           </div>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="btn-primary"
+            className="btn-primary text-sm px-4 py-2"
           >
             Choose Photos
           </button>
@@ -196,13 +196,13 @@ const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
       </div>
 
       {/* Tips */}
-      <div className="mt-6">
-        <p className="text-sm font-medium text-gray-700 mb-2">Photo tips:</p>
-        <div className="flex flex-wrap gap-2">
+      <div className="mt-4">
+        <p className="text-[0.825rem] font-medium text-gray-700 mb-1.5">Photo tips:</p>
+        <div className="flex flex-wrap gap-1.5">
           {tips.map((tip) => (
             <span
               key={tip}
-              className="px-3 py-1 bg-mokogo-gray rounded-full text-sm text-gray-700"
+              className="px-2 py-0.5 bg-mokogo-gray rounded-full text-[0.825rem] text-gray-700"
             >
               {tip}
             </span>
@@ -212,29 +212,29 @@ const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
 
       {/* Photo Grid */}
       {photos.length > 0 && (
-        <div className="mt-8">
-          <p className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="mt-5">
+          <p className="text-[0.9625rem] font-semibold text-gray-900 mb-3">
             Uploaded Photos ({photos.length})
           </p>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-3">
             {photos.map((photo, index) => (
               <div key={index} className="relative group flex-shrink-0">
-                <div className="w-32 h-32 rounded-lg overflow-hidden border-2 border-mokogo-gray">
+                <div className="w-24 h-24 rounded-lg overflow-hidden border-2 border-mokogo-gray">
                   <img
                     src={photo}
                     alt={`Photo ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-lg">
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 rounded-lg">
                   {index > 0 && (
                     <button
                       type="button"
                       onClick={() => reorderPhoto(index, index - 1)}
-                      className="text-white p-2 hover:bg-white/20 rounded"
+                      className="text-white p-1.5 hover:bg-white/20 rounded"
                       title="Move left"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
@@ -242,10 +242,10 @@ const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
                   <button
                     type="button"
                     onClick={() => removePhoto(index)}
-                    className="text-white p-2 hover:bg-white/20 rounded"
+                    className="text-white p-1.5 hover:bg-white/20 rounded"
                     title="Delete"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
@@ -253,17 +253,17 @@ const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
                     <button
                       type="button"
                       onClick={() => reorderPhoto(index, index + 1)}
-                      className="text-white p-2 hover:bg-white/20 rounded"
+                      className="text-white p-1.5 hover:bg-white/20 rounded"
                       title="Move right"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
                   )}
                 </div>
                 {index === 0 && (
-                  <span className="absolute top-2 left-2 bg-mokogo-primary text-white text-xs font-semibold px-2.5 py-1 rounded">
+                  <span className="absolute top-1.5 left-1.5 bg-mokogo-primary text-white text-[0.825rem] font-semibold px-2 py-0.5 rounded">
                     Main
                   </span>
                 )}
