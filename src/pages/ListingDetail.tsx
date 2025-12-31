@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import Logo from '@/components/Logo'

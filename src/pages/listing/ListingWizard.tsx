@@ -82,7 +82,6 @@ const ListingWizard = () => {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const userName = user?.name || 'User'
   const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
 
   const handleLogout = () => {

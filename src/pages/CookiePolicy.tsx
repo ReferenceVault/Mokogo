@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
-import { Cookie, FileText, Shield, Eye, Database, AlertCircle, Mail, CheckCircle, Settings, ChevronDown, ChevronUp } from 'lucide-react'
+import { Cookie, Shield, Eye, Database, AlertCircle, Mail, CheckCircle, Settings, ChevronDown, ChevronUp } from 'lucide-react'
 
 const CookiePolicy = () => {
   // Scroll to top when component mounts

@@ -172,7 +172,7 @@ const DatePicker = ({ value, onChange, min, placeholder = 'Select date' }: DateP
                 <button
                   key={date.toISOString()}
                   onClick={() => handleDateSelect(date)}
-                  disabled={disabled}
+                  disabled={disabled ?? false}
                   className={`
                     aspect-square rounded-xl text-sm font-semibold transition-all duration-200 relative
                     ${disabled

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
-import { Search, Home, Users, MessageSquare, Eye, UserPlus, CheckCircle } from 'lucide-react'
+import { Home, Users, MessageSquare } from 'lucide-react'
 
 const HowItWorks = () => {
   const [activeTab, setActiveTab] = useState<'seeking' | 'listing'>('seeking')

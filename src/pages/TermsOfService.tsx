@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
-import { FileText, Users, Shield, Lock, AlertCircle, DollarSign, Eye, Key, Ban, Scale, Mail, CheckCircle, Globe, Heart, ChevronDown, ChevronUp } from 'lucide-react'
+import { FileText, Users, Shield, Lock, AlertCircle, DollarSign, Key, Ban, Scale, Mail, CheckCircle, Heart, ChevronDown, ChevronUp } from 'lucide-react'
 
 const TermsOfService = () => {
   // Scroll to top when component mounts

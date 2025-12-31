@@ -3,7 +3,18 @@ import { Link } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
-import { HelpCircle, Users, Home, Search, Shield, Lock, AlertCircle, DollarSign, Mail, CheckCircle, FileText, MessageSquare, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+import { Users, Home, Shield, Lock, DollarSign, Mail, CheckCircle, FileText, MessageSquare, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+
+interface FAQItem {
+  question: string
+  answer: string
+  subAnswer?: string
+  list?: string[]
+  link?: {
+    text: string
+    href: string
+  }
+}
 
 const HelpCentre = () => {
   // Scroll to top when component mounts
@@ -276,8 +287,8 @@ const HelpCentre = () => {
                               <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-3">
                                 {item.answer}
                               </p>
-                              {item.subAnswer && (
-                                <p className="text-sm font-medium text-gray-800 mb-2">{item.subAnswer}</p>
+                              {(item as FAQItem).subAnswer && (
+                                <p className="text-sm font-medium text-gray-800 mb-2">{(item as FAQItem).subAnswer}</p>
                               )}
                               {item.list && (
                                 <ul className="space-y-2 text-sm sm:text-base text-gray-700">
@@ -289,11 +300,11 @@ const HelpCentre = () => {
                                   ))}
                                 </ul>
                               )}
-                              {item.link && (
+                              {(item as FAQItem).link && (
                                 <p className="text-sm text-gray-700 mt-3">
                                   You can read more on our{' '}
-                                  <Link to={item.link.href} className="text-orange-400 hover:text-orange-500 underline font-medium">
-                                    {item.link.text}
+                                  <Link to={(item as FAQItem).link!.href} className="text-orange-400 hover:text-orange-500 underline font-medium">
+                                    {(item as FAQItem).link!.text}
                                   </Link>.
                                 </p>
                               )}

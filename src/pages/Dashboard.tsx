@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
@@ -25,11 +25,7 @@ import {
   CalendarCheck,
   Plus,
   Search,
-  Bell,
-  Heart as HeartIcon,
   Pen,
-  MoreHorizontal,
-  Menu,
   Settings,
   Users,
   User
@@ -130,7 +126,11 @@ const Dashboard = () => {
       {/* Dashboard Header */}
       <DashboardHeader
         activeView={activeView === 'overview' ? 'overview' : activeView === 'listings' ? 'listings' : 'overview'}
-        onViewChange={(view) => setActiveView(view as ViewType)}
+        onViewChange={(view) => {
+          if (view === 'overview' || view === 'listings') {
+            setActiveView(view as ViewType)
+          }
+        }}
         menuItems={[
           { label: 'Dashboard', view: 'overview' },
           { label: 'My Listings', view: 'listings' }

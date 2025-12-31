@@ -1,4 +1,5 @@
 import { Menu, LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 interface SidebarMenuItem {
   id: string
@@ -19,7 +20,7 @@ interface DashboardSidebarProps {
     icon: LucideIcon
     onClick: () => void
   }>
-  ctaSection?: React.ReactNode
+  ctaSection?: ReactNode
   collapsedCtaButton?: {
     icon: LucideIcon
     onClick: () => void

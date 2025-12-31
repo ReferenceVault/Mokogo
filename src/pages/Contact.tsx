@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
-import { Mail, HelpCircle, MessageSquare, AlertCircle, Heart, CheckCircle, Send, Shield, Clock } from 'lucide-react'
+import { AlertCircle, Heart, CheckCircle, Clock } from 'lucide-react'
 
 const Contact = () => {
   // Scroll to top when component mounts

@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
-import { useStore } from '@/store/useStore'
 import { 
   CheckCircle, 
   Clock, 
@@ -33,13 +32,9 @@ import {
 } from 'lucide-react'
 
 const RequestsList = () => {
-  const navigate = useNavigate()
-  const { currentListing, allListings } = useStore()
   const [filter, setFilter] = useState<'all' | 'priority' | 'recent' | 'responded'>('all')
   const [sortBy, setSortBy] = useState<'recent' | 'match' | 'oldest'>('recent')
   const [selectedRequests, setSelectedRequests] = useState<string[]>([])
-
-  const activeListings = allListings.filter(l => l.status === 'live')
 
   // Mock data for requests
   const priorityRequests = [

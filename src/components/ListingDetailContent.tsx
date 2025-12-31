@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import {
   MapPin,
@@ -37,7 +37,6 @@ interface ListingDetailContentProps {
 }
 
 const ListingDetailContent = ({ listingId, onBack }: ListingDetailContentProps) => {
-  const navigate = useNavigate()
   const { allListings, user } = useStore()
   const [isSaved, setIsSaved] = useState(false)
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null)

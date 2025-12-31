@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useStore } from '@/store/useStore'
 import { 
   CheckCircle, 
   Clock, 
@@ -35,12 +34,9 @@ interface RequestsContentProps {
 
 const RequestsContent = ({ onViewListing }: RequestsContentProps) => {
   const navigate = useNavigate()
-  const { allListings } = useStore()
   const [filter, setFilter] = useState<'all' | 'priority' | 'recent' | 'responded'>('all')
   const [sortBy, setSortBy] = useState<'recent' | 'match' | 'oldest'>('recent')
   const [selectedRequests, setSelectedRequests] = useState<string[]>([])
-
-  const activeListings = allListings.filter(l => l.status === 'live')
 
   // Mock data for requests
   const priorityRequests = [
@@ -214,13 +210,6 @@ const RequestsContent = ({ onViewListing }: RequestsContentProps) => {
     }
   ]
 
-  const toggleSelectRequest = (id: string) => {
-    setSelectedRequests(prev => 
-      prev.includes(id) 
-        ? prev.filter(r => r !== id)
-        : [...prev, id]
-    )
-  }
 
   const selectAll = () => {
     const allIds = [...priorityRequests, ...recentRequests].map(r => r.id)
