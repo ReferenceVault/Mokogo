@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 interface Option {
   value: string
@@ -31,10 +32,13 @@ const CustomSelect = ({
 }: CustomSelectProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const selectRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+      if (selectRef.current && !selectRef.current.contains(event.target as Node) &&
+          dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
@@ -45,6 +49,30 @@ const CustomSelect = ({
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    const updatePosition = () => {
+      if (isOpen && selectRef.current) {
+        const rect = selectRef.current.getBoundingClientRect()
+        setDropdownPosition({
+          top: rect.bottom + 8,
+          left: rect.left,
+          width: rect.width
+        })
+      }
+    }
+
+    if (isOpen) {
+      updatePosition()
+      window.addEventListener('scroll', updatePosition, true)
+      window.addEventListener('resize', updatePosition)
+    }
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
     }
   }, [isOpen])
 
@@ -75,7 +103,7 @@ const CustomSelect = ({
           {label}
         </label>
       )}
-      <div ref={selectRef} className="relative z-50">
+      <div ref={selectRef} className="relative z-[9999]">
         {/* Select Button */}
         <button
           type="button"
@@ -98,9 +126,17 @@ const CustomSelect = ({
           </svg>
         </button>
 
-        {/* Dropdown Menu */}
-        {isOpen && (
-          <div className="absolute z-[100] w-full mt-2 bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-stone-200/50 overflow-hidden animate-[fadeIn_0.2s_ease-out_forwards]">
+        {/* Dropdown Menu - Rendered via Portal */}
+        {isOpen && typeof document !== 'undefined' && createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] bg-white/95 backdrop-blur-xl rounded-xl shadow-xl border border-stone-200/50 overflow-hidden animate-[fadeIn_0.2s_ease-out_forwards]"
+            style={{
+              top: `${dropdownPosition.top}px`,
+              left: `${dropdownPosition.left}px`,
+              width: `${dropdownPosition.width}px`
+            }}
+          >
             <div className="py-2 max-h-60 overflow-y-auto overflow-x-hidden">
               {hasGroups ? (
                 Object.entries(groupedOptions).map(([group, groupOptions]) => (
@@ -139,7 +175,8 @@ const CustomSelect = ({
                 ))
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
       {error && (

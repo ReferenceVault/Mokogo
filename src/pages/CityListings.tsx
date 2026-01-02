@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -9,6 +9,11 @@ const CityListings = () => {
   const { cityName } = useParams<{ cityName: string }>()
   const navigate = useNavigate()
   const { allListings } = useStore()
+
+  // Scroll to top when component mounts or city changes
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [cityName])
 
   // Filter state
   const [filters, setFilters] = useState({

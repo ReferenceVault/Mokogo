@@ -12,6 +12,7 @@ interface DashboardHeaderProps {
   userName?: string
   userEmail?: string
   userInitial?: string
+  onProfile?: () => void
   onLogout?: () => void
 }
 
@@ -22,6 +23,7 @@ const DashboardHeader = ({
   userName = 'User',
   userEmail = '',
   userInitial = 'U',
+  onProfile,
   onLogout
 }: DashboardHeaderProps) => {
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -82,33 +84,49 @@ const DashboardHeader = ({
               <HeartIcon className="w-5 h-5" />
             </button>
             
-            <div 
-              className="flex items-center gap-3 cursor-pointer relative group"
-              onClick={() => setShowUserMenu(!showUserMenu)}
-            >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                <span className="text-white font-semibold text-sm">
-                  {userInitial}
-                </span>
-              </div>
-            </div>
-
-            {showUserMenu && (
-              <div className="absolute top-full right-4 mt-2 w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-orange-200/50 py-2 z-50 overflow-hidden">
-                <div className="px-4 py-2 border-b border-orange-100">
-                  <p className="text-sm font-semibold text-gray-900">{userName}</p>
-                  <p className="text-xs text-gray-500">{userEmail}</p>
+            <div className="relative">
+              <div 
+                className="flex items-center gap-3 cursor-pointer group"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+              >
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <span className="text-white font-semibold text-sm">
+                    {userInitial}
+                  </span>
                 </div>
-                {onLogout && (
-                  <button
-                    onClick={onLogout}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
-                  >
-                    Log out
-                  </button>
-                )}
               </div>
-            )}
+
+              {showUserMenu && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-orange-200/50 py-2 z-50 overflow-hidden">
+                  <div className="px-4 py-2 border-b border-orange-100">
+                    <p className="text-sm font-semibold text-gray-900">{userName}</p>
+                    <p className="text-xs text-gray-500">{userEmail}</p>
+                  </div>
+                  {onProfile && (
+                    <button
+                      onClick={() => {
+                        onProfile()
+                        setShowUserMenu(false)
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    >
+                      Profile
+                    </button>
+                  )}
+                  {onLogout && (
+                    <button
+                      onClick={() => {
+                        onLogout()
+                        setShowUserMenu(false)
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    >
+                      Log out
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>

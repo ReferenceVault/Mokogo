@@ -216,13 +216,13 @@ const LandingPage = () => {
   }, [allListings.length, setAllListings])
 
   const handleSearch = () => {
-    // Navigate to browse page with filters (we'll create this later)
-    const params = new URLSearchParams()
-    if (searchFilters.city) params.set('city', searchFilters.city)
-    if (searchFilters.moveInDate) params.set('date', searchFilters.moveInDate)
-    if (searchFilters.maxRent) params.set('maxRent', searchFilters.maxRent)
-    // For now, just navigate to auth
-    navigate('/auth')
+    // Navigate to city listings page if city is selected
+    if (searchFilters.city) {
+      navigate(`/city/${encodeURIComponent(searchFilters.city)}`)
+    } else {
+      // If no city selected, navigate to explore page
+      navigate('/explore')
+    }
   }
 
   const formatRent = (amount: number) => {
@@ -350,9 +350,9 @@ const LandingPage = () => {
           </div>
 
           <div className="relative max-w-7xl mx-auto px-6 md:px-16 pt-5">
-            <div className="relative bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-2xl rounded-3xl p-8 md:p-12 overflow-hidden">
+            <div className="relative bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-2xl rounded-3xl p-8 md:p-12">
               {/* Inner decorative gradient */}
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-transparent to-orange-100/30 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-transparent to-orange-100/30 pointer-events-none rounded-3xl" />
               
               <div className="relative max-w-[1177px] mx-auto space-y-10">
                 <div className="text-center space-y-5">

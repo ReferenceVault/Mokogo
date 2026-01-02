@@ -27,8 +27,7 @@ import {
   Search,
   Pen,
   Settings,
-  Users,
-  User
+  Users
 } from 'lucide-react'
 
 type ViewType = 'overview' | 'listings' | 'requests' | 'listing-detail' | 'messages' | 'profile'
@@ -138,6 +137,7 @@ const Dashboard = () => {
         userName={userName}
         userEmail={user?.email || ''}
         userInitial={userInitial}
+        onProfile={() => setActiveView('profile')}
         onLogout={handleLogout}
       />
 
@@ -180,12 +180,6 @@ const Dashboard = () => {
               label: 'Requests',
               icon: Calendar,
               onClick: () => setActiveView('requests')
-            },
-            {
-              id: 'profile',
-              label: 'Profile',
-              icon: User,
-              onClick: () => setActiveView('profile')
             }
           ]}
           quickFilters={[

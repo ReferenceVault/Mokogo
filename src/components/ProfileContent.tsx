@@ -24,7 +24,6 @@ const ProfileContent = () => {
     phone: userData?.phone || user?.phone || '',
     dateOfBirth: userData?.dateOfBirth || '',
     gender: userData?.gender || '',
-    maritalStatus: userData?.maritalStatus || '',
     occupation: userData?.occupation || '',
     companyName: userData?.companyName || '',
     industry: userData?.industry || '',
@@ -53,7 +52,6 @@ const ProfileContent = () => {
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required'
     if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required'
     if (!formData.gender) newErrors.gender = 'Gender is required'
-    if (!formData.maritalStatus) newErrors.maritalStatus = 'Marital status is required'
     if (!formData.occupation.trim()) newErrors.occupation = 'Occupation is required'
     if (!formData.companyName.trim()) newErrors.companyName = 'Company name is required'
     if (!formData.industry.trim()) newErrors.industry = 'Industry is required'
@@ -77,7 +75,6 @@ const ProfileContent = () => {
         phone: formData.phone,
         ...(formData.dateOfBirth && { dateOfBirth: formData.dateOfBirth }),
         ...(formData.gender && { gender: formData.gender }),
-        ...(formData.maritalStatus && { maritalStatus: formData.maritalStatus }),
         ...(formData.occupation && { occupation: formData.occupation }),
         ...(formData.companyName && { companyName: formData.companyName }),
         ...(formData.industry && { industry: formData.industry }),
@@ -103,7 +100,6 @@ const ProfileContent = () => {
       phone: (user as any)?.phone || '',
       dateOfBirth: (user as any)?.dateOfBirth || '',
       gender: (user as any)?.gender || '',
-      maritalStatus: (user as any)?.maritalStatus || '',
       occupation: (user as any)?.occupation || '',
       companyName: (user as any)?.companyName || '',
       industry: (user as any)?.industry || '',
@@ -225,26 +221,25 @@ const ProfileContent = () => {
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              Date of Birth <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={formData.dateOfBirth}
-              onChange={(e) => handleChange('dateOfBirth', e.target.value)}
-              max={new Date().toISOString().split('T')[0]}
-              className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
-                errors.dateOfBirth ? 'border-red-500' : 'border-gray-300'
-              }`}
-            />
-            {errors.dateOfBirth && (
-              <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
-            )}
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-gray-400" />
+                Date of Birth <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+                  errors.dateOfBirth ? 'border-red-500' : 'border-gray-300'
+                }`}
+              />
+              {errors.dateOfBirth && (
+                <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
+              )}
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
                 <Users className="w-4 h-4 text-gray-400" />
@@ -265,27 +260,6 @@ const ProfileContent = () => {
               </select>
               {errors.gender && (
                 <p className="text-xs text-red-500 mt-1">{errors.gender}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Marital Status <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.maritalStatus}
-                onChange={(e) => handleChange('maritalStatus', e.target.value)}
-                className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
-                  errors.maritalStatus ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select marital status</option>
-                <option value="Single">Single</option>
-                <option value="Married">Married</option>
-                <option value="Divorced">Divorced</option>
-                <option value="Widowed">Widowed</option>
-              </select>
-              {errors.maritalStatus && (
-                <p className="text-xs text-red-500 mt-1">{errors.maritalStatus}</p>
               )}
             </div>
           </div>

@@ -14,6 +14,7 @@ const TermsOfService = () => {
     about: true,
     eligibility: false,
     account: false,
+    thirdParty: false,
     responsibilities: false,
     listings: false,
     payments: false,
@@ -81,6 +82,20 @@ const TermsOfService = () => {
           'Be responsible for all activity that occurs under your account'
         ],
         note: 'Mokogo does not store third-party passwords (e.g., Google account passwords).'
+      }
+    },
+    {
+      id: 'thirdParty',
+      icon: Key,
+      title: 'Third-Party Authentication Services',
+      number: 4,
+      content: {
+        description: 'If you choose to sign in using third-party services (such as Google):',
+        list: [
+          'Mokogo receives limited information (e.g., name, email address, profile image) as permitted by the provider',
+          'Your use of such services is governed by their respective terms and privacy policies',
+          'Mokogo is not responsible for the availability, security, or practices of third-party authentication providers'
+        ]
       }
     },
     {
@@ -496,41 +511,6 @@ const TermsOfService = () => {
                   </div>
                 )
               })}
-            </div>
-
-            {/* Third-Party Authentication - Special Card */}
-            <div className="mb-12 relative overflow-hidden rounded-[2rem] border border-orange-200 bg-gradient-to-br from-orange-50 via-white to-orange-50/50 p-8 md:p-10 shadow-xl shadow-orange-100/40">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.12),transparent_60%)]" />
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-orange-400/10 flex items-center justify-center">
-                    <Key className="w-6 h-6 text-orange-500" />
-                  </div>
-                  <div>
-                    <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-100/50 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-orange-700">
-                      Third-Party Services
-                    </span>
-                    <h2 className="mt-2 text-2xl font-semibold text-gray-900">4. Third-Party Authentication Services</h2>
-                  </div>
-                </div>
-                <p className="text-base text-gray-700 mb-4">
-                  If you choose to sign in using third-party services (such as Google):
-                </p>
-                <ul className="space-y-3 text-sm sm:text-base text-gray-700">
-                  <li className="flex items-start gap-3">
-                    <span className="text-orange-400 font-bold">•</span>
-                    <span>Mokogo receives limited information (e.g., name, email address, profile image) as permitted by the provider</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-orange-400 font-bold">•</span>
-                    <span>Your use of such services is governed by their respective terms and privacy policies</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-orange-400 font-bold">•</span>
-                    <span>Mokogo is not responsible for the availability, security, or practices of third-party authentication providers</span>
-                  </li>
-                </ul>
-              </div>
             </div>
 
             {/* Contact & Final Note */}

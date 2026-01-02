@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { PrivacyPolicyContent, TermsOfServiceContent } from './TermsModalContent'
 
 interface TermsModalProps {
@@ -69,13 +68,15 @@ const TermsModal = ({ isOpen, onClose, type }: TermsModalProps) => {
 
         {/* Footer with link to full page */}
         <div className="p-4 border-t border-mokogo-gray flex-shrink-0 bg-white">
-          <Link
-            to={type === 'terms' ? '/terms-of-service' : '/privacy-policy'}
+          <a
+            href={type === 'terms' ? '/terms-of-service' : '/privacy-policy'}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={onClose}
             className="text-sm text-orange-400 hover:text-orange-500 font-medium inline-flex items-center gap-1"
           >
             View full page in new tab →
-          </Link>
+          </a>
         </div>
       </div>
     </div>
