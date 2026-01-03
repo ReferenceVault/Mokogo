@@ -5,9 +5,9 @@ import { Facebook, Instagram, Twitter, Linkedin } from 'lucide-react'
 const Footer = () => {
   const socialLinks = [
     { icon: Facebook, href: '#', label: 'Facebook', color: 'hover:text-blue-600' },
-    { icon: Instagram, href: '#', label: 'Instagram', color: 'hover:text-pink-600' },
-    { icon: Twitter, href: '#', label: 'Twitter', color: 'hover:text-blue-400' },
-    { icon: Linkedin, href: '#', label: 'LinkedIn', color: 'hover:text-blue-700' },
+    { icon: Instagram, href: 'https://www.instagram.com/getmokogo/', label: 'Instagram', color: 'hover:text-pink-600' },
+    { icon: Twitter, href: 'https://x.com/getmokogo', label: 'Twitter', color: 'hover:text-blue-400' },
+    { icon: Linkedin, href: 'https://linkedin.com/company/mokogo', label: 'LinkedIn', color: 'hover:text-blue-700' },
   ]
 
   return (
@@ -35,6 +35,8 @@ const Footer = () => {
                 <a
                   key={index}
                   href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`group relative w-10 h-10 rounded-full bg-white border-2 border-orange-200 flex items-center justify-center text-gray-600 transition-all duration-300 hover:border-orange-400 hover:bg-orange-50 hover:shadow-lg hover:scale-110 ${social.color}`}
                   aria-label={social.label}
                 >

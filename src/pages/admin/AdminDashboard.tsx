@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
@@ -18,30 +18,52 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  Clock as ClockIcon,
-  Eye,
-  UserPlus,
   MapPin as MapPinIcon,
   MoreVertical,
-  MoreHorizontal,
   FileCheck,
   Download,
   AlertTriangle,
   Shield,
-  CheckCircle2,
   X,
-  ArrowRight,
-  Search
+  Search,
+  Handshake,
+  Timer
 } from 'lucide-react'
 
 const AdminDashboard = () => {
   const navigate = useNavigate()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activeView, setActiveView] = useState<string>('overview')
+  const [timePeriod, setTimePeriod] = useState<string>('Last 7 Days')
+  const [showTimePeriodDropdown, setShowTimePeriodDropdown] = useState(false)
+  const timePeriodDropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (timePeriodDropdownRef.current && !timePeriodDropdownRef.current.contains(event.target as Node)) {
+        setShowTimePeriodDropdown(false)
+      }
+    }
+
+    if (showTimePeriodDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showTimePeriodDropdown])
+
+  const timePeriodOptions = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days']
+
+  const handleTimePeriodSelect = (option: string) => {
+    setTimePeriod(option)
+    setShowTimePeriodDropdown(false)
+  }
 
   const handleLogout = () => {
     // TODO: Implement logout logic
@@ -118,601 +140,493 @@ const AdminDashboard = () => {
           <div className="max-w-7xl mx-auto px-6 py-8">
             {activeView === 'overview' && (
               <div>
-                {/* Stats Cards Section - Compact */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                  {/* Total Users Card */}
-                  <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-4 text-white">
-                    <div className="absolute top-3 right-3 w-10 h-10 bg-orange-400/30 rounded-lg flex items-center justify-center">
-                      <Users className="w-5 h-5 text-white" />
+                {/* Header Section */}
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Mokogo Health</h1>
+                    <p className="text-sm text-gray-600 mt-1">Weekly Product Review - Week of Jan 27, 2025</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="relative" ref={timePeriodDropdownRef}>
+                      <button 
+                        onClick={() => setShowTimePeriodDropdown(!showTimePeriodDropdown)}
+                        className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                      >
+                        {timePeriod}
+                        <ChevronDown className={`w-4 h-4 transition-transform ${showTimePeriodDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+                      {showTimePeriodDropdown && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                          {timePeriodOptions.map((option) => (
+                            <button
+                              key={option}
+                              onClick={() => handleTimePeriodSelect(option)}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                                timePeriod === option ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-700'
+                              } ${option === timePeriodOptions[0] ? 'rounded-t-lg' : ''} ${option === timePeriodOptions[timePeriodOptions.length - 1] ? 'rounded-b-lg' : ''}`}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="relative">
-                      <p className="text-xs font-medium text-white/90 mb-1">Total Users</p>
-                      <p className="text-2xl font-bold mb-1">12,847</p>
-                      <div className="flex items-center gap-1 text-xs text-white/90">
-                        <TrendingUp className="w-3 h-3" />
-                        <span>+12% from last month</span>
+                    <button className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-md">
+                      <Download className="w-4 h-4" />
+                      Export Report
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats Cards Section - Metric Tiles */}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+                  {/* Successful Connections */}
+                  <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                        <Handshake className="w-4 h-4 text-blue-600" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Successful Connections</p>
+                      <p className="text-2xl font-bold text-gray-900 mb-1">247</p>
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        <span className="text-orange-600 font-semibold">↑ 12%</span>
+                        <span className="text-gray-500">Last 7 days</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Active Listings Card */}
-                  <div className="relative overflow-hidden bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-md p-4 text-white">
-                    <div className="absolute top-3 right-3 w-10 h-10 bg-green-400/30 rounded-lg flex items-center justify-center">
-                      <Home className="w-5 h-5 text-white" />
+                  {/* Request Acceptance Rate */}
+                  <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 text-orange-600" />
+                      </div>
                     </div>
-                    <div className="relative">
-                      <p className="text-xs font-medium text-white/90 mb-1">Active Listings</p>
-                      <p className="text-2xl font-bold mb-1">2,847</p>
-                      <div className="flex items-center gap-1 text-xs text-white/90">
-                        <TrendingUp className="w-3 h-3" />
-                        <span>+8% from last month</span>
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Request Acceptance Rate</p>
+                      <p className="text-2xl font-bold text-gray-900 mb-1">68%</p>
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        <span className="text-orange-600 font-semibold">↑ 5%</span>
+                        <span className="text-gray-500">+3.2pp from last week</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Pending Reviews Card */}
-                  <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-md p-4 text-white">
-                    <div className="absolute top-3 right-3 w-10 h-10 bg-orange-400/30 rounded-lg flex items-center justify-center">
-                      <Flag className="w-5 h-5 text-white" />
+                  {/* Avg Time to First Response */}
+                  <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                        <Clock className="w-4 h-4 text-purple-600" />
+                      </div>
                     </div>
-                    <div className="relative">
-                      <p className="text-xs font-medium text-white/90 mb-1">Pending Reviews</p>
-                      <p className="text-2xl font-bold mb-1">72</p>
-                      <div className="flex items-center gap-1 text-xs text-white/90">
-                        <Clock className="w-3 h-3" />
-                        <span>Requires attention</span>
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Avg Time to First Response</p>
+                      <p className="text-2xl font-bold text-gray-900 mb-1">4.2h</p>
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        <span className="text-red-600 font-semibold">↓ 8%</span>
+                        <span className="text-gray-500">Median response time</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Revenue Card */}
-                  <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-md p-4 text-white">
-                    <div className="absolute top-3 right-3 w-10 h-10 bg-purple-400/30 rounded-lg flex items-center justify-center">
-                      <BarChart3 className="w-5 h-5 text-white" />
+                  {/* Median Time to Fulfillment */}
+                  <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                        <Timer className="w-4 h-4 text-orange-600" />
+                      </div>
                     </div>
-                    <div className="relative">
-                      <p className="text-xs font-medium text-white/90 mb-1">Revenue (Month)</p>
-                      <p className="text-2xl font-bold mb-1">₹2.4L</p>
-                      <div className="flex items-center gap-1 text-xs text-white/90">
-                        <TrendingUp className="w-3 h-3" />
-                        <span>+15% from last month</span>
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Median Time to Fulfillment</p>
+                      <p className="text-2xl font-bold text-gray-900 mb-1">6.3d</p>
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        <span className="text-orange-600 font-semibold">↓ 6%</span>
+                        <span className="text-gray-500">Listing created → marked fulfilled</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Listings Fulfilled (%) */}
+                  <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-indigo-600" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Listings Fulfilled (%)</p>
+                      <p className="text-2xl font-bold text-gray-900 mb-1">34%</p>
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        <span className="text-orange-600 font-semibold">↑ 9%</span>
+                        <span className="text-gray-500">Of active listings</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Active Listings with 0 Requests */}
+                  <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                        <AlertTriangle className="w-4 h-4 text-red-600" />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Active Listings with 0 Requests</p>
+                      <p className="text-2xl font-bold text-gray-900 mb-1">89</p>
+                      <div className="flex flex-col gap-0.5 text-xs mb-1">
+                        <span className="text-red-600 font-semibold">↑ 15%</span>
+                      </div>
+                      <div className="space-y-0.5 text-[10px] text-gray-600">
+                        <div className="flex justify-between">
+                          <span>0-3d: 32</span>
+                          <span>(5%)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>4-7d: 21</span>
+                          <span>(3%)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-red-600">7+d: 36</span>
+                          <span className="text-red-600 font-semibold">(14%)</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                  {/* User Registration Trends */}
-                  <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-semibold text-gray-900">User Registration Trends</h3>
-                      <div className="flex items-center gap-2">
-                        <select className="text-xs border border-gray-300 rounded-lg px-2 py-1 text-gray-700 bg-white">
-                          <option>Last 30 days</option>
-                          <option>Last 7 days</option>
-                          <option>Last 90 days</option>
-                        </select>
-                        <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                      </div>
-                    </div>
-                    <div className="h-48">
-                      <svg viewBox="0 0 400 200" className="w-full h-full">
-                        {/* Y-axis */}
-                        <line x1="40" y1="20" x2="40" y2="180" stroke="#e5e7eb" strokeWidth="1" />
-                        <text x="20" y="20" fontSize="10" fill="#6b7280">500</text>
-                        <text x="20" y="60" fontSize="10" fill="#6b7280">400</text>
-                        <text x="20" y="100" fontSize="10" fill="#6b7280">200</text>
-                        <text x="20" y="140" fontSize="10" fill="#6b7280">100</text>
-                        <text x="20" y="180" fontSize="10" fill="#6b7280">0</text>
-                        <text x="15" y="100" fontSize="10" fill="#6b7280" transform="rotate(-90 15 100)">New Users</text>
-                        
-                        {/* X-axis */}
-                        <line x1="40" y1="180" x2="380" y2="180" stroke="#e5e7eb" strokeWidth="1" />
-                        <text x="100" y="195" fontSize="10" fill="#6b7280">Week 1</text>
-                        <text x="170" y="195" fontSize="10" fill="#6b7280">Week 2</text>
-                        <text x="240" y="195" fontSize="10" fill="#6b7280">Week 3</text>
-                        <text x="310" y="195" fontSize="10" fill="#6b7280">Week 4</text>
-                        
-                        {/* Room Seekers line (orange) */}
-                        <polyline
-                          points="100,120 170,90 240,60 310,50"
-                          fill="none"
-                          stroke="#f97316"
-                          strokeWidth="2"
-                        />
-                        <circle cx="100" cy="120" r="4" fill="#f97316" />
-                        <circle cx="170" cy="90" r="4" fill="#f97316" />
-                        <circle cx="240" cy="60" r="4" fill="#f97316" />
-                        <circle cx="310" cy="50" r="4" fill="#f97316" />
-                        
-                        {/* Room Listers line (green) */}
-                        <polyline
-                          points="100,160 170,150 240,140 310,130"
-                          fill="none"
-                          stroke="#10b981"
-                          strokeWidth="2"
-                        />
-                        <circle cx="100" cy="160" r="4" fill="#10b981" />
-                        <circle cx="170" cy="150" r="4" fill="#10b981" />
-                        <circle cx="240" cy="140" r="4" fill="#10b981" />
-                        <circle cx="310" cy="130" r="4" fill="#10b981" />
-                      </svg>
-                    </div>
-                    <div className="flex items-center gap-4 mt-3 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                        <span className="text-gray-600">Room Seekers</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-gray-600">Room Listers</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Listing Activity */}
-                  <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-semibold text-gray-900">Listing Activity</h3>
-                      <div className="flex items-center gap-2">
-                        <select className="text-xs border border-gray-300 rounded-lg px-2 py-1 text-gray-700 bg-white">
-                          <option>This month</option>
-                          <option>Last month</option>
-                          <option>Last 3 months</option>
-                        </select>
-                        <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                      </div>
-                    </div>
-                    <div className="h-48">
-                      <svg viewBox="0 0 400 200" className="w-full h-full">
-                        {/* Y-axis */}
-                        <line x1="40" y1="20" x2="40" y2="180" stroke="#e5e7eb" strokeWidth="1" />
-                        <text x="20" y="20" fontSize="10" fill="#6b7280">400</text>
-                        <text x="20" y="60" fontSize="10" fill="#6b7280">300</text>
-                        <text x="20" y="100" fontSize="10" fill="#6b7280">200</text>
-                        <text x="20" y="140" fontSize="10" fill="#6b7280">100</text>
-                        <text x="20" y="180" fontSize="10" fill="#6b7280">0</text>
-                        <text x="15" y="100" fontSize="10" fill="#6b7280" transform="rotate(-90 15 100)">Listings</text>
-                        
-                        {/* X-axis */}
-                        <line x1="40" y1="180" x2="380" y2="180" stroke="#e5e7eb" strokeWidth="1" />
-                        <text x="100" y="195" fontSize="10" fill="#6b7280">Week 1</text>
-                        <text x="170" y="195" fontSize="10" fill="#6b7280">Week 2</text>
-                        <text x="240" y="195" fontSize="10" fill="#6b7280">Week 3</text>
-                        <text x="310" y="195" fontSize="10" fill="#6b7280">Week 4</text>
-                        
-                        {/* Bars for Week 1 */}
-                        <rect x="70" y="120" width="20" height="60" fill="#f97316" rx="2" />
-                        <rect x="92" y="125" width="20" height="55" fill="#10b981" rx="2" />
-                        <rect x="114" y="175" width="20" height="5" fill="#ef4444" rx="2" />
-                        
-                        {/* Bars for Week 2 */}
-                        <rect x="140" y="100" width="20" height="80" fill="#f97316" rx="2" />
-                        <rect x="162" y="105" width="20" height="75" fill="#10b981" rx="2" />
-                        <rect x="184" y="175" width="20" height="5" fill="#ef4444" rx="2" />
-                        
-                        {/* Bars for Week 3 */}
-                        <rect x="210" y="80" width="20" height="100" fill="#f97316" rx="2" />
-                        <rect x="232" y="85" width="20" height="95" fill="#10b981" rx="2" />
-                        <rect x="254" y="175" width="20" height="5" fill="#ef4444" rx="2" />
-                        
-                        {/* Bars for Week 4 */}
-                        <rect x="280" y="60" width="20" height="120" fill="#f97316" rx="2" />
-                        <rect x="302" y="65" width="20" height="115" fill="#10b981" rx="2" />
-                        <rect x="324" y="170" width="20" height="10" fill="#ef4444" rx="2" />
-                      </svg>
-                    </div>
-                    <div className="flex items-center gap-4 mt-3 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                        <span className="text-gray-600">New Listings</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-gray-600">Approved</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                        <span className="text-gray-600">Rejected</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Row Charts */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* User Types Distribution */}
-                  <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-semibold text-gray-900">User Types Distribution</h3>
-                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <div className="h-40 flex items-center justify-center">
-                      <svg viewBox="0 0 200 200" className="w-32 h-32">
-                        {/* Pie chart segments */}
-                        <circle cx="100" cy="100" r="60" fill="#f97316" stroke="white" strokeWidth="2" />
-                        <path
-                          d="M 100 100 L 100 40 A 60 60 0 0 1 160 100 Z"
-                          fill="#10b981"
-                          stroke="white"
-                          strokeWidth="2"
-                        />
-                        <path
-                          d="M 100 100 L 160 100 A 60 60 0 0 1 130 160 Z"
-                          fill="#a855f7"
-                          stroke="white"
-                          strokeWidth="2"
-                        />
-                      </svg>
-                    </div>
-                    <div className="space-y-2 mt-3 text-xs">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                          <span className="text-gray-600">Room Seekers</span>
-                        </div>
-                        <span className="font-semibold text-gray-900">65.2%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <span className="text-gray-600">Room Listers</span>
-                        </div>
-                        <span className="font-semibold text-gray-900">24.8%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                          <span className="text-gray-600">Both</span>
-                        </div>
-                        <span className="font-semibold text-gray-900">10.0%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Popular Areas */}
-                  <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-semibold text-gray-900">Popular Areas</h3>
-                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <div className="h-40">
-                      <svg viewBox="0 0 400 200" className="w-full h-full">
-                        {/* Y-axis labels */}
-                        <text x="10" y="30" fontSize="10" fill="#6b7280">Aundh</text>
-                        <text x="10" y="55" fontSize="10" fill="#6b7280">Kothrud</text>
-                        <text x="10" y="80" fontSize="10" fill="#6b7280">Wakad</text>
-                        <text x="10" y="105" fontSize="10" fill="#6b7280">Baner</text>
-                        <text x="10" y="130" fontSize="10" fill="#6b7280">Hinjawadi</text>
-                        
-                        {/* X-axis */}
-                        <line x1="60" y1="150" x2="380" y2="150" stroke="#e5e7eb" strokeWidth="1" />
-                        <text x="60" y="165" fontSize="9" fill="#6b7280">0</text>
-                        <text x="150" y="165" fontSize="9" fill="#6b7280">250</text>
-                        <text x="240" y="165" fontSize="9" fill="#6b7280">500</text>
-                        <text x="330" y="165" fontSize="9" fill="#6b7280">750</text>
-                        <text x="370" y="165" fontSize="9" fill="#6b7280">1000</text>
-                        <text x="200" y="180" fontSize="10" fill="#6b7280">Listings</text>
-                        
-                        {/* Horizontal bars */}
-                        <rect x="60" y="20" width="60" height="12" fill="#f97316" rx="2" />
-                        <rect x="60" y="45" width="80" height="12" fill="#f97316" rx="2" />
-                        <rect x="60" y="70" width="120" height="12" fill="#f97316" rx="2" />
-                        <rect x="60" y="95" width="170" height="12" fill="#f97316" rx="2" />
-                        <rect x="60" y="120" width="240" height="12" fill="#f97316" rx="2" />
-                      </svg>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-3 text-xs">
-                      <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                      <span className="text-gray-600">Active Listings</span>
-                    </div>
-                  </div>
-
-                  {/* Content Moderation */}
-                  <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-semibold text-gray-900">Content Moderation</h3>
-                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                    </div>
+                {/* Supply & Demand Balance Section */}
+                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Supply & Demand Balance</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Left Side - Key Metrics */}
                     <div className="space-y-4">
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs text-gray-600">Approved Content</span>
-                          <span className="text-xs font-semibold text-gray-900">94%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full" style={{ width: '94%' }}></div>
-                        </div>
+                      {/* Active Seekers */}
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-sm text-gray-600 mb-1">Active Seekers</p>
+                        <p className="text-3xl font-bold text-gray-900">1,842</p>
                       </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs text-gray-600">Flagged Content</span>
-                          <span className="text-xs font-semibold text-gray-900">4%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-orange-500 h-2 rounded-full" style={{ width: '4%' }}></div>
-                        </div>
+                      
+                      {/* Active Listers */}
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <p className="text-sm text-gray-600 mb-1">Active Listers</p>
+                        <p className="text-3xl font-bold text-gray-900">634</p>
                       </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs text-gray-600">Rejected Content</span>
-                          <span className="text-xs font-semibold text-gray-900">2%</span>
+                      
+                      {/* Seekers per Listing */}
+                      <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                        <p className="text-sm text-gray-600 mb-1">Seekers per Listing</p>
+                        <p className="text-3xl font-bold text-orange-600">2.9</p>
+                      </div>
+                    </div>
+                    
+                    {/* Right Side - Top Cities */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900 mb-4">Top 5 Cities by Active Listings</h4>
+                      <div className="space-y-0 rounded-lg overflow-hidden border border-gray-200">
+                        <div className="flex items-center justify-between px-4 py-3 bg-orange-50">
+                          <span className="text-sm font-medium text-gray-900">Mumbai</span>
+                          <span className="text-sm font-semibold text-gray-900">187</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-red-500 h-2 rounded-full" style={{ width: '2%' }}></div>
+                        <div className="flex items-center justify-between px-4 py-3 bg-white">
+                          <span className="text-sm font-medium text-gray-900">Bangalore</span>
+                          <span className="text-sm font-semibold text-gray-900">156</span>
+                        </div>
+                        <div className="flex items-center justify-between px-4 py-3 bg-orange-50">
+                          <span className="text-sm font-medium text-gray-900">Delhi</span>
+                          <span className="text-sm font-semibold text-gray-900">142</span>
+                        </div>
+                        <div className="flex items-center justify-between px-4 py-3 bg-white">
+                          <span className="text-sm font-medium text-gray-900">Pune</span>
+                          <span className="text-sm font-semibold text-gray-900">89</span>
+                        </div>
+                        <div className="flex items-center justify-between px-4 py-3 bg-orange-50">
+                          <span className="text-sm font-medium text-gray-900">Hyderabad</span>
+                          <span className="text-sm font-semibold text-gray-900">60</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* System Reports & Analytics Section */}
-                <div className="mt-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">System Reports & Analytics</h2>
-                    <div className="flex items-center gap-3">
-                      <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-                        Last 7 days
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                      <button className="flex items-center gap-2 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                        <Download className="w-4 h-4" />
-                        Export Data
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-                    {/* Platform Health Card */}
-                    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-4">Platform Health</h3>
+                {/* Funnel Analysis Section */}
+                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6">Funnel Analysis</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Seeker Funnel */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-6">
+                        <User className="w-5 h-5 text-gray-700" />
+                        <h4 className="text-base font-semibold text-gray-900">Seeker Funnel</h4>
+                      </div>
                       <div className="space-y-4">
+                        {/* Profiles Created */}
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-gray-600">System Uptime</span>
-                            <span className="text-xs font-semibold text-green-600">99.8%</span>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Profiles Created</span>
+                            <span className="text-sm font-bold text-gray-900">2,341</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-green-500 h-2 rounded-full" style={{ width: '99.8%' }}></div>
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '100%' }}></div>
                           </div>
                         </div>
+
+                        {/* Searches Performed */}
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-gray-600">Response Time</span>
-                            <span className="text-xs font-semibold text-orange-600">1.2s</span>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Searches Performed</span>
+                            <span className="text-sm font-bold text-gray-900">1,987</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-orange-500 h-2 rounded-full" style={{ width: '60%' }}></div>
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '85%' }}></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">85% conversion</p>
+                        </div>
+
+                        {/* Requests Sent */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Requests Sent</span>
+                            <span className="text-sm font-bold text-gray-900">1,124</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '48%' }}></div>
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <p className="text-xs text-gray-500">57% conversion</p>
+                            <p className="text-xs text-red-600 font-medium">Drop-off point</p>
                           </div>
                         </div>
+
+                        {/* Requests Accepted */}
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs text-gray-600">Error Rate</span>
-                            <span className="text-xs font-semibold text-red-600">0.2%</span>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Requests Accepted</span>
+                            <span className="text-sm font-bold text-gray-900">764</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div className="bg-red-500 h-2 rounded-full" style={{ width: '0.2%' }}></div>
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '33%' }}></div>
                           </div>
+                          <p className="text-xs text-gray-500 mt-1">68% conversion</p>
+                        </div>
+
+                        {/* Chats Started */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Chats Started</span>
+                            <span className="text-sm font-bold text-gray-900">689</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '29%' }}></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">90% conversion</p>
+                        </div>
+
+                        {/* Listings Fulfilled */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Listings Fulfilled</span>
+                            <span className="text-sm font-bold text-gray-900">247</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '11%' }}></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">36% conversion</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* User Engagement Card */}
-                    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-4">User Engagement</h3>
-                      <div className="space-y-3">
+                    {/* Lister Funnel */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-6">
+                        <Home className="w-5 h-5 text-gray-700" />
+                        <h4 className="text-base font-semibold text-gray-900">Lister Funnel</h4>
+                      </div>
+                      <div className="space-y-4">
+                        {/* Listings Created */}
                         <div>
-                          <p className="text-xs text-gray-600 mb-0.5">Daily Active Users</p>
-                          <p className="text-lg font-bold text-gray-900">3,247</p>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Listings Created</span>
+                            <span className="text-sm font-bold text-gray-900">892</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '100%' }}></div>
+                          </div>
                         </div>
+
+                        {/* Listings Approved */}
                         <div>
-                          <p className="text-xs text-gray-600 mb-0.5">Avg. Session Duration</p>
-                          <p className="text-lg font-bold text-gray-900">12m 34s</p>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Listings Approved</span>
+                            <span className="text-sm font-bold text-gray-900">723</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '81%' }}></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">81% conversion</p>
                         </div>
+
+                        {/* Listings with ≥1 Request */}
                         <div>
-                          <p className="text-xs text-gray-600 mb-0.5">Bounce Rate</p>
-                          <p className="text-lg font-bold text-gray-900">24.5%</p>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Listings with ≥1 Request</span>
+                            <span className="text-sm font-bold text-gray-900">634</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '71%' }}></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">88% conversion</p>
                         </div>
+
+                        {/* Listings with ≥1 Accepted Request */}
                         <div>
-                          <p className="text-xs text-gray-600 mb-0.5">Conversion Rate</p>
-                          <p className="text-lg font-bold text-gray-900">8.2%</p>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Listings with ≥1 Accepted Request</span>
+                            <span className="text-sm font-bold text-gray-900">421</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '47%' }}></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">66% conversion</p>
+                        </div>
+
+                        {/* Listings Closed */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm text-gray-700">Listings Closed</span>
+                            <span className="text-sm font-bold text-gray-900">247</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-orange-600 h-2 rounded-full" style={{ width: '28%' }}></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">59% conversion</p>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Security Metrics Card */}
-                    <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-4">Security Metrics</h3>
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs text-gray-600 mb-0.5">Failed Login Attempts</p>
-                          <p className="text-lg font-bold text-red-600">47</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600 mb-0.5">Blocked IPs</p>
-                          <p className="text-lg font-bold text-red-600">12</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600 mb-0.5">Spam Attempts</p>
-                          <p className="text-lg font-bold text-red-600">156</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600 mb-0.5">Security Score</p>
-                          <p className="text-lg font-bold text-green-600">A+</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Revenue Analytics Card */}
-                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-semibold text-gray-900">Revenue Analytics</h3>
-                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <div className="h-64">
-                      <svg viewBox="0 0 600 250" className="w-full h-full">
-                        {/* Y-axis */}
-                        <line x1="50" y1="20" x2="50" y2="220" stroke="#e5e7eb" strokeWidth="1" />
-                        <text x="25" y="20" fontSize="10" fill="#6b7280">300k</text>
-                        <text x="25" y="80" fontSize="10" fill="#6b7280">200k</text>
-                        <text x="25" y="140" fontSize="10" fill="#6b7280">100k</text>
-                        <text x="25" y="220" fontSize="10" fill="#6b7280">0</text>
-                        <text x="15" y="120" fontSize="10" fill="#6b7280" transform="rotate(-90 15 120)">Revenue (₹)</text>
-                        
-                        {/* X-axis */}
-                        <line x1="50" y1="220" x2="550" y2="220" stroke="#e5e7eb" strokeWidth="1" />
-                        <text x="100" y="235" fontSize="10" fill="#6b7280">Jan</text>
-                        <text x="180" y="235" fontSize="10" fill="#6b7280">Feb</text>
-                        <text x="260" y="235" fontSize="10" fill="#6b7280">Mar</text>
-                        <text x="340" y="235" fontSize="10" fill="#6b7280">Apr</text>
-                        <text x="420" y="235" fontSize="10" fill="#6b7280">May</text>
-                        <text x="500" y="235" fontSize="10" fill="#6b7280">Jun</text>
-                        
-                        {/* Revenue line and area */}
-                        <defs>
-                          <linearGradient id="revenueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#f97316" stopOpacity="0.3" />
-                            <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
-                          </linearGradient>
-                        </defs>
-                        <path
-                          d="M 100 180 L 180 170 L 260 150 L 340 130 L 420 110 L 500 90"
-                          fill="none"
-                          stroke="#f97316"
-                          strokeWidth="2"
-                        />
-                        <path
-                          d="M 100 180 L 180 170 L 260 150 L 340 130 L 420 110 L 500 90 L 500 220 L 100 220 Z"
-                          fill="url(#revenueGradient)"
-                        />
-                        <circle cx="100" cy="180" r="4" fill="#f97316" />
-                        <circle cx="180" cy="170" r="4" fill="#f97316" />
-                        <circle cx="260" cy="150" r="4" fill="#f97316" />
-                        <circle cx="340" cy="130" r="4" fill="#f97316" />
-                        <circle cx="420" cy="110" r="4" fill="#f97316" />
-                        <circle cx="500" cy="90" r="4" fill="#f97316" />
-                      </svg>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-3 text-xs">
-                      <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                      <span className="text-gray-600">Revenue</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Quick Actions Section */}
-                <div className="mt-8">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <button className="bg-white rounded-xl shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow text-left group">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
-                          <UserPlus className="w-6 h-6 text-orange-600" />
+                {/* Trust & Safety Health and Revenue Context Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                  {/* Left Column - Two Sections Stacked */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Trust & Safety Health */}
+                    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Trust & Safety Health</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        {/* Profiles Fully Completed */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-center mb-3">
+                            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                              <User className="w-5 h-5 text-blue-600" />
+                            </div>
+                          </div>
+                          <p className="text-2xl font-bold text-gray-900 text-center">82%</p>
+                          <p className="text-xs text-gray-600 text-center mt-1">Profiles Fully Completed</p>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">Add New User</h3>
-                      <p className="text-xs text-gray-600">Manually create user accounts</p>
-                    </button>
 
-                    <button className="bg-white rounded-xl shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow text-left group">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                          <Home className="w-6 h-6 text-green-600" />
+                        {/* Phone/Email Verified */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-center mb-3">
+                            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                              <Shield className="w-5 h-5 text-orange-600" />
+                            </div>
+                          </div>
+                          <p className="text-2xl font-bold text-gray-900 text-center">91%</p>
+                          <p className="text-xs text-gray-600 text-center mt-1">Phone/Email Verified</p>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-green-600 transition-colors" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">Review Listings</h3>
-                      <p className="text-xs text-gray-600">Approve pending room listings</p>
-                    </button>
 
-                    <button className="bg-white rounded-xl shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow text-left group">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
-                          <Flag className="w-6 h-6 text-orange-600" />
+                        {/* Reports per 1K Interactions */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-center mb-3">
+                            <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
+                              <Flag className="w-5 h-5 text-yellow-600" />
+                            </div>
+                          </div>
+                          <p className="text-2xl font-bold text-gray-900 text-center">3.2</p>
+                          <p className="text-xs text-gray-600 text-center mt-1">Reports per 1K Interactions</p>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">Handle Reports</h3>
-                      <p className="text-xs text-gray-600">Review flagged content</p>
-                    </button>
 
-                    <button className="bg-white rounded-xl shadow-md border border-gray-200 p-4 hover:shadow-lg transition-shadow text-left group">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                          <Settings className="w-6 h-6 text-purple-600" />
+                        {/* Listings Rejected */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-center mb-3">
+                            <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                              <XCircle className="w-5 h-5 text-red-600" />
+                            </div>
+                          </div>
+                          <p className="text-2xl font-bold text-gray-900 text-center">169</p>
+                          <p className="text-xs text-gray-600 text-center mt-1">Listings Rejected</p>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+
+                        {/* Blocked Users */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-center mb-3">
+                            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center relative">
+                              <User className="w-5 h-5 text-gray-600" />
+                              <X className="w-3 h-3 text-gray-600 absolute -top-0.5 -right-0.5" />
+                            </div>
+                          </div>
+                          <p className="text-2xl font-bold text-gray-900 text-center">47</p>
+                          <p className="text-xs text-gray-600 text-center mt-1">Blocked Users</p>
+                        </div>
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">System Settings</h3>
-                      <p className="text-xs text-gray-600">Configure platform parameters</p>
-                    </button>
+                    </div>
+
+                    {/* Revenue Context */}
+                    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Context</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Revenue per Fulfilled Listing */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <p className="text-2xl font-bold text-gray-900 text-center">₹842</p>
+                          <p className="text-xs text-gray-600 text-center mt-1">Revenue per Fulfilled Listing</p>
+                          <p className="text-xs text-gray-500 text-center mt-1">Average</p>
+                        </div>
+
+                        {/* Revenue per Accepted Request */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <p className="text-2xl font-bold text-gray-900 text-center">₹273</p>
+                          <p className="text-xs text-gray-600 text-center mt-1">Revenue per Accepted Request</p>
+                          <p className="text-xs text-gray-500 text-center mt-1">Average</p>
+                        </div>
+
+                        {/* Free → Paid Conversion */}
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <p className="text-2xl font-bold text-gray-900 text-center">18%</p>
+                          <p className="text-xs text-gray-600 text-center mt-1">Free → Paid Conversion</p>
+                          <p className="text-xs text-orange-600 text-center mt-1">+2% from last week</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Recent Activity Section */}
-                <div className="mt-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
-                    <button className="text-sm text-orange-600 hover:text-orange-700 font-medium">View All Activity</button>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+                  {/* Right Column - Weekly PM Review */}
+                  <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Weekly PM Review</h3>
                     <div className="space-y-4">
-                      {/* Activity 1 */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900">Admin User approved listing "Spacious Room in Baner"</p>
-                          <p className="text-xs text-gray-500 mt-0.5">2 minutes ago</p>
-                        </div>
+                      {/* Key Metric Change */}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 mb-1">Key Metric Change</p>
+                        <p className="text-sm text-gray-600">Acceptance rate up 5% week-over-week</p>
                       </div>
 
-                      {/* Activity 2 */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-orange-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900">New user Anita Desai registered as Room Seeker</p>
-                          <p className="text-xs text-gray-500 mt-0.5">15 minutes ago</p>
-                        </div>
+                      {/* Top Funnel Drop-off */}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 mb-1">Top Funnel Drop-off</p>
+                        <p className="text-sm text-gray-600">Searches → Requests (57% conversion)</p>
                       </div>
 
-                      {/* Activity 3 */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                          <Flag className="w-4 h-4 text-orange-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900">Admin User flagged listing for review</p>
-                          <p className="text-xs text-gray-500 mt-0.5">1 hour ago</p>
-                        </div>
+                      {/* Trust Issues */}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 mb-1">Trust Issues</p>
+                        <p className="text-sm text-gray-600">89 listings with 0 requests need review</p>
                       </div>
 
-                      {/* Activity 4 */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                          <XCircle className="w-4 h-4 text-red-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900">User spam_user_123 was suspended for policy violations</p>
-                          <p className="text-xs text-gray-500 mt-0.5">3 hours ago</p>
-                        </div>
-                      </div>
-
-                      {/* Activity 5 */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                          <BarChart3 className="w-4 h-4 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900">Daily analytics report generated and sent to stakeholders</p>
-                          <p className="text-xs text-gray-500 mt-0.5">6 hours ago</p>
-                        </div>
+                      {/* Suggested Focus */}
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 mb-1">Suggested Focus</p>
+                        <p className="text-sm text-orange-600 font-medium">Improve listing quality & visibility</p>
                       </div>
                     </div>
                   </div>
@@ -724,7 +638,10 @@ const AdminDashboard = () => {
               <div>
                 {/* User Management Header */}
                 <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+                    <p className="text-sm text-gray-600 mt-1">Review, monitor, and manage users across the marketplace.</p>
+                  </div>
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -744,14 +661,29 @@ const AdminDashboard = () => {
                 {/* Filters and Summary */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-                      All Users
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-                      All Roles
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
+                    <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                      <option>All Roles</option>
+                      <option>Room Seeker</option>
+                      <option>Room Lister</option>
+                      <option>Both</option>
+                    </select>
+                    <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                      <option>All Statuses</option>
+                      <option>Verified</option>
+                      <option>Pending</option>
+                      <option>Suspended</option>
+                    </select>
+                    <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                      <option>All Risks</option>
+                      <option>Low Risk</option>
+                      <option>Medium Risk</option>
+                      <option>High Risk</option>
+                    </select>
+                    <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                      <option>All Activity</option>
+                      <option>Active</option>
+                      <option>Dormant</option>
+                    </select>
                   </div>
                   <p className="text-sm text-gray-600">Showing 1-20 of 12,847 users</p>
                 </div>
@@ -762,25 +694,28 @@ const AdminDashboard = () => {
                     <table className="w-full">
                       <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Joined</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Activity</th>
-                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">USER</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ROLE</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">STATUS</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RISK LEVEL</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">LIFECYCLE</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">RECENT ACTIVITY</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">JOINED</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ACTIONS</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {/* Sample User Rows */}
+                        {/* User Row 1: Rohan Mehta */}
                         <tr className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white font-semibold">
-                                PS
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                                RM
                               </div>
                               <div>
-                                <div className="text-sm font-semibold text-gray-900">Priya Sharma</div>
-                                <div className="text-xs text-gray-500">priya.sharma@email.com</div>
+                                <div className="text-sm font-semibold text-gray-900">Rohan Mehta</div>
+                                <div className="text-xs text-gray-500">rohan.m@example.com</div>
+                                <div className="text-xs text-gray-400">ID: 8839201</div>
                               </div>
                             </div>
                           </td>
@@ -790,63 +725,91 @@ const AdminDashboard = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                              <CheckCircle className="w-3 h-3" />
-                              Verified
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                              Suspended
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Jan 15, 2024</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">2 hours ago</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-4 text-sm">
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                              <AlertTriangle className="w-3 h-3" />
+                              High
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Problematic</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">Reported by user</div>
+                            <div className="text-xs text-gray-500">2 hours ago</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Jan 12, 2024</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3 text-sm">
                               <button className="text-orange-600 hover:text-orange-700 font-medium">View</button>
-                              <button className="text-orange-600 hover:text-orange-700 font-medium">Suspend</button>
-                              <button className="text-red-600 hover:text-red-700 font-medium">Delete</button>
+                              <button className="text-green-600 hover:text-green-700 font-medium">Restore</button>
+                              <button className="text-gray-600 hover:text-gray-700">
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
+                        {/* User Row 2: Priya Sharma */}
                         <tr className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-white font-semibold">
-                                RG
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white font-semibold text-sm">
+                                PS
                               </div>
                               <div>
-                                <div className="text-sm font-semibold text-gray-900">Rahul Gupta</div>
-                                <div className="text-xs text-gray-500">rahul.gupta@email.com</div>
+                                <div className="text-sm font-semibold text-gray-900">Priya Sharma</div>
+                                <div className="text-xs text-gray-500">priya.sharma@example.com</div>
+                                <div className="text-xs text-gray-400">ID: 7723412</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                               Room Lister
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                              <CheckCircle className="w-3 h-3" />
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
                               Verified
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Dec 28, 2023</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">5 hours ago</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-4 text-sm">
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              <CheckCircle className="w-3 h-3" />
+                              Low
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Active</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">Created listing</div>
+                            <div className="text-xs text-gray-500">1 day ago</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Oct 5, 2023</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-3 text-sm">
                               <button className="text-orange-600 hover:text-orange-700 font-medium">View</button>
-                              <button className="text-orange-600 hover:text-orange-700 font-medium">Suspend</button>
-                              <button className="text-red-600 hover:text-red-700 font-medium">Delete</button>
+                              <button className="text-red-600 hover:text-red-700 font-medium">Suspend</button>
+                              <button className="text-gray-600 hover:text-gray-700">
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
+                        {/* User Row 3: Arjun Patel */}
                         <tr className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 flex items-center justify-center text-white font-semibold">
-                                SJ
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
+                                AP
                               </div>
                               <div>
-                                <div className="text-sm font-semibold text-gray-900">Sneha Joshi</div>
-                                <div className="text-xs text-gray-500">sneha.joshi@email.com</div>
+                                <div className="text-sm font-semibold text-gray-900">Arjun Patel</div>
+                                <div className="text-xs text-gray-500">arjun.p@example.com</div>
+                                <div className="text-xs text-gray-400">ID: 9912045</div>
                               </div>
                             </div>
                           </td>
@@ -856,51 +819,30 @@ const AdminDashboard = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                              <ClockIcon className="w-3 h-3" />
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200">
+                              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
                               Pending
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Feb 3, 2024</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">1 day ago</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-4 text-sm">
-                              <button className="text-orange-600 hover:text-orange-700 font-medium">View</button>
-                              <button className="text-orange-600 hover:text-orange-700 font-medium">Suspend</button>
-                              <button className="text-red-600 hover:text-red-700 font-medium">Delete</button>
-                            </div>
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center text-white font-semibold">
-                                AP
-                              </div>
-                              <div>
-                                <div className="text-sm font-semibold text-gray-900">Amit Patel</div>
-                                <div className="text-xs text-gray-500">amit.patel@email.com</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                              Room Seeker
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              <CheckCircle className="w-3 h-3" />
+                              Low
                             </span>
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">New</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                              <XCircle className="w-3 h-3" />
-                              Suspended
-                            </span>
+                            <div className="text-sm text-gray-900">Profile created</div>
+                            <div className="text-xs text-gray-500">3 hours ago</div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Nov 12, 2023</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">3 days ago</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">Apr 15, 2024</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-3 text-sm">
                               <button className="text-orange-600 hover:text-orange-700 font-medium">View</button>
-                              <button className="text-green-600 hover:text-green-700 font-medium">Restore</button>
-                              <button className="text-red-600 hover:text-red-700 font-medium">Delete</button>
+                              <button className="text-red-600 hover:text-red-700 font-medium">Suspend</button>
+                              <button className="text-gray-600 hover:text-gray-700">
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -937,9 +879,12 @@ const AdminDashboard = () => {
 
             {activeView === 'listings' && (
               <div>
-                {/* Listing Management Header */}
+                {/* Listing Operations Header */}
                 <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-2xl font-bold text-gray-900">Listing Management</h1>
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Listing Operations</h1>
+                    <p className="text-sm text-gray-600 mt-1">Prioritize actions on pending, flagged, and stale listings.</p>
+                  </div>
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -958,47 +903,58 @@ const AdminDashboard = () => {
 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  {/* Action Required Card */}
                   <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Active Listings</p>
-                        <p className="text-2xl font-bold text-gray-900">2,847</p>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Action Required</p>
+                        <p className="text-2xl font-bold text-gray-900 mb-1">18</p>
+                        <p className="text-xs text-gray-600">Pending & High Severity</p>
                       </div>
-                      <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
                       </div>
                     </div>
                   </div>
+
+                  {/* Stale Listings Card */}
                   <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Pending Review</p>
-                        <p className="text-2xl font-bold text-gray-900">47</p>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-1">Stale Listings</p>
+                        <p className="text-2xl font-bold text-gray-900 mb-1">142</p>
+                        <p className="text-xs text-gray-600">Active &gt;7d with 0 reqs</p>
                       </div>
-                      <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
                         <Clock className="w-5 h-5 text-orange-600" />
                       </div>
                     </div>
                   </div>
+
+                  {/* Market Health Card */}
                   <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Flagged Content</p>
-                        <p className="text-2xl font-bold text-gray-900">12</p>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1">Market Health</p>
+                        <p className="text-2xl font-bold text-gray-900 mb-1">68%</p>
+                        <p className="text-xs text-gray-600">Listings with ≥1 active request</p>
                       </div>
-                      <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-                        <Flag className="w-5 h-5 text-red-600" />
+                      <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                        <TrendingUp className="w-5 h-5 text-green-600" />
                       </div>
                     </div>
                   </div>
+
+                  {/* Total Active Card */}
                   <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Rejected</p>
-                        <p className="text-2xl font-bold text-gray-900">156</p>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Total Active</p>
+                        <p className="text-2xl font-bold text-gray-900 mb-1">2,847</p>
+                        <p className="text-xs text-gray-600">Across all areas</p>
                       </div>
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                        <XCircle className="w-5 h-5 text-gray-600" />
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <BarChart3 className="w-5 h-5 text-gray-600" />
                       </div>
                     </div>
                   </div>
@@ -1021,131 +977,186 @@ const AdminDashboard = () => {
 
                 {/* Listing Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  {/* Active Listing Card */}
+                  {/* High Risk/Flagged Listing Card */}
                   <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="relative">
-                      <div className="h-48 bg-gradient-to-br from-orange-100 to-orange-200"></div>
+                      <div className="h-48 bg-gradient-to-br from-red-100 to-red-200"></div>
+                      {/* Checkbox */}
                       <div className="absolute top-3 left-3">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                          Active
-                        </span>
+                        <input type="checkbox" className="w-5 h-5 rounded border-2 border-gray-300 bg-white text-orange-600 focus:ring-orange-500 focus:ring-2 cursor-pointer" />
                       </div>
+                      {/* Badge */}
+                      <div className="absolute top-3 left-12">
+                        <div className="bg-red-600 text-white px-2.5 py-1 rounded text-xs font-semibold">
+                          High Risk
+                          <div className="text-[10px] font-normal opacity-90">Trust complaint</div>
+                        </div>
+                      </div>
+                      {/* Three dots */}
                       <button className="absolute top-3 right-3 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors">
                         <MoreVertical className="w-4 h-4 text-gray-600" />
                       </button>
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-sm font-semibold text-gray-900">Spacious Room in Baner</h3>
+                        <h3 className="text-sm font-semibold text-gray-900">Shared Room in Koramangala</h3>
+                        <p className="text-lg font-bold text-gray-900">₹8,500</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-2">
+                        <MapPinIcon className="w-3.5 h-3.5" />
+                        <span>Koramangala 4th Block, Bangalore</span>
+                      </div>
+                      {/* Stats */}
+                      <div className="flex items-center gap-3 text-xs text-gray-600 mb-3">
+                        <span>Requests: 0</span>
+                        <span>Live: 11 days</span>
+                        <span className="text-blue-600">Area demand: High</span>
+                      </div>
+                      {/* Status Section */}
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-2.5 mb-3">
+                        <div className="text-xs font-semibold text-red-700 mb-1">SEVERITY: Trust & Safety</div>
+                        <div className="text-xs text-red-600">FLAGGED: 2 hrs ago</div>
+                      </div>
+                      {/* User Info */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-xs font-semibold">
+                          RK
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-gray-900">Rajesh Kumar</div>
+                          <div className="text-[10px] text-gray-500">#MK9281</div>
+                        </div>
+                      </div>
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
+                        <button className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors">
+                          Review
+                        </button>
+                        <button className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-xs font-semibold transition-colors">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pending Review Listing Card */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="relative">
+                      <div className="h-48 bg-gradient-to-br from-orange-100 to-orange-200"></div>
+                      {/* Checkbox */}
+                      <div className="absolute top-3 left-3">
+                        <input type="checkbox" className="w-5 h-5 rounded border-2 border-gray-300 bg-white text-orange-600 focus:ring-orange-500 focus:ring-2 cursor-pointer" />
+                      </div>
+                      {/* Badge */}
+                      <div className="absolute top-3 left-12">
+                        <div className="bg-orange-500 text-white px-2.5 py-1 rounded text-xs font-semibold">
+                          Pending Review
+                        </div>
+                      </div>
+                      {/* Three dots */}
+                      <button className="absolute top-3 right-3 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors">
+                        <MoreVertical className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-sm font-semibold text-gray-900">2BHK Near HSR Layout</h3>
                         <p className="text-lg font-bold text-gray-900">₹12,000</p>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-3">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-2">
                         <MapPinIcon className="w-3.5 h-3.5" />
-                        <span>Baner Road, Near Symbiosis</span>
+                        <span>HSR Layout Sector 2, Bangalore</span>
                       </div>
+                      {/* Stats */}
+                      <div className="flex items-center gap-3 text-xs text-gray-600 mb-3">
+                        <span>Requests: 3</span>
+                        <span>Live: 2 days</span>
+                        <span className="text-blue-600">Area demand: High</span>
+                      </div>
+                      {/* Status Section */}
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 mb-3">
+                        <div className="text-xs font-semibold text-yellow-800 mb-1">STATUS: Awaiting Approval</div>
+                        <div className="text-xs text-yellow-700">SUBMITTED: 6 hrs ago</div>
+                      </div>
+                      {/* User Info */}
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white text-xs font-semibold">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-pink-500 flex items-center justify-center text-white text-xs font-semibold">
                           PS
                         </div>
-                        <span className="text-xs text-gray-600">Priya Sharma</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                        <span>Posted 2 days ago</span>
-                        <div className="flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>234 views</span>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-gray-900">Priya Sharma</div>
+                          <div className="text-[10px] text-gray-500">#MK7642</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
-                        <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">View Details</button>
-                        <button className="text-gray-600 hover:text-gray-700 text-sm font-medium">Flag</button>
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
+                        <button className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors">
+                          Approve
+                        </button>
+                        <button className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-xs font-semibold transition-colors">
+                          Reject
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Pending Listing Card */}
+                  {/* Stale Listing Card */}
                   <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="relative">
-                      <div className="h-48 bg-gradient-to-br from-orange-100 to-orange-200"></div>
+                      <div className="h-48 bg-gradient-to-br from-yellow-100 to-yellow-200"></div>
+                      {/* Checkbox */}
                       <div className="absolute top-3 left-3">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-500 text-white">
-                          Pending
-                        </span>
+                        <input type="checkbox" className="w-5 h-5 rounded border-2 border-gray-300 bg-white text-orange-600 focus:ring-orange-500 focus:ring-2 cursor-pointer" />
                       </div>
+                      {/* Badge */}
+                      <div className="absolute top-3 left-12">
+                        <div className="bg-yellow-500 text-white px-2.5 py-1 rounded text-xs font-semibold">
+                          Stale
+                        </div>
+                      </div>
+                      {/* Three dots */}
                       <button className="absolute top-3 right-3 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors">
                         <MoreVertical className="w-4 h-4 text-gray-600" />
                       </button>
                     </div>
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-sm font-semibold text-gray-900">Cozy Room in Wakad</h3>
+                        <h3 className="text-sm font-semibold text-gray-900">Single Room in Whitefield</h3>
                         <p className="text-lg font-bold text-gray-900">₹9,500</p>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-3">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-2">
                         <MapPinIcon className="w-3.5 h-3.5" />
-                        <span>Wakad, Near Rajiv Gandhi IT Park</span>
+                        <span>Whitefield, Bangalore</span>
                       </div>
+                      {/* Stats */}
+                      <div className="flex items-center gap-3 text-xs text-gray-600 mb-3">
+                        <span>Requests: 0</span>
+                        <span>Live: 14 days</span>
+                        <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Area demand: Low demand</span>
+                      </div>
+                      {/* Status Section */}
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 mb-3">
+                        <div className="text-xs font-semibold text-yellow-800 mb-1">ACTIVITY: No Requests</div>
+                        <div className="text-xs text-yellow-700">LAST UPDATE: 14 days ago</div>
+                      </div>
+                      {/* User Info */}
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center text-white text-xs font-semibold">
-                          RG
-                        </div>
-                        <span className="text-xs text-gray-600">Rahul Gupta</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                        <span>Posted 1 hour ago</span>
-                        <div className="flex items-center gap-1">
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>12 views</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
-                        <button className="text-green-600 hover:text-green-700 text-sm font-medium">Approve</button>
-                        <button className="text-red-600 hover:text-red-700 text-sm font-medium">Reject</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Flagged Listing Card */}
-                  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="relative">
-                      <div className="h-48 bg-gradient-to-br from-purple-100 to-purple-200"></div>
-                      <div className="absolute top-3 left-3">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500 text-white">
-                          Flagged
-                        </span>
-                      </div>
-                      <button className="absolute top-3 right-3 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors">
-                        <MoreVertical className="w-4 h-4 text-gray-600" />
-                      </button>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-sm font-semibold text-gray-900">Modern Room in Hinjawadi</h3>
-                        <p className="text-lg font-bold text-gray-900">₹15,000</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-3">
-                        <MapPinIcon className="w-3.5 h-3.5" />
-                        <span>Hinjawadi Phase 2, Near Tech Parks</span>
-                      </div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center text-white text-xs font-semibold">
                           AP
                         </div>
-                        <span className="text-xs text-gray-600">Amit Patel</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                        <div className="flex items-center gap-1 text-red-600">
-                          <Flag className="w-3.5 h-3.5" />
-                          <span>Flagged 3 hours ago</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Flag className="w-3.5 h-3.5 text-red-600" />
-                          <span className="text-red-600">2 reports</span>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-gray-900">Amit Patel</div>
+                          <div className="text-[10px] text-gray-500">#MK5129</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
-                        <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">Review</button>
-                        <button className="text-red-600 hover:text-red-700 text-sm font-medium">Remove</button>
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-3 border-t border-gray-200">
+                        <button className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors">
+                          Review
+                        </button>
+                        <button className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-xs font-semibold transition-colors">
+                          Archive
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1179,148 +1190,119 @@ const AdminDashboard = () => {
 
             {activeView === 'requests' && (
               <div>
-                {/* Content Moderation Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-2xl font-bold text-gray-900">Content Moderation</h1>
-                  <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                      <Download className="w-4 h-4" />
-                      Export Reports
-                    </button>
-                    <button className="flex items-center gap-2 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-md shadow-orange-500/30">
-                      <Settings className="w-4 h-4" />
-                      Moderation Settings
-                    </button>
+                {/* User Reports Header */}
+                <div className="mb-6">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">User Reports</h1>
+                  <p className="text-sm text-gray-600">Review reports submitted by users about listings and other users.</p>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {/* New Reports Card */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                    <p className="text-sm text-gray-600 mb-2">New Reports</p>
+                    <p className="text-3xl font-bold text-gray-900">14</p>
+                  </div>
+                  {/* Resolved Reports Card */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                    <p className="text-sm text-gray-600 mb-2">Resolved Reports</p>
+                    <p className="text-3xl font-bold text-gray-900">38</p>
                   </div>
                 </div>
 
-                {/* Two Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column: Recent Reports */}
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Reports</h2>
-                    <div className="space-y-4">
-                      {/* Inappropriate Content Card */}
-                      <div className="bg-white rounded-xl shadow-md border-l-4 border-red-500 p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                            <AlertTriangle className="w-5 h-5 text-red-600" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">Inappropriate Content</h3>
-                            <p className="text-xs text-gray-600 mb-2">Listing ID #12847 reported for misleading photos</p>
-                            <p className="text-xs text-gray-500">Reported by: user@email.com • 2 hours ago</p>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">Review</button>
-                            <button className="text-red-600 hover:text-red-700 text-sm font-medium">Remove</button>
-                          </div>
-                        </div>
-                      </div>
+                {/* Filter Bar */}
+                <div className="flex items-center gap-3 mb-6">
+                  <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                    <option>All Reports</option>
+                    <option>New</option>
+                    <option>Resolved</option>
+                  </select>
+                  <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                    <option>All Types</option>
+                    <option>Listing Reports</option>
+                    <option>User Reports</option>
+                  </select>
+                </div>
 
-                      {/* Spam Content Card */}
-                      <div className="bg-white rounded-xl shadow-md border-l-4 border-orange-500 p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                            <Flag className="w-5 h-5 text-orange-600" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">Spam Content</h3>
-                            <p className="text-xs text-gray-600 mb-2">Multiple duplicate listings from same user</p>
-                            <p className="text-xs text-gray-500">Auto-detected • 5 hours ago</p>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">Review</button>
-                            <button className="text-red-600 hover:text-red-700 text-sm font-medium">Remove</button>
-                          </div>
-                        </div>
+                {/* Report List */}
+                <div className="space-y-4">
+                  {/* Report Card 1 */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Listing</span>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500 text-white">New</span>
                       </div>
-
-                      {/* Suspicious Activity Card */}
-                      <div className="bg-white rounded-xl shadow-md border-l-4 border-yellow-500 p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center flex-shrink-0">
-                            <Shield className="w-5 h-5 text-yellow-600" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">Suspicious Activity</h3>
-                            <p className="text-xs text-gray-600 mb-2">User creating multiple accounts</p>
-                            <p className="text-xs text-gray-500">System Alert • 1 day ago</p>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">Investigate</button>
-                            <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">Monitor</button>
-                          </div>
-                        </div>
+                      <span className="text-xs text-gray-500">3 hours ago</span>
+                    </div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-3">Lister asking for payment before visit</h3>
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-gray-600">Reported by: Rahul Sharma - Seeker</p>
+                        <p className="text-sm text-gray-600">Listing: 2BHK in Koramangala</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-md shadow-orange-500/30">
+                          Review
+                        </button>
+                        <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                          Mark as Resolved
+                        </button>
+                        <button className="text-red-600 hover:text-red-700 text-sm font-medium">Remove Listing</button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right Column: Moderation Queue */}
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Moderation Queue</h2>
-                    <div className="space-y-4">
-                      {/* Bright Room Card */}
-                      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-orange-100 to-orange-200 flex-shrink-0"></div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">Bright Room in Kothrud</h3>
-                            <p className="text-xs text-gray-500 mb-3">Pending photo verification</p>
-                            <div className="flex items-center gap-2">
-                              <button className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Approve
-                              </button>
-                              <button className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
-                                <X className="w-3.5 h-3.5" />
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                  {/* Report Card 2 */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Listing</span>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500 text-white">New</span>
                       </div>
-
-                      {/* Luxury Room Card */}
-                      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-purple-100 to-purple-200 flex-shrink-0"></div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">Luxury Room in Aundh</h3>
-                            <p className="text-xs text-gray-500 mb-3">Price verification required</p>
-                            <div className="flex items-center gap-2">
-                              <button className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Approve
-                              </button>
-                              <button className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
-                                <X className="w-3.5 h-3.5" />
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                      <span className="text-xs text-gray-500">5 hours ago</span>
+                    </div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-3">Photos do not match actual room</h3>
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-gray-600">Reported by: Priya Patel - Seeker</p>
+                        <p className="text-sm text-gray-600">Listing: Single Room near HSR Layout</p>
                       </div>
+                      <div className="flex items-center gap-3">
+                        <button className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-md shadow-orange-500/30">
+                          Review
+                        </button>
+                        <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                          Mark as Resolved
+                        </button>
+                        <button className="text-red-600 hover:text-red-700 text-sm font-medium">Remove Listing</button>
+                      </div>
+                    </div>
+                  </div>
 
-                      {/* Budget Room Card */}
-                      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-green-100 to-green-200 flex-shrink-0"></div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">Budget Room in Karve Nagar</h3>
-                            <p className="text-xs text-gray-500 mb-3">Address verification needed</p>
-                            <div className="flex items-center gap-2">
-                              <button className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                Approve
-                              </button>
-                              <button className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
-                                <X className="w-3.5 h-3.5" />
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+                  {/* Report Card 3 */}
+                  <div className="bg-white rounded-xl shadow-md border border-gray-200 p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">User</span>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500 text-white">New</span>
+                      </div>
+                      <span className="text-xs text-gray-500">2 hours ago</span>
+                    </div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-3">Suspicious user behavior</h3>
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex flex-col gap-1">
+                        <p className="text-sm text-gray-600">Reported by: Anjali Mehta - Lister</p>
+                        <p className="text-sm text-gray-600">User: Rajesh Kumar</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-md shadow-orange-500/30">
+                          Review
+                        </button>
+                        <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                          Mark as Resolved
+                        </button>
+                        <button className="text-red-600 hover:text-red-700 text-sm font-medium">Remove User</button>
                       </div>
                     </div>
                   </div>
@@ -1328,7 +1310,255 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {activeView !== 'overview' && activeView !== 'users' && activeView !== 'listings' && activeView !== 'requests' && (
+            {activeView === 'settings' && (
+              <div>
+                {/* Settings Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+                    <p className="text-sm text-gray-600 mt-1">Configure marketplace rules and system behavior</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                      Discard Changes
+                    </button>
+                    <button className="bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-md shadow-orange-500/30">
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+
+                {/* Verification Rules Card */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">Verification Rules</h2>
+                  <p className="text-sm text-gray-600 mb-6">Control mandatory verification across the platform</p>
+                  
+                  <div className="space-y-6">
+                    {/* Email Verification Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900 mb-1">Email verification required</p>
+                        <p className="text-xs text-gray-600">Users must verify email before accessing core features</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                      </label>
+                    </div>
+
+                    {/* Phone Verification Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900 mb-1">Phone verification required</p>
+                        <p className="text-xs text-gray-600">Users must verify phone number before contacting or listing</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" defaultChecked />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Info Banner */}
+                  <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs text-blue-800">Applies to all users (seekers + listers)</p>
+                  </div>
+                </div>
+
+                {/* Moderation & Auto-Flag Rules Card */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">Moderation & Auto-Flag Rules</h2>
+                  <p className="text-sm text-gray-600 mb-6">Automatically surface risky behavior without manual review</p>
+                  
+                  {/* Input Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Reports to flag a listing</label>
+                      <input
+                        type="number"
+                        defaultValue="3"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Reports to flag a user</label>
+                      <input
+                        type="number"
+                        defaultValue="3"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Time window (hours)</label>
+                      <input
+                        type="number"
+                        defaultValue="24"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-orange-900">Reports within this window trigger auto-flag. When thresholds are met, listings or users are automatically flagged and appear in the Requests tab.</p>
+                  </div>
+                </div>
+
+                {/* Rate Limits Card */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mt-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">Rate Limits</h2>
+                  <p className="text-sm text-gray-600 mb-6">Prevent abuse and spam</p>
+                  
+                  {/* Input Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Max listings per user</label>
+                      <input
+                        type="number"
+                        defaultValue="1"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Max contact requests per day</label>
+                      <input
+                        type="number"
+                        defaultValue="10"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Max reports per user per day</label>
+                      <input
+                        type="number"
+                        defaultValue="5"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Info Banner */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm text-green-800">Rate limits apply across the platform and reset daily</p>
+                  </div>
+                </div>
+
+                {/* City Availability Card */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mt-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">City Availability</h2>
+                  <p className="text-sm text-gray-600 mb-6">Control geographic rollout</p>
+                  
+                  {/* City List Table */}
+                  <div className="border-t border-gray-200">
+                    {/* Table Header */}
+                    <div className="grid grid-cols-2 gap-4 py-3 border-b border-gray-200">
+                      <div className="text-sm font-medium text-gray-700">City Name</div>
+                      <div className="text-sm font-medium text-gray-700 text-right">Status</div>
+                    </div>
+                    
+                    {/* City Rows */}
+                    <div className="divide-y divide-gray-200">
+                      {/* Pune */}
+                      <div className="grid grid-cols-2 gap-4 py-4 items-center">
+                        <div className="text-sm text-gray-900">Pune</div>
+                        <div className="flex justify-end">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" defaultChecked />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      {/* Bangalore */}
+                      <div className="grid grid-cols-2 gap-4 py-4 items-center">
+                        <div className="text-sm text-gray-900">Bangalore</div>
+                        <div className="flex justify-end">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" defaultChecked />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      {/* Mumbai */}
+                      <div className="grid grid-cols-2 gap-4 py-4 items-center">
+                        <div className="text-sm text-gray-900">Mumbai</div>
+                        <div className="flex justify-end">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      {/* Delhi */}
+                      <div className="grid grid-cols-2 gap-4 py-4 items-center">
+                        <div className="text-sm text-gray-900">Delhi</div>
+                        <div className="flex justify-end">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Message */}
+                  <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-sm text-red-800">Disabled cities: No new listings, no new searches. Existing data remains hidden.</p>
+                  </div>
+                </div>
+
+                {/* Audit & Change Log Card */}
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mt-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">Audit & Change Log</h2>
+                  <p className="text-sm text-gray-600 mb-6">Transparency & accountability (Read-only)</p>
+                  
+                  {/* Audit Log Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Setting Name</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Change</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Changed By</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Timestamp</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        <tr className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-sm text-gray-900">Phone verification</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">OFF → ON</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">admin@mokogo.com</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">2024-01-15 14:30:22</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-sm text-gray-900">Pune city</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">Disabled → Enabled</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">founder@mokogo.com</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">2024-01-12 09:15:45</td>
+                        </tr>
+                        <tr className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-sm text-gray-900">Max listings per user</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">3 → 1</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">admin@mokogo.com</td>
+                          <td className="px-4 py-3 text-sm text-gray-600">2024-01-10 16:45:12</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Warning Banner */}
+                  <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-800">Changes made here affect the entire platform. Please review carefully before applying.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeView !== 'overview' && activeView !== 'users' && activeView !== 'listings' && activeView !== 'requests' && activeView !== 'settings' && (
               <div className="text-center py-12">
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">Admin Dashboard</h1>
                 <p className="text-gray-600">Content will be added here</p>

@@ -22,9 +22,9 @@ const SocialSidebar = ({ position = 'left' }: SocialSidebarProps) => {
 
   const socialLinks = [
     { icon: Facebook, href: '#', label: 'Facebook' },
-    { icon: Instagram, href: '#', label: 'Instagram' },
-    { icon: Twitter, href: '#', label: 'Twitter' },
-    { icon: Linkedin, href: '#', label: 'LinkedIn' },
+    { icon: Instagram, href: 'https://www.instagram.com/getmokogo/', label: 'Instagram' },
+    { icon: Twitter, href: 'https://x.com/getmokogo', label: 'Twitter' },
+    { icon: Linkedin, href: 'https://linkedin.com/company/mokogo', label: 'LinkedIn' },
     { icon: Youtube, href: '#', label: 'YouTube' }
   ]
 
@@ -57,6 +57,8 @@ const SocialSidebar = ({ position = 'left' }: SocialSidebarProps) => {
           <a
             key={index}
             href={social.href}
+            target="_blank"
+            rel="noopener noreferrer"
             className="p-3 text-slate-500 hover:text-orange-400 hover:bg-orange-50 transition-colors duration-300"
             aria-label={social.label}
           >
