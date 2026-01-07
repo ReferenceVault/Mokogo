@@ -21,7 +21,7 @@ const SocialSidebar = ({ position = 'left' }: SocialSidebarProps) => {
   }, [position])
 
   const socialLinks = [
-    { icon: Facebook, href: '#', label: 'Facebook' },
+    { icon: Facebook, href: 'https://www.facebook.com/getmokogo', label: 'Facebook' },
     { icon: Instagram, href: 'https://www.instagram.com/getmokogo/', label: 'Instagram' },
     { icon: Twitter, href: 'https://x.com/getmokogo', label: 'Twitter' },
     { icon: Linkedin, href: 'https://linkedin.com/company/mokogo', label: 'LinkedIn' },

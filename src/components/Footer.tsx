@@ -4,7 +4,7 @@ import { Facebook, Instagram, Twitter, Linkedin } from 'lucide-react'
 
 const Footer = () => {
   const socialLinks = [
-    { icon: Facebook, href: '#', label: 'Facebook', color: 'hover:text-blue-600' },
+    { icon: Facebook, href: 'https://www.facebook.com/getmokogo', label: 'Facebook', color: 'hover:text-blue-600' },
     { icon: Instagram, href: 'https://www.instagram.com/getmokogo/', label: 'Instagram', color: 'hover:text-pink-600' },
     { icon: Twitter, href: 'https://x.com/getmokogo', label: 'Twitter', color: 'hover:text-blue-400' },
     { icon: Linkedin, href: 'https://linkedin.com/company/mokogo', label: 'LinkedIn', color: 'hover:text-blue-700' },

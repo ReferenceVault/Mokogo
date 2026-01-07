@@ -23,25 +23,25 @@ const ExploreProperties = () => {
   const cities = [
     { 
       name: 'Pune', 
-      image: 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=400', 
+      image: '/pune-city.png', 
       listings: getCityListingsCount('Pune') || 156,
-      description: 'Oxford of the East'
+      description: 'Calm cultural & IT hub surrounded by hills'
     },
     { 
       name: 'Mumbai', 
-      image: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=400', 
+      image: '/mumbai-city.png', 
       listings: getCityListingsCount('Mumbai') || 245,
       description: 'Financial capital of India'
     },
     { 
       name: 'Hyderabad', 
-      image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400', 
+      image: '/hyderabad-city.png', 
       listings: getCityListingsCount('Hyderabad') || 98,
       description: 'City of Pearls'
     },
     { 
       name: 'Bangalore', 
-      image: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=400', 
+      image: '/bangalore-city.png', 
       listings: getCityListingsCount('Bangalore') || 189,
       description: 'Silicon Valley of India'
     }

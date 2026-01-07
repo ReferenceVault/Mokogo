@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useStore } from '@/store/useStore'
 import { 
   MoreVertical, 
   Shield,
@@ -11,9 +12,43 @@ import {
 } from 'lucide-react'
 
 const MessagesContent = () => {
+  const { user } = useStore()
   const [selectedConversation, setSelectedConversation] = useState<string | null>('rahul')
   const [message, setMessage] = useState('')
   const [showProfile, setShowProfile] = useState(true)
+  
+  // Get user preferences for display
+  const getUserPreferences = () => {
+    const userData = user as any
+    const preferences: string[] = []
+    
+    // Smoking preference
+    if (userData?.smoking === 'No') {
+      preferences.push('Non-Smoker')
+    } else if (userData?.smoking === 'Yes') {
+      preferences.push('Smoker')
+    } else if (userData?.smoking === 'Occasionally') {
+      preferences.push('Occasional Smoker')
+    }
+    
+    // Drinking preference
+    if (userData?.drinking === 'No') {
+      preferences.push('Non-Drinker')
+    } else if (userData?.drinking === 'Yes') {
+      preferences.push('Drinker')
+    } else if (userData?.drinking === 'Occasionally') {
+      preferences.push('Social Drinker')
+    }
+    
+    // Food preference
+    if (userData?.foodPreference) {
+      preferences.push(userData.foodPreference)
+    }
+    
+    return preferences
+  }
+  
+  const userPreferences = getUserPreferences()
 
   const conversations = [
     {
@@ -373,14 +408,18 @@ const MessagesContent = () => {
             <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Preferences</h3>
               <div className="flex flex-wrap gap-2">
-                {['Non-Smoker', 'Vegetarian', 'Early Riser', 'Work From Home'].map((pref) => (
-                  <span
-                    key={pref}
-                    className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full"
-                  >
-                    {pref}
-                  </span>
-                ))}
+                {userPreferences.length > 0 ? (
+                  userPreferences.map((pref) => (
+                    <span
+                      key={pref}
+                      className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full"
+                    >
+                      {pref}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-gray-500">No preferences set</span>
+                )}
               </div>
             </div>
 

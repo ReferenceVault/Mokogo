@@ -16,9 +16,6 @@ import {
   Bookmark, 
   Calendar,
   MapPin,
-  DollarSign,
-  Star,
-  Clock,
   Eye,
   Heart,
   MessageCircle,
@@ -49,8 +46,17 @@ const Dashboard = () => {
     if (listingParam) {
       setViewingListingId(listingParam)
       setActiveView('listing-detail')
+      // Scroll to top when viewing a listing
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }, [])
+
+  // Scroll to top when activeView changes to listing-detail
+  useEffect(() => {
+    if (activeView === 'listing-detail' && viewingListingId) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [activeView, viewingListingId])
 
   const handleCreateListing = () => {
     if (currentListing && currentListing.status === 'live') {
@@ -182,12 +188,7 @@ const Dashboard = () => {
               onClick: () => setActiveView('requests')
             }
           ]}
-          quickFilters={[
-            { label: 'Near Me', icon: MapPin, onClick: () => {} },
-            { label: 'Budget Friendly', icon: DollarSign, onClick: () => {} },
-            { label: 'Top Rated', icon: Star, onClick: () => {} },
-            { label: 'Recently Added', icon: Clock, onClick: () => {} }
-          ]}
+          quickFilters={[]}
           ctaSection={
             <>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.1),transparent_55%)]" />
@@ -297,7 +298,7 @@ const Dashboard = () => {
                       {activeListings.slice(0, 3).map((listing, index) => (
                         <Link
                           key={listing.id}
-                          to={`/listings/${listing.id}`}
+                          to={`/dashboard?listing=${listing.id}`}
                           className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-orange-200/50 overflow-hidden shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 block cursor-pointer group"
                           style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
                         >
@@ -540,7 +541,7 @@ const Dashboard = () => {
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
                             <Link 
-                              to={`/listings/${currentListing.id}`}
+                              to={`/dashboard?listing=${currentListing.id}`}
                               className="block hover:text-orange-600 transition-colors group"
                             >
                               <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">

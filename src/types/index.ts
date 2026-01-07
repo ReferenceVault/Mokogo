@@ -19,6 +19,7 @@ export interface Listing {
   moveInDate: string
   minimumStay?: number
   furnishingLevel: string
+  bathroomType?: string
   flatAmenities: string[]
   societyAmenities: string[]
   preferredGender: string
@@ -31,7 +32,7 @@ export interface Listing {
   photos: string[]
   contactPreference?: string
   contactNumber?: string
-  status: 'draft' | 'live' | 'archived'
+  status: 'draft' | 'live' | 'archived' | 'fulfilled'
   boostEnabled?: boolean
   createdAt: string
   updatedAt: string

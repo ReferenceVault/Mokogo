@@ -19,7 +19,8 @@ const CityListings = () => {
   const [filters, setFilters] = useState({
     area: '',
     maxRent: '',
-    moveInDate: ''
+    moveInDate: '',
+    genderPreference: ''
   })
 
   // Decode the city name from URL
@@ -64,6 +65,17 @@ const CityListings = () => {
         }
       }
       
+      // Gender Preference filter
+      if (filters.genderPreference) {
+        // If filter is set and listing has a preference, they must match
+        // If listing preference is 'Any', it matches all filters
+        if (listing.preferredGender && listing.preferredGender !== 'Any') {
+          if (listing.preferredGender !== filters.genderPreference) {
+            return false
+          }
+        }
+      }
+      
       return true
     })
   }, [cityListingsBase, filters])
@@ -76,11 +88,12 @@ const CityListings = () => {
     setFilters({
       area: '',
       maxRent: '',
-      moveInDate: ''
+      moveInDate: '',
+      genderPreference: ''
     })
   }
 
-  const hasActiveFilters = filters.area || filters.maxRent || filters.moveInDate
+  const hasActiveFilters = filters.area || filters.maxRent || filters.moveInDate || filters.genderPreference
 
   const formatRent = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -166,6 +179,20 @@ const CityListings = () => {
                   className="w-full h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80"
                 />
               </div>
+              <div className="flex-1 relative z-20">
+                <CustomSelect
+                  label="Gender Preference"
+                  value={filters.genderPreference}
+                  onValueChange={(value) => handleFilterChange('genderPreference', value)}
+                  placeholder="Any"
+                  options={[
+                    { value: '', label: 'Any' },
+                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female' },
+                    { value: 'Other', label: 'Other' }
+                  ]}
+                />
+              </div>
               {hasActiveFilters && (
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-2 opacity-0">
@@ -192,7 +219,7 @@ const CityListings = () => {
                   {cityListings.map((listing) => (
                     <Link
                       key={listing.id}
-                      to={`/listings/${listing.id}`}
+                      to={`/dashboard?listing=${listing.id}`}
                       className="bg-white/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all group border border-white/60 block"
                     >
                       {/* Image */}
@@ -229,12 +256,6 @@ const CityListings = () => {
                           <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
                             {listing.title}
                           </h3>
-                          <div className="flex items-center gap-1 text-mokogo-primary shrink-0">
-                            <svg className="w-4 h-4 fill-current" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            <span className="text-sm font-medium">4.8</span>
-                          </div>
                         </div>
 
                         <div className="flex items-center gap-2 text-gray-600 text-sm">

@@ -63,6 +63,27 @@ const Step2Location = ({ data, onChange, error }: Step2LocationProps) => {
             />
           </div>
         </div>
+
+        {/* Society/Building Name */}
+        <div className="w-full">
+          <label className="block text-sm font-medium text-stone-700 mb-2">
+            Society / Building Name (Optional)
+          </label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
+              <svg className="w-5 h-5 text-mokogo-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={data.societyName || ''}
+              onChange={(e) => handleChange('societyName', e.target.value)}
+              className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400 transition-all duration-200 shadow-sm hover:shadow-md hover:border-orange-300 text-stone-900 font-medium pl-12"
+              placeholder="e.g., Green Valley Apartments, Sunrise Towers"
+            />
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -48,7 +48,7 @@ const Step3Details = ({ data, onChange, error }: Step3DetailsProps) => {
           </div>
         </div>
 
-        {/* Apartment Type and Furnishing - Single Line */}
+        {/* Apartment Type, Furnishing, and Bathroom Type - Single Line */}
         <div className="flex flex-wrap gap-4">
           {/* BHK Type */}
           <div className="flex-1 min-w-[200px]">
@@ -78,6 +78,20 @@ const Step3Details = ({ data, onChange, error }: Step3DetailsProps) => {
                 { value: 'Fully Furnished', label: 'Fully Furnished' },
                 { value: 'Semi-furnished', label: 'Semi Furnished' },
                 { value: 'Unfurnished', label: 'Unfurnished' }
+              ]}
+            />
+          </div>
+
+          {/* Bathroom Type */}
+          <div className="flex-1 min-w-[200px]">
+            <CustomSelect
+              label="Bathroom Type"
+              value={data.bathroomType || ''}
+              onValueChange={(value) => handleChange('bathroomType', value)}
+              placeholder="Select bathroom type"
+              options={[
+                { value: 'Attached', label: 'Attached Bathroom' },
+                { value: 'Common', label: 'Common Bathroom' }
               ]}
             />
           </div>

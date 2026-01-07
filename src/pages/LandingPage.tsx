@@ -14,7 +14,8 @@ const LandingPage = () => {
   const [searchFilters, setSearchFilters] = useState({
     city: '',
     moveInDate: '',
-    maxRent: ''
+    maxRent: '',
+    genderPreference: ''
   })
 
   const searchCities = [
@@ -240,30 +241,38 @@ const LandingPage = () => {
     { value: '24hrs', label: 'Avg Response', icon: Clock }
   ]
 
-  const cities = [
-    { name: 'Mumbai', image: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=400', listings: 245 },
-    { name: 'Bangalore', image: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=400', listings: 189 },
-    { name: 'Pune', image: 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=400', listings: 156 },
-    { name: 'Delhi NCR', image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=400', listings: 134 }
-  ]
+  // Get city listings count from actual listings
+  const getCityListingsCount = (cityName: string) => {
+    return allListings.filter(l => l.city === cityName && l.status === 'live').length
+  }
 
-  const safetyFeatures = [
-    {
-      icon: '🛡️',
-      title: 'ID Verified Profiles',
-      description: 'All users go through a strict ID verification process for your safety and security.'
+  const cities = [
+    { 
+      name: 'Pune', 
+      image: '/pune-city.png', 
+      listings: getCityListingsCount('Pune') || 156,
+      description: 'Calm cultural & IT hub surrounded by hills'
     },
-    {
-      icon: '✅',
-      title: 'Verified Property Listings',
-      description: 'We ensure every property listing is legitimate and verified by our team before going live.'
+    { 
+      name: 'Mumbai', 
+      image: '/mumbai-city.png', 
+      listings: getCityListingsCount('Mumbai') || 245,
+      description: 'Financial capital of India'
     },
-    {
-      icon: '👥',
-      title: 'Trusted Community',
-      description: 'Our users rate each other to build trust. See ratings and reviews before connecting.'
+    { 
+      name: 'Hyderabad', 
+      image: '/hyderabad-city.png', 
+      listings: getCityListingsCount('Hyderabad') || 98,
+      description: 'City of Pearls'
+    },
+    { 
+      name: 'Bangalore', 
+      image: '/bangalore-city.png', 
+      listings: getCityListingsCount('Bangalore') || 189,
+      description: 'Silicon Valley of India'
     }
   ]
+
 
   const testimonials = [
     {
@@ -349,12 +358,12 @@ const LandingPage = () => {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-200/20 rounded-full blur-3xl" />
           </div>
 
-          <div className="relative max-w-7xl mx-auto px-6 md:px-16 pt-5">
+          <div className="relative max-w-7xl mx-auto px-6 md:px-12 pt-5">
             <div className="relative bg-white/80 backdrop-blur-xl border border-orange-200/50 shadow-2xl rounded-3xl p-8 md:p-12">
               {/* Inner decorative gradient */}
               <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-transparent to-orange-100/30 pointer-events-none rounded-3xl" />
               
-              <div className="relative max-w-[1177px] mx-auto space-y-10">
+              <div className="relative space-y-10">
                 <div className="text-center space-y-5">
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
                     Find Your Perfect{' '}
@@ -372,7 +381,7 @@ const LandingPage = () => {
 
                 {/* Search Card */}
                 <div className="relative bg-white/90 backdrop-blur-md rounded-xl p-5 md:p-7 shadow-xl border border-orange-200/50 hover:shadow-2xl transition-all duration-300 hover:border-orange-300">
-                  <div className="grid md:grid-cols-4 gap-3.5 items-end">
+                  <div className="grid md:grid-cols-5 gap-3.5 items-end">
                     <div className="[&_button]:h-[50px] [&_button]:py-0 group">
                       <CustomSelect
                         label="Select City"
@@ -404,6 +413,20 @@ const LandingPage = () => {
                         value={searchFilters.maxRent}
                         onChange={(e) => setSearchFilters({ ...searchFilters, maxRent: e.target.value })}
                         className="w-full h-[50px] px-3.5 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white transition-all duration-300 hover:border-orange-300 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div className="[&_button]:h-[50px] [&_button]:py-0 group">
+                      <CustomSelect
+                        label="Gender Preference"
+                        value={searchFilters.genderPreference}
+                        onValueChange={(value) => setSearchFilters({ ...searchFilters, genderPreference: value })}
+                        placeholder="Any"
+                        options={[
+                          { value: '', label: 'Any' },
+                          { value: 'Male', label: 'Male' },
+                          { value: 'Female', label: 'Female' },
+                          { value: 'Other', label: 'Other' }
+                        ]}
                       />
                     </div>
                     <div>
@@ -472,7 +495,7 @@ const LandingPage = () => {
               {displayedListings.map((listing) => (
                 <Link
                   key={listing.id}
-                  to={`/listings/${listing.id}`}
+                  to={`/dashboard?listing=${listing.id}`}
                   className="bg-white/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all group border border-white/60 block"
                 >
                   {/* Image */}
@@ -509,12 +532,6 @@ const LandingPage = () => {
                       <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
                         {listing.title}
                       </h3>
-                      <div className="flex items-center gap-1 text-mokogo-primary shrink-0">
-                        <svg className="w-4 h-4 fill-current" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                        <span className="text-sm font-medium">4.8</span>
-                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 text-gray-600 text-sm">
@@ -530,15 +547,9 @@ const LandingPage = () => {
                         <p className="text-xl font-bold text-gray-900">{formatRent(listing.rent)}</p>
                         <p className="text-xs text-gray-600">per month</p>
                       </div>
-                      <button 
-                        onClick={(e) => {
-                          e.preventDefault()
-                          // Navigation handled by Link parent
-                        }}
-                        className="btn-primary text-sm px-4 py-2"
-                      >
-                        Rent
-                      </button>
+                      <span className="btn-primary text-sm px-4 py-2 inline-block text-center">
+                        View Details
+                      </span>
                     </div>
                   </div>
                 </Link>
@@ -635,78 +646,6 @@ const LandingPage = () => {
                     {/* Shine Effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                   </Link>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Safety Section */}
-          <section className="relative max-w-7xl mx-auto py-7 md:py-9 overflow-hidden">
-            {/* Background Decorations */}
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-0 left-1/4 w-80 h-80 bg-orange-200/20 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-orange-300/20 rounded-full blur-3xl" />
-            </div>
-
-            <div className="relative space-y-10">
-              {/* Header */}
-              <div className="text-center space-y-3">
-                <span className="inline-flex items-center gap-2 rounded-full border border-orange-300/50 bg-orange-200/30 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-[0.35em] text-orange-800/80">
-                  Safety First • Trust Built In
-                </span>
-                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  Your Safety Is Our{' '}
-                  <span className="relative inline-block">
-                    <span className="relative z-10 bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
-                      Priority
-                    </span>
-                    <span className="absolute bottom-1.5 left-0 right-0 h-2.5 bg-orange-200/40 -z-0 transform -skew-x-12" />
-                  </span>
-                </h2>
-                <p className="text-gray-700 text-base max-w-2xl mx-auto leading-relaxed">
-                  We understand finding a flatmate involves trust. That's why we've built multiple safety layers.
-                </p>
-              </div>
-
-              {/* Safety Features Grid */}
-              <div className="grid md:grid-cols-3 gap-5 lg:gap-6">
-                {safetyFeatures.map((feature, index) => (
-                  <div
-                    key={index}
-                    className="group relative bg-white/80 backdrop-blur-md border border-orange-200/50 shadow-xl rounded-xl p-6 hover:shadow-2xl hover:border-orange-300 transition-all duration-300 hover:scale-105 cursor-default overflow-hidden"
-                    style={{
-                      animation: `fadeInUp 0.6s ease-out ${index * 0.15}s both`
-                    }}
-                  >
-                    {/* Decorative gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-transparent to-orange-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                    
-                    <div className="relative text-center space-y-4">
-                      {/* Icon Container */}
-                      <div className="relative inline-block">
-                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl group-hover:shadow-orange-500/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
-                          <span className="text-3xl transform transition-transform duration-300 group-hover:scale-110">
-                            {feature.icon}
-                          </span>
-                        </div>
-                        {/* Pulse ring on hover */}
-                        <div className="absolute inset-0 rounded-xl border-2 border-orange-400 opacity-0 group-hover:opacity-100 group-hover:animate-pulse transition-opacity duration-300" />
-                      </div>
-
-                      {/* Content */}
-                      <div className="space-y-2">
-                        <h3 className="text-lg md:text-xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors duration-300">
-                          {feature.title}
-                        </h3>
-                        <p className="text-gray-700 leading-relaxed text-xs md:text-sm">
-                          {feature.description}
-                        </p>
-                      </div>
-
-                      {/* Decorative bottom accent */}
-                      <div className="w-10 h-0.5 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full mx-auto opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </div>
-                  </div>
                 ))}
               </div>
             </div>
