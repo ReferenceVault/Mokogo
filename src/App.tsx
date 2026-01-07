@@ -4,6 +4,7 @@ import Auth from './pages/auth/Auth'
 import AuthEmail from './pages/auth/AuthEmail'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
+import GoogleCallback from './pages/auth/GoogleCallback'
 import ListingWizard from './pages/listing/ListingWizard'
 import Dashboard from './pages/Dashboard'
 import RequestsList from './pages/requests/RequestsList'
@@ -27,6 +28,7 @@ function App() {
         <Route path="/auth/email" element={<AuthEmail />} />
         <Route path="/auth/forgot-password" element={<ForgotPassword />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
         <Route path="/listing/wizard" element={<ListingWizard />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/requests" element={<RequestsList />} />

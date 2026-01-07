@@ -24,6 +24,19 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
+  const handleGoogleSignIn = async () => {
+    try {
+      const response = await authApi.getGoogleAuthUrl()
+      window.location.href = response.url
+    } catch (error) {
+      setError('Failed to initiate Google sign in. Please try again.')
+    }
+  }
+
+  const handleGoogleSignUp = async () => {
+    await handleGoogleSignIn()
+  }
+
   const formatPhoneNumber = (value: string) => {
     const cleaned = value.replace(/\D/g, '')
     if (cleaned.length <= 5) return cleaned
@@ -72,7 +85,9 @@ const Auth = () => {
       const response = await authApi.login({ email, password })
       
       localStorage.setItem('mokogo-access-token', response.accessToken)
-      localStorage.setItem('mokogo-refresh-token', response.refreshToken)
+      if (response.refreshToken) {
+        localStorage.setItem('mokogo-refresh-token', response.refreshToken)
+      }
       
       setUser({
         id: response.user.id,
@@ -158,7 +173,9 @@ const Auth = () => {
       const loginResponse = await authApi.login({ email: email.trim(), password })
       
       localStorage.setItem('mokogo-access-token', loginResponse.accessToken)
-      localStorage.setItem('mokogo-refresh-token', loginResponse.refreshToken)
+      if (loginResponse.refreshToken) {
+        localStorage.setItem('mokogo-refresh-token', loginResponse.refreshToken)
+      }
       
       setUser({
         id: loginResponse.user.id,
@@ -436,7 +453,9 @@ const Auth = () => {
                     <div className="mt-4">
                       <button
                         type="button"
-                        className="w-full inline-flex items-center justify-center py-4 px-6 border-2 border-orange-400 rounded-lg bg-white text-orange-400 font-medium text-base hover:bg-orange-50 transition-colors"
+                        onClick={handleGoogleSignIn}
+                        disabled={isLoading}
+                        className="w-full inline-flex items-center justify-center py-4 px-6 border-2 border-orange-400 rounded-lg bg-white text-orange-400 font-medium text-base hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24">
                           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -714,7 +733,9 @@ const Auth = () => {
                     <div className="mt-4">
                       <button
                         type="button"
-                        className="w-full inline-flex items-center justify-center py-4 px-6 border-2 border-orange-400 rounded-lg bg-white text-orange-400 font-medium text-base hover:bg-orange-50 transition-colors"
+                        onClick={handleGoogleSignUp}
+                        disabled={isLoading}
+                        className="w-full inline-flex items-center justify-center py-4 px-6 border-2 border-orange-400 rounded-lg bg-white text-orange-400 font-medium text-base hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24">
                           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

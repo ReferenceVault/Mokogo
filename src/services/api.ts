@@ -69,10 +69,11 @@ export interface LoginRequest {
 
 export interface AuthResponse {
   accessToken: string
-  refreshToken: string
+  refreshToken?: string
   user: {
     id: string
     email: string
+    name?: string
     roles: string[]
   }
 }
@@ -125,6 +126,18 @@ export const authApi = {
 
   resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
     const response = await api.post<ResetPasswordResponse>('/auth/reset-password', data)
+    return response.data
+  },
+
+  getGoogleAuthUrl: async (): Promise<{ url: string }> => {
+    const response = await api.get<{ url: string }>('/auth/google/url')
+    return response.data
+  },
+
+  googleCallback: async (code: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/google/callback', {
+      code,
+    })
     return response.data
   },
 }
