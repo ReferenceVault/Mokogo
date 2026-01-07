@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import LandingPage from './pages/LandingPage'
 import Auth from './pages/auth/Auth'
 import AuthEmail from './pages/auth/AuthEmail'
@@ -19,10 +20,25 @@ import AboutUs from './pages/AboutUs'
 import Contact from './pages/Contact'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import CookieConsent from './components/CookieConsent'
+import { trackPageView } from './utils/analytics'
+
+// Component to track page views on route changes
+function PageViewTracker() {
+  const location = useLocation()
+
+  useEffect(() => {
+    // Track page view when route changes
+    trackPageView(location.pathname + location.search)
+  }, [location])
+
+  return null
+}
 
 function App() {
   return (
     <Router>
+      <PageViewTracker />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<Auth />} />
@@ -45,6 +61,7 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
       </Routes>
+      <CookieConsent />
     </Router>
   )
 }
