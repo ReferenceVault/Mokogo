@@ -180,6 +180,14 @@ const Footer = () => {
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-500 group-hover:w-full transition-all duration-300" />
               </Link>
               <span className="text-gray-300">•</span>
+              <button
+                onClick={() => window.dispatchEvent(new Event('openCookieSettings'))}
+                className="text-gray-600 hover:text-orange-500 transition-all duration-300 relative group"
+              >
+                Cookie Settings
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-orange-500 group-hover:w-full transition-all duration-300" />
+              </button>
+              <span className="text-gray-300">•</span>
               <Link 
                 to="/help-centre" 
                 className="text-gray-600 hover:text-orange-500 transition-all duration-300 relative group"

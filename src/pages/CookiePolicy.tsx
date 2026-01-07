@@ -120,7 +120,7 @@ const CookiePolicy = () => {
               This Cookie Policy explains how Mokogo uses cookies and similar technologies when you visit or use our website and services.
             </p>
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-orange-400/20 border border-orange-300/40 px-6 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-orange-800 shadow-lg shadow-orange-200/50 ring-1 ring-orange-300/30">
-              Last updated: 28th December, 2025
+              Last updated: 6th January, 2026
             </div>
           </div>
         </section>
