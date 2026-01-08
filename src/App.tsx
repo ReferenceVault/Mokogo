@@ -24,7 +24,7 @@ import Contact from './pages/Contact'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import CookieConsent from './components/CookieConsent'
-import { trackPageView } from './utils/analytics'
+import { trackPageView, initializeGADisableFlag } from './utils/analytics'
 
 // Component to track page views on route changes
 function PageViewTracker() {
@@ -39,6 +39,11 @@ function PageViewTracker() {
 }
 
 function App() {
+  // Initialize GA disable flag on app mount (before any scripts load)
+  useEffect(() => {
+    initializeGADisableFlag()
+  }, [])
+
   return (
     <Router>
       <PageViewTracker />
