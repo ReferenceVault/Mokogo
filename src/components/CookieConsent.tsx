@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Settings, Shield, BarChart3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { loadGAScript } from '@/utils/analytics'
+import { loadGAScript, setAnalyticsEnabled, initializeGADisableFlag } from '@/utils/analytics'
 
 interface CookiePreferences {
   essential: boolean
@@ -18,24 +18,34 @@ const CookieConsent = () => {
 
   // Check if user has already made a choice
   useEffect(() => {
+    // CRITICAL: Initialize GA disable flag FIRST (before any script loads)
+    initializeGADisableFlag()
+    
     const consent = localStorage.getItem('mokogo_cookie_consent')
     if (!consent) {
-      // First visit - show banner
+      // First visit - show banner and ensure GA is disabled
+      setAnalyticsEnabled(false)
       setShowBanner(true)
     } else {
       // User has made a choice - load preferences
       try {
         const savedPrefs = JSON.parse(consent)
+        const analyticsEnabled = savedPrefs.analytics || false
+        
         setPreferences({
           essential: true,
-          analytics: savedPrefs.analytics || false,
+          analytics: analyticsEnabled,
         })
         
+        // CRITICAL: Set disable flag based on saved preference
+        setAnalyticsEnabled(analyticsEnabled)
+        
         // Load GA if analytics was accepted
-        if (savedPrefs.analytics) {
+        if (analyticsEnabled) {
           loadGAScript()
         }
       } catch {
+        setAnalyticsEnabled(false)
         setShowBanner(true)
       }
     }
@@ -65,7 +75,11 @@ const CookieConsent = () => {
       analytics: analyticsEnabled,
     })
     
+    // CRITICAL: Set disable flag BEFORE loading script
+    setAnalyticsEnabled(analyticsEnabled)
+    
     if (analyticsEnabled) {
+      // Load GA script only after enabling it
       loadGAScript()
     }
     
