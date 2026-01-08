@@ -35,45 +35,78 @@ const initGtagFunction = (): void => {
   }
 }
 
+// Track if script is fully loaded and ready
+let isGAScriptReady = false
+
 // Load Google Analytics script and initialize (matches Google's standard implementation)
 export const loadGAScript = (): void => {
   if (typeof window === 'undefined') return
   if (!hasAnalyticsConsent()) return
   
-  // Check if already initialized
-  const existingScript = document.querySelector(`script[src*="googletagmanager.com/gtag/js"]`)
-  if (existingScript && typeof window.gtag === 'function') {
-    // Already loaded and initialized
+  // Check if already initialized and ready
+  if (isGAScriptReady && typeof window.gtag === 'function') {
     return
   }
 
-  // Step 1: Initialize dataLayer and gtag function (matches Google's inline script)
+  // Step 1: Initialize dataLayer and gtag function FIRST (before script loads)
   initGtagFunction()
 
-  // Step 2: Call gtag commands immediately (they'll be processed when script loads)
-  if (window.gtag) {
-    window.gtag('js', new Date())
-    window.gtag('config', GA_MEASUREMENT_ID)
-    console.log('[GA] Initialized Google Analytics:', GA_MEASUREMENT_ID)
+  // Check if script is already in DOM
+  const existingScript = document.querySelector(`script[src*="googletagmanager.com/gtag/js"]`)
+  
+  if (existingScript) {
+    // Script is already in DOM, check if it's loaded
+    if (existingScript.getAttribute('data-loaded') === 'true') {
+      // Script was previously loaded, reinitialize
+      isGAScriptReady = true
+      if (window.gtag) {
+        window.gtag('js', new Date())
+        window.gtag('config', GA_MEASUREMENT_ID)
+        console.log('[GA] Reinitialized Google Analytics:', GA_MEASUREMENT_ID)
+      }
+    }
+    return
   }
 
-  // Step 3: Load the async script (if not already loading/loaded)
-  if (!existingScript) {
-    const script = document.createElement('script')
-    script.async = true
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
+  // Step 2: Load the async script
+  const script = document.createElement('script')
+  script.async = true
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
+  
+  script.onload = () => {
+    isGAScriptReady = true
+    script.setAttribute('data-loaded', 'true')
     
-    script.onload = () => {
-      console.log('[GA] Script loaded successfully')
-    }
-    
-    script.onerror = () => {
-      console.error('[GA] Failed to load script')
-    }
-    
-    document.head.appendChild(script)
-    console.log('[GA] Loading Google Analytics script...')
+    // Small delay to ensure gtag.js has fully initialized
+    setTimeout(() => {
+      // The real gtag.js script should now be available
+      if (window.gtag) {
+        // Call config with the real gtag function
+        window.gtag('js', new Date())
+        window.gtag('config', GA_MEASUREMENT_ID, {
+          send_page_view: true,
+          // Allow localhost for testing
+          allow_google_signals: true,
+        })
+        console.log('[GA] Script loaded and configured:', GA_MEASUREMENT_ID)
+        
+        // Verify dataLayer and check for any queued commands
+        console.log('[GA] DataLayer contents:', window.dataLayer)
+        console.log('[GA] DataLayer length:', window.dataLayer?.length)
+        
+        // Check if gtag is the real function (it should process dataLayer)
+        console.log('[GA] Gtag function type:', typeof window.gtag)
+      }
+    }, 50)
   }
+  
+  script.onerror = () => {
+    console.error('[GA] Failed to load script')
+    isGAScriptReady = false
+  }
+  
+  document.head.appendChild(script)
+  console.log('[GA] Loading Google Analytics script...')
 }
 
 // Initialize Google Analytics (for backward compatibility)
@@ -87,15 +120,28 @@ export const trackPageView = (path: string): void => {
     console.log('[GA] Page view not tracked - no consent:', path)
     return
   }
-  if (!window.gtag) {
+  
+  // Ensure script is loaded first
+  if (!isGAScriptReady || !window.gtag) {
     loadGAScript()
+    // Wait a bit for script to load, then track
+    setTimeout(() => {
+      if (window.gtag && isGAScriptReady) {
+        window.gtag('config', GA_MEASUREMENT_ID, {
+          page_path: path,
+        })
+        console.log('[GA] Page view tracked:', path)
+      }
+    }, 100)
     return
   }
   
+  // Script is ready, track immediately
   window.gtag('config', GA_MEASUREMENT_ID, {
     page_path: path,
+    send_page_view: true,
   })
-  console.log('[GA] Page view tracked:', path)
+  console.log('[GA] Page view tracked:', path, '- DataLayer length:', window.dataLayer?.length)
 }
 
 // Track custom event
@@ -104,11 +150,21 @@ export const trackEvent = (eventName: string, eventParams?: Record<string, any>)
     console.log('[GA] Event not tracked - no consent:', eventName)
     return
   }
-  if (!window.gtag) {
+  
+  // Ensure script is loaded first
+  if (!isGAScriptReady || !window.gtag) {
     loadGAScript()
+    // Wait a bit for script to load, then track
+    setTimeout(() => {
+      if (window.gtag && isGAScriptReady) {
+        window.gtag('event', eventName, eventParams)
+        console.log('[GA] Event tracked:', eventName, eventParams)
+      }
+    }, 100)
     return
   }
   
+  // Script is ready, track immediately
   window.gtag('event', eventName, eventParams)
   console.log('[GA] Event tracked:', eventName, eventParams)
 }
