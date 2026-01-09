@@ -6,6 +6,7 @@ import SocialSidebar from '@/components/SocialSidebar'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import CustomSelect from '@/components/CustomSelect'
+import { MoveInDateField } from '@/components/MoveInDateField'
 import { Quote, Star, ChevronLeft, ChevronRight, Home, Users, MapPin, Clock } from 'lucide-react'
 
 const LandingPage = () => {
@@ -359,20 +360,20 @@ const LandingPage = () => {
                         options={searchCities.map(city => ({ value: city, label: city }))}
                       />
                     </div>
-                    <div className="group">
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 group-hover:text-orange-600 transition-colors">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-stone-700">
                         Move-in Date
                       </label>
-                      <input
-                        type="date"
+                      <MoveInDateField
                         value={searchFilters.moveInDate}
-                        onChange={(e) => setSearchFilters({ ...searchFilters, moveInDate: e.target.value })}
+                        onChange={(date) => setSearchFilters({ ...searchFilters, moveInDate: date })}
                         min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                        className="w-full h-[50px] px-3.5 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white transition-all duration-300 hover:border-orange-300 text-sm"
+                        hideLabel={true}
+                        className="!h-[50px] !rounded-lg !border-2 !border-gray-200 hover:!border-orange-300 focus:!ring-2 focus:!ring-orange-400 focus:!border-orange-400"
                       />
                     </div>
-                    <div className="group">
-                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 group-hover:text-orange-600 transition-colors">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-stone-700">
                         Max Rent (₹)
                       </label>
                       <input

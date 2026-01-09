@@ -4,6 +4,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { useStore } from '@/store/useStore'
 import CustomSelect from '@/components/CustomSelect'
+import { MoveInDateField } from '@/components/MoveInDateField'
 
 const CityListings = () => {
   const { cityName } = useParams<{ cityName: string }>()
@@ -155,8 +156,8 @@ const CityListings = () => {
                   ]}
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-stone-700 mb-2">
+              <div className="flex-1 space-y-2">
+                <label className="block text-sm font-medium text-stone-700">
                   Max Rent (₹)
                 </label>
                 <input
@@ -167,16 +168,15 @@ const CityListings = () => {
                   className="w-full h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-stone-700 mb-2">
+              <div className="flex-1 space-y-2">
+                <label className="block text-sm font-medium text-stone-700">
                   Move-in Date
                 </label>
-                <input
-                  type="date"
+                <MoveInDateField
                   value={filters.moveInDate}
-                  onChange={(e) => handleFilterChange('moveInDate', e.target.value)}
+                  onChange={(date) => handleFilterChange('moveInDate', date)}
                   min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                  className="w-full h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80"
+                  hideLabel={true}
                 />
               </div>
               <div className="flex-1 relative z-20">
