@@ -8,9 +8,11 @@ import RequestsContent from '@/components/RequestsContent'
 import ListingDetailContent from '@/components/ListingDetailContent'
 import MessagesContent from '@/components/MessagesContent'
 import ProfileContent from '@/components/ProfileContent'
+import ExploreContent from '@/components/ExploreContent'
 import { useStore } from '@/store/useStore'
-import { authApi, listingsApi, ListingResponse } from '@/services/api'
+import { listingsApi, ListingResponse } from '@/services/api'
 import { Listing } from '@/types'
+import { handleLogout as handleLogoutUtil } from '@/utils/auth'
 import { 
   LayoutGrid, 
   Home, 
@@ -26,14 +28,15 @@ import {
   Search,
   Pen,
   Settings,
-  Users
+  Users,
+  CheckCircle
 } from 'lucide-react'
 
-type ViewType = 'overview' | 'listings' | 'requests' | 'listing-detail' | 'messages' | 'profile'
+type ViewType = 'overview' | 'listings' | 'requests' | 'listing-detail' | 'messages' | 'profile' | 'explore'
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { user, currentListing, setCurrentListing, setUser, allListings, setAllListings, setRequests } = useStore()
+  const { user, currentListing, setCurrentListing, allListings, setAllListings, requests } = useStore()
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -117,17 +120,45 @@ const Dashboard = () => {
     fetchListings()
   }, [user])
 
-  // Check if we're viewing a listing from URL query params
+  // Check if we're viewing a listing or specific view from URL query params
+  const [requestsInitialTab, setRequestsInitialTab] = useState<'received' | 'sent' | undefined>(undefined)
+  
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const listingParam = urlParams.get('listing')
+    const viewParam = urlParams.get('view')
+    const tabParam = urlParams.get('tab')
+    
     if (listingParam) {
       setViewingListingId(listingParam)
       setActiveView('listing-detail')
       // Scroll to top when viewing a listing
       window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else if (viewParam && ['overview', 'listings', 'requests', 'messages', 'profile', 'explore'].includes(viewParam)) {
+      // Redirect to overview if user tries to access requests without listings or sent requests
+      if (viewParam === 'requests' && !(allListings.length > 0 || requests.filter(r => r.seekerId === user?.id).length > 0)) {
+        setActiveView('overview')
+      } else {
+        // Set active view from URL param
+        setActiveView(viewParam as ViewType)
+        
+        // Handle requests tab param
+        if (viewParam === 'requests' && tabParam === 'sent') {
+          setRequestsInitialTab('sent')
+        } else if (viewParam === 'requests' && tabParam === 'received') {
+          setRequestsInitialTab('received')
+        }
+      }
+      
+      // Clean up URL by removing the view and tab params
+      const newParams = new URLSearchParams(urlParams)
+      newParams.delete('view')
+      newParams.delete('tab')
+      const newSearch = newParams.toString()
+      const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname
+      window.history.replaceState({}, '', newUrl)
     }
-  }, [])
+  }, [allListings.length, requests, user?.id])
 
   // Scroll to top when activeView changes to listing-detail
   useEffect(() => {
@@ -202,29 +233,22 @@ const Dashboard = () => {
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await authApi.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      setUser(null)
-      setCurrentListing(null)
-      setAllListings([])
-      setRequests([])
-      localStorage.removeItem('mokogo-user')
-      localStorage.removeItem('mokogo-listing')
-      localStorage.removeItem('mokogo-all-listings')
-      localStorage.removeItem('mokogo-requests')
-      localStorage.removeItem('mokogo-access-token')
-      localStorage.removeItem('mokogo-refresh-token')
-      navigate('/auth')
-    }
-  }
+  const handleLogout = () => handleLogoutUtil(navigate)
 
   const activeListings = allListings.filter(l => l.status === 'live')
+  const hasListings = allListings.length > 0 // Check if user has any listings
+  const sentRequests = requests.filter(r => r.seekerId === user?.id)
+  const hasSentRequests = sentRequests.length > 0 // Check if user has sent any requests
+  const showRequestsTab = hasListings || hasSentRequests // Show Requests tab if user has listings OR sent requests
   const userName = user?.name || 'User'
   const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
+
+  // Redirect to overview if user tries to access requests without listings or sent requests
+  useEffect(() => {
+    if (activeView === 'requests' && !showRequestsTab) {
+      setActiveView('overview')
+    }
+  }, [activeView, showRequestsTab])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-orange-50/20 flex flex-col">
@@ -259,6 +283,12 @@ const Dashboard = () => {
           activeView={activeView}
           menuItems={[
             {
+              id: 'explore',
+              label: 'Explore',
+              icon: Search,
+              onClick: () => setActiveView('explore')
+            },
+            {
               id: 'overview',
               label: 'Overview',
               icon: LayoutGrid,
@@ -284,12 +314,13 @@ const Dashboard = () => {
               icon: Bookmark,
               onClick: () => {} // No action for saved properties yet
             },
-            {
+            // Only show Requests tab if user has listings OR sent requests
+            ...(showRequestsTab ? [{
               id: 'requests',
               label: 'Requests',
               icon: Calendar,
               onClick: () => setActiveView('requests')
-            }
+            }] : [])
           ]}
           quickFilters={[]}
           ctaSection={
@@ -329,13 +360,30 @@ const Dashboard = () => {
                 setActiveView('listings')
                 setViewingListingId(null)
               }}
+              onExplore={() => {
+                setActiveView('explore')
+                setViewingListingId(null)
+              }}
+            />
+          ) : activeView === 'explore' ? (
+            <ExploreContent 
+              onListingClick={(listingId) => {
+                setViewingListingId(listingId)
+                setActiveView('listing-detail')
+              }}
             />
           ) : activeView === 'messages' ? (
             <MessagesContent />
           ) : activeView === 'profile' ? (
             <ProfileContent />
           ) : activeView === 'requests' ? (
-            <RequestsContent />
+            <RequestsContent 
+              initialTab={requestsInitialTab || 'received'}
+              onListingClick={(listingId) => {
+                setViewingListingId(listingId)
+                setActiveView('listing-detail')
+              }}
+            />
           ) : activeView === 'overview' ? (
             <>
               {/* Hero Stats Section */}
@@ -546,7 +594,7 @@ const Dashboard = () => {
                   </h1>
                   <button 
                     onClick={handleCreateListing}
-                    className="px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
+                    className="px-6 py-3 bg-gradient-to-r from-orange-300 to-orange-400 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-300/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     New Listing
@@ -555,17 +603,17 @@ const Dashboard = () => {
 
                 {/* One Active Listing Rule Banner */}
                 {activeListings.length > 0 && (
-                  <div className="relative overflow-hidden bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 rounded-2xl p-6 mb-6 shadow-2xl shadow-orange-500/30 transform hover:scale-[1.01] transition-all duration-300">
+                  <div className="relative overflow-hidden bg-gradient-to-br from-orange-100 via-orange-50 to-orange-100 rounded-2xl p-6 mb-6 border border-orange-200 shadow-lg transform hover:scale-[1.01] transition-all duration-300">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_60%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.1),transparent_60%)]" />
                     <div className="relative flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-12 h-12 rounded-xl bg-orange-200/50 backdrop-blur-sm border border-orange-300/50 flex items-center justify-center flex-shrink-0 shadow-md">
+                        <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-bold text-white text-lg mb-2">You already have an active listing</h3>
-                        <p className="text-sm text-white/90 leading-relaxed">
+                        <h3 className="font-bold text-orange-800 text-lg mb-2">You already have an active listing</h3>
+                        <p className="text-sm text-orange-700 leading-relaxed">
                           You can keep only one listing live at a time. Archive or delete your current listing to create a new one.
                         </p>
                       </div>
@@ -601,15 +649,15 @@ const Dashboard = () => {
                         key={listing.id}
                         className={`relative overflow-hidden rounded-2xl shadow-lg border-2 p-6 hover:shadow-xl transition-all duration-300 ${
                           listing.status === 'draft'
-                            ? 'bg-white/80 backdrop-blur-sm border-orange-200/50'
+                            ? 'bg-white/80 backdrop-blur-sm border-stone-200'
                             : listing.status === 'live'
-                            ? 'bg-gradient-to-br from-white via-orange-50/30 to-white border-orange-200/60'
+                            ? 'bg-gradient-to-br from-white via-orange-50/10 to-white border-stone-200'
                             : 'bg-white/80 backdrop-blur-sm border-gray-200/50'
                         }`}
                       >
                         <div className="relative flex items-start gap-5">
                           {listing.photos && listing.photos.length > 0 && (
-                            <div className="w-36 h-36 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden shadow-lg border-2 border-orange-200/50 group">
+                            <div className="w-36 h-36 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden shadow-lg border-2 border-stone-200 group">
                               <img
                                 src={listing.photos[0]}
                                 alt="Listing"
@@ -626,12 +674,12 @@ const Dashboard = () => {
                                 <div className="flex items-center gap-3 flex-wrap">
                                   {listing.city && listing.locality && (
                                     <p className="text-gray-700 font-medium flex items-center gap-1.5">
-                                      <MapPin className="w-4 h-4 text-orange-500" />
+                                      <MapPin className="w-4 h-4 text-orange-300" />
                                       {listing.city} · {listing.locality}
                                     </p>
                                   )}
                                   {listing.rent && (
-                                    <span className="text-lg font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+                                    <span className="text-lg font-bold bg-gradient-to-r from-orange-300 to-orange-400 bg-clip-text text-transparent">
                                       ₹{listing.rent.toLocaleString()}/month
                                     </span>
                                   )}
@@ -676,7 +724,7 @@ const Dashboard = () => {
                                       setViewingListingId(listing.id)
                                       setActiveView('listing-detail')
                                     }}
-                                    className="px-5 py-2.5 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-orange-500/40 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
+                                    className="px-5 py-2.5 bg-gradient-to-r from-orange-300 to-orange-400 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-orange-300/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
                                   >
                                     <Eye className="w-4 h-4" />
                                     View listing
@@ -686,7 +734,7 @@ const Dashboard = () => {
                                       setCurrentListing(listing)
                                       handleEditListing()
                                     }} 
-                                    className="px-5 py-2.5 bg-white border-2 border-orange-300 text-orange-600 rounded-lg font-bold hover:bg-orange-50 hover:border-orange-400 hover:scale-105 transition-all duration-300 flex items-center gap-2 shadow-md"
+                                    className="px-5 py-2.5 bg-white border-2 border-orange-200 text-orange-400 rounded-lg font-bold hover:bg-orange-50/50 hover:border-orange-300 hover:scale-105 transition-all duration-300 flex items-center gap-2 shadow-md"
                                   >
                                     <Pen className="w-4 h-4" />
                                     Edit listing
@@ -696,7 +744,7 @@ const Dashboard = () => {
                                       setCurrentListing(listing)
                                       setActiveView('requests')
                                     }}
-                                    className="px-5 py-2.5 bg-white border-2 border-orange-300 text-orange-600 rounded-lg font-bold hover:bg-orange-50 hover:border-orange-400 hover:scale-105 transition-all duration-300 flex items-center gap-2 shadow-md"
+                                    className="px-5 py-2.5 bg-white border-2 border-orange-200 text-orange-400 rounded-lg font-bold hover:bg-orange-50/50 hover:border-orange-300 hover:scale-105 transition-all duration-300 flex items-center gap-2 shadow-md"
                                   >
                                     <MessageCircle className="w-4 h-4" />
                                     View requests
@@ -718,18 +766,38 @@ const Dashboard = () => {
                                       setCurrentListing(listing)
                                       handleContinueDraft()
                                     }} 
-                                    className="px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300"
+                                    className="px-5 py-2.5 bg-white border-2 border-orange-200 text-orange-400 rounded-lg font-bold hover:bg-orange-50/50 hover:border-orange-300 hover:scale-105 transition-all duration-300 flex items-center gap-2 shadow-md"
                                   >
+                                    <Pen className="w-4 h-4" />
                                     Continue draft
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await listingsApi.update(listing.id, { status: 'live' })
+                                        const updated = { ...listing, status: 'live' as const }
+                                        setCurrentListing(updated)
+                                        const updatedListings = allListings.map(l => 
+                                          l.id === listing.id ? updated : l
+                                        )
+                                        setAllListings(updatedListings)
+                                      } catch (error) {
+                                        console.error('Error activating listing:', error)
+                                      }
+                                    }}
+                                    className="px-5 py-2.5 bg-gradient-to-r from-orange-300 to-orange-400 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-orange-300/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                    Activate
                                   </button>
                                   <button
                                     onClick={() => {
                                       setCurrentListing(listing)
                                       setShowDeleteModal(true)
                                     }}
-                                    className="px-6 py-3 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl font-semibold transition-all duration-300"
+                                    className="px-5 py-2.5 bg-white border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
                                   >
-                                    Delete draft
+                                    Delete
                                   </button>
                                 </>
                               ) : (

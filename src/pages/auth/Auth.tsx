@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import TermsModal from '@/components/TermsModal'
@@ -11,7 +11,13 @@ import { Shield, Zap, Users, CheckCircle, Lock, Eye, EyeOff, ChevronDown } from 
 
 const Auth = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const setUser = useStore((state) => state.setUser)
+
+  // Get redirect params from URL
+  const redirectPath = searchParams.get('redirect') || '/dashboard'
+  const redirectView = searchParams.get('view') || null
+  const redirectTab = searchParams.get('tab') || null
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -100,7 +106,13 @@ const Auth = () => {
         phone: '',
       })
       
-      navigate('/dashboard')
+      // Navigate to redirect path with view and tab params if provided
+      const params = new URLSearchParams()
+      if (redirectView) params.set('view', redirectView)
+      if (redirectTab) params.set('tab', redirectTab)
+      const queryString = params.toString()
+      const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
+      navigate(redirectUrl)
     } catch (err: any) {
       if (err.response?.status === 429) {
         setError('Too many login attempts. Please wait a minute and try again.')
@@ -188,7 +200,13 @@ const Auth = () => {
         phone: phone,
       })
       
-      navigate('/dashboard')
+      // Navigate to redirect path with view and tab params if provided
+      const params = new URLSearchParams()
+      if (redirectView) params.set('view', redirectView)
+      if (redirectTab) params.set('tab', redirectTab)
+      const queryString = params.toString()
+      const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
+      navigate(redirectUrl)
     } catch (err: any) {
       if (err.response?.status === 429) {
         setError('Too many signup attempts. Please wait a minute and try again.')

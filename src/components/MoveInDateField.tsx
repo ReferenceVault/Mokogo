@@ -9,14 +9,15 @@ interface MoveInDateFieldProps {
   min?: string;
   hideLabel?: boolean; // Hide internal label when external label is provided
   className?: string; // Allow custom className for different contexts
+  numberOfMonths?: number; // Number of months to show (default 2)
 }
 
-export function MoveInDateField({ value, onChange, min, hideLabel = false, className = "" }: MoveInDateFieldProps) {
+export function MoveInDateField({ value, onChange, min, hideLabel = false, className = "", numberOfMonths = 2 }: MoveInDateFieldProps) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(
     value ? new Date(value) : undefined
   );
-  const [top, setTop] = useState(0);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -28,11 +29,14 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
     else setDate(undefined);
   }, [value]);
 
-  // position calendar under the search bar (Airbnb-like)
+  // position calendar below the button
   useEffect(() => {
     if (open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setTop(rect.bottom + 8); // 8px gap
+      setPosition({
+        top: rect.bottom + 8, // 8px gap
+        left: rect.left // Align with button's left edge
+      });
     }
   }, [open]);
 
@@ -120,20 +124,23 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
         </button>
       </div>
 
-      {/* Airbnb-like floating calendar panel (centered, 2 months) */}
+      {/* Floating calendar panel */}
       {typeof document !== "undefined" &&
         open &&
         createPortal(
           <div
             ref={calendarRef}
-            className="fixed z-[9999] flex justify-center w-full"
-            style={{ top }}
+            className="fixed z-[9999]"
+            style={{ 
+              top: `${position.top}px`,
+              left: `${position.left}px`
+            }}
           >
             <div
-              className="w-[min(90vw,720px)] p-6 rounded-3xl
+              className={`${numberOfMonths === 1 ? 'w-[min(90vw,360px)]' : 'w-[min(90vw,720px)]'} p-6 rounded-3xl
                          bg-[rgba(255,255,255,0.96)] backdrop-blur-2xl
                          border border-[rgba(255,255,255,0.35)]
-                         shadow-[0_24px_60px_rgba(0,0,0,0.18)]"
+                         shadow-[0_24px_60px_rgba(0,0,0,0.18)]`}
             >
               {/* header like Airbnb */}
               <div className="flex items-center justify-between mb-4">
@@ -160,7 +167,7 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
                 onSelect={handleDateSelect}
                 disabled={(d) => d < minDate}
                 defaultMonth={date || minDate}
-                numberOfMonths={2} // Airbnb-style double calendar
+                numberOfMonths={numberOfMonths}
                 weekStartsOn={1}
                 className="rdp-root text-[#2B2B2B]"
               />

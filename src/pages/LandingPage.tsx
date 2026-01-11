@@ -6,6 +6,7 @@ import SocialSidebar from '@/components/SocialSidebar'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import CustomSelect from '@/components/CustomSelect'
+import { formatRent } from '@/utils/formatters'
 import { MoveInDateField } from '@/components/MoveInDateField'
 import { Quote, Star, ChevronLeft, ChevronRight, Home, Users, MapPin, Clock } from 'lucide-react'
 
@@ -195,13 +196,6 @@ const LandingPage = () => {
     }
   }
 
-  const formatRent = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
 
   const stats = [
     { value: '2,500+', label: 'Live Listings', icon: Home },
@@ -360,8 +354,8 @@ const LandingPage = () => {
                         options={searchCities.map(city => ({ value: city, label: city }))}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-stone-700">
+                    <div className="[&_button]:h-[50px] [&_button]:py-0 group">
+                      <label className="block text-sm font-medium text-stone-700 mb-2">
                         Move-in Date
                       </label>
                       <MoveInDateField
@@ -372,8 +366,8 @@ const LandingPage = () => {
                         className="!h-[50px] !rounded-lg !border-2 !border-gray-200 hover:!border-orange-300 focus:!ring-2 focus:!ring-orange-400 focus:!border-orange-400"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-stone-700">
+                    <div className="[&_button]:h-[50px] [&_button]:py-0 group">
+                      <label className="block text-sm font-medium text-stone-700 mb-2">
                         Max Rent (₹)
                       </label>
                       <input

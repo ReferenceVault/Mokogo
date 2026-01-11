@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import { useStore } from '@/store/useStore'
 import CustomSelect from '@/components/CustomSelect'
 import { MoveInDateField } from '@/components/MoveInDateField'
+import { formatRent } from '@/utils/formatters'
 
 const CityListings = () => {
   const { cityName } = useParams<{ cityName: string }>()
@@ -96,13 +97,6 @@ const CityListings = () => {
 
   const hasActiveFilters = filters.area || filters.maxRent || filters.moveInDate || filters.genderPreference
 
-  const formatRent = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
 
   return (
     <div className="min-h-screen bg-mokogo-off-white flex flex-col">
@@ -156,8 +150,8 @@ const CityListings = () => {
                   ]}
                 />
               </div>
-              <div className="flex-1 space-y-2">
-                <label className="block text-sm font-medium text-stone-700">
+              <div className="flex-1 relative z-20">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Max Rent (₹)
                 </label>
                 <input
@@ -168,8 +162,8 @@ const CityListings = () => {
                   className="w-full h-[52px] px-4 rounded-xl border border-mokogo-gray focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/80 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
-              <div className="flex-1 space-y-2">
-                <label className="block text-sm font-medium text-stone-700">
+              <div className="flex-1 relative z-20 [&_button]:h-[52px] [&_button]:py-0">
+                <label className="block text-sm font-medium text-stone-700 mb-2">
                   Move-in Date
                 </label>
                 <MoveInDateField
@@ -177,6 +171,7 @@ const CityListings = () => {
                   onChange={(date) => handleFilterChange('moveInDate', date)}
                   min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   hideLabel={true}
+                  className="!h-[52px] !rounded-xl !border !border-mokogo-gray"
                 />
               </div>
               <div className="flex-1 relative z-20">
@@ -218,7 +213,7 @@ const CityListings = () => {
                   {cityListings.map((listing) => (
                     <Link
                       key={listing.id}
-                      to={`/dashboard?listing=${listing.id}`}
+                      to={`/listings/${listing.id}`}
                       className="bg-white/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all group border border-white/60 block"
                     >
                       {/* Image */}

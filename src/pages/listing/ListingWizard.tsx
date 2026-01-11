@@ -6,7 +6,8 @@ import Logo from '@/components/Logo'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 
-import { authApi, listingsApi, CreateListingRequest } from '@/services/api'
+import { listingsApi, CreateListingRequest } from '@/services/api'
+import { handleLogout as handleLogoutUtil } from '@/utils/auth'
 import { Search, Bell, Heart as HeartIcon, LayoutGrid, Home, MessageSquare, Bookmark, Calendar, Plus, MoreHorizontal } from 'lucide-react'
 
 import Step1Photos from './steps/Step1Photos'
@@ -66,7 +67,7 @@ const STEPS = [
 
 const ListingWizard = () => {
   const navigate = useNavigate()
-  const { currentListing, setCurrentListing, allListings, addListing, setAllListings, user, setUser, setRequests } = useStore()
+  const { currentListing, setCurrentListing, allListings, addListing, setAllListings, user } = useStore()
   const [currentStep, setCurrentStep] = useState(0)
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0])) // Only first section expanded by default
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
@@ -79,25 +80,7 @@ const ListingWizard = () => {
 
   const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
 
-  const handleLogout = async () => {
-    try {
-      await authApi.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      setUser(null)
-      setCurrentListing(null)
-      setAllListings([])
-      setRequests([])
-      localStorage.removeItem('mokogo-user')
-      localStorage.removeItem('mokogo-listing')
-      localStorage.removeItem('mokogo-all-listings')
-      localStorage.removeItem('mokogo-requests')
-      localStorage.removeItem('mokogo-access-token')
-      localStorage.removeItem('mokogo-refresh-token')
-      navigate('/auth')
-    }
-  }
+  const handleLogout = () => handleLogoutUtil(navigate)
   
   // Check if we're editing an existing listing (has real ID and not a draft)
   const isEditing = currentListing?.id && !currentListing.id.startsWith('listing-') && currentListing.status !== 'draft'
@@ -182,16 +165,16 @@ const ListingWizard = () => {
 
   /**
    * Saves listing as DRAFT
-   * ONLY includes fields from validated steps
+   * When skipValidation is true (Save Draft button), saves any entered data
+   * When skipValidation is false (Continue button), only includes fields from validated steps
    * Excludes defaults like rent:0, deposit:0
-   * Called ONLY when Continue button is clicked
    */
-  const saveDraft = async (showNotification = false) => {
+  const saveDraft = async (showNotification = false, skipValidation = false) => {
     const dataToSave = listingDataRef.current
     
     // When editing, allow saving without strict validation (user is updating existing listing)
-    if (!isEditing) {
-      // Only save if at least the photos step has been validated
+    if (!isEditing && !skipValidation) {
+      // Only save if at least the photos step has been validated (when called from Continue button)
       if (validatedSteps.size === 0) {
         return
       }
@@ -266,14 +249,12 @@ const ListingWizard = () => {
           draftData.description = dataToSave.description
         }
       } else {
-        // When creating, ONLY include fields from validated steps
-        // Only include photos if photos step is validated
-        if (validatedSteps.has(0) && dataToSave.photos && dataToSave.photos.length >= 3) {
-          draftData.photos = dataToSave.photos
-        }
-
-        // Only include location fields if location step (step 1) is validated
-        if (validatedSteps.has(1)) {
+        // When creating, include fields based on skipValidation flag
+        if (skipValidation) {
+          // Save Draft button: include any data that has been entered
+          if (dataToSave.photos && dataToSave.photos.length > 0) {
+            draftData.photos = dataToSave.photos
+          }
           if (dataToSave.city && dataToSave.city.trim()) {
             draftData.city = dataToSave.city
           }
@@ -283,10 +264,6 @@ const ListingWizard = () => {
           if (dataToSave.societyName && dataToSave.societyName.trim()) {
             draftData.societyName = dataToSave.societyName
           }
-        }
-
-        // Only include details fields if details step (step 2) is validated
-        if (validatedSteps.has(2)) {
           if (dataToSave.bhkType && dataToSave.bhkType.trim()) {
             draftData.bhkType = dataToSave.bhkType
           }
@@ -305,11 +282,6 @@ const ListingWizard = () => {
           if (dataToSave.societyAmenities && dataToSave.societyAmenities.length > 0) {
             draftData.societyAmenities = dataToSave.societyAmenities
           }
-        }
-
-        // Only include pricing fields if pricing step (step 3) is validated
-        // Do NOT send defaults like rent:0 or deposit:0
-        if (validatedSteps.has(3)) {
           if (dataToSave.rent && dataToSave.rent > 0) {
             draftData.rent = dataToSave.rent
           }
@@ -319,18 +291,79 @@ const ListingWizard = () => {
           if (dataToSave.moveInDate && dataToSave.moveInDate.trim()) {
             draftData.moveInDate = dataToSave.moveInDate
           }
-        }
-
-        // Only include preferences fields if preferences step (step 4) is validated
-        if (validatedSteps.has(4)) {
           if (dataToSave.preferredGender && dataToSave.preferredGender.trim()) {
             draftData.preferredGender = dataToSave.preferredGender
           }
-        }
+          if (dataToSave.description && dataToSave.description.trim()) {
+            draftData.description = dataToSave.description
+          }
+        } else {
+          // Continue button: ONLY include fields from validated steps
+          // Only include photos if photos step is validated
+          if (validatedSteps.has(0) && dataToSave.photos && dataToSave.photos.length >= 3) {
+            draftData.photos = dataToSave.photos
+          }
 
-        // Description can be included if provided (not step-specific)
-        if (dataToSave.description && dataToSave.description.trim()) {
-          draftData.description = dataToSave.description
+          // Only include location fields if location step (step 1) is validated
+          if (validatedSteps.has(1)) {
+            if (dataToSave.city && dataToSave.city.trim()) {
+              draftData.city = dataToSave.city
+            }
+            if (dataToSave.locality && dataToSave.locality.trim()) {
+              draftData.locality = dataToSave.locality
+            }
+            if (dataToSave.societyName && dataToSave.societyName.trim()) {
+              draftData.societyName = dataToSave.societyName
+            }
+          }
+
+          // Only include details fields if details step (step 2) is validated
+          if (validatedSteps.has(2)) {
+            if (dataToSave.bhkType && dataToSave.bhkType.trim()) {
+              draftData.bhkType = dataToSave.bhkType
+            }
+            if (dataToSave.roomType && dataToSave.roomType.trim()) {
+              draftData.roomType = dataToSave.roomType
+            }
+            if (dataToSave.furnishingLevel && dataToSave.furnishingLevel.trim()) {
+              draftData.furnishingLevel = dataToSave.furnishingLevel
+            }
+            if (dataToSave.bathroomType && dataToSave.bathroomType.trim()) {
+              draftData.bathroomType = dataToSave.bathroomType
+            }
+            if (dataToSave.flatAmenities && dataToSave.flatAmenities.length > 0) {
+              draftData.flatAmenities = dataToSave.flatAmenities
+            }
+            if (dataToSave.societyAmenities && dataToSave.societyAmenities.length > 0) {
+              draftData.societyAmenities = dataToSave.societyAmenities
+            }
+          }
+
+          // Only include pricing fields if pricing step (step 3) is validated
+          // Do NOT send defaults like rent:0 or deposit:0
+          if (validatedSteps.has(3)) {
+            if (dataToSave.rent && dataToSave.rent > 0) {
+              draftData.rent = dataToSave.rent
+            }
+            if (dataToSave.deposit && dataToSave.deposit > 0) {
+              draftData.deposit = dataToSave.deposit
+            }
+            if (dataToSave.moveInDate && dataToSave.moveInDate.trim()) {
+              draftData.moveInDate = dataToSave.moveInDate
+            }
+          }
+
+          // Only include preferences fields if preferences step (step 4) is validated
+          if (validatedSteps.has(4)) {
+            if (dataToSave.preferredGender && dataToSave.preferredGender.trim()) {
+              draftData.preferredGender = dataToSave.preferredGender
+            }
+          }
+
+          // Description can be included if provided (not step-specific)
+          if (dataToSave.description && dataToSave.description.trim()) {
+            draftData.description = dataToSave.description
+          }
         }
       }
 
@@ -1022,7 +1055,14 @@ const ListingWizard = () => {
                       {renderStepContent(index)}
                       
                       {/* Section Navigation */}
-                      <div className="flex justify-end mt-4 pt-3 border-t border-gray-100">
+                      <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={() => saveDraft(true, true)}
+                          disabled={isCreating || isSaving}
+                          className="text-sm px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Save Draft
+                        </button>
                         <button
                           onClick={() => handleSectionContinue(index)}
                           disabled={isCreating || isSaving}

@@ -55,8 +55,20 @@ const GoogleCallback = () => {
           phone: '',
         })
 
+        // Get redirect params from URL (passed through Google OAuth state)
+        // For now, default to dashboard - in production, you'd pass state through OAuth flow
+        const urlParams = new URLSearchParams(window.location.search)
+        const redirectPath = urlParams.get('redirect') || '/dashboard'
+        const redirectView = urlParams.get('view') || null
+        const redirectTab = urlParams.get('tab') || null
+        const params = new URLSearchParams()
+        if (redirectView) params.set('view', redirectView)
+        if (redirectTab) params.set('tab', redirectTab)
+        const queryString = params.toString()
+        const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
+
         setTimeout(() => {
-          navigate('/dashboard')
+          navigate(redirectUrl)
         }, 500)
       } catch (err: any) {
         setError(

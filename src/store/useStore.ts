@@ -6,6 +6,7 @@ interface AppState {
   currentListing: Listing | null
   allListings: Listing[]
   requests: Request[]
+  savedListings: string[] // Array of listing IDs
   setUser: (user: User | null) => void
   setCurrentListing: (listing: Listing | null) => void
   setAllListings: (listings: Listing[]) => void
@@ -13,13 +14,16 @@ interface AppState {
   setRequests: (requests: Request[]) => void
   addRequest: (request: Request) => void
   updateRequest: (requestId: string, updates: Partial<Request>) => void
+  toggleSavedListing: (listingId: string) => void
+  isListingSaved: (listingId: string) => boolean
 }
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   user: null,
   currentListing: null,
   allListings: [],
   requests: [],
+  savedListings: [],
   setUser: (user) => {
     set({ user })
     if (user) {
@@ -90,6 +94,19 @@ export const useStore = create<AppState>((set) => ({
       }
       return { allListings: newListings }
     }),
+  toggleSavedListing: (listingId) =>
+    set((state) => {
+      const isSaved = state.savedListings.includes(listingId)
+      const newSavedListings = isSaved
+        ? state.savedListings.filter(id => id !== listingId)
+        : [...state.savedListings, listingId]
+      localStorage.setItem('mokogo-saved-listings', JSON.stringify(newSavedListings))
+      return { savedListings: newSavedListings }
+    }),
+  isListingSaved: (listingId) => {
+    const state = get()
+    return state.savedListings.includes(listingId)
+  },
 }))
 
 // Load from localStorage on init
@@ -98,6 +115,7 @@ if (typeof window !== 'undefined') {
   const savedListing = localStorage.getItem('mokogo-listing')
   const savedRequests = localStorage.getItem('mokogo-requests')
   const savedAllListings = localStorage.getItem('mokogo-all-listings')
+  const savedListings = localStorage.getItem('mokogo-saved-listings')
   
   if (savedUser) {
     useStore.getState().setUser(JSON.parse(savedUser))
@@ -110,5 +128,8 @@ if (typeof window !== 'undefined') {
   }
   if (savedAllListings) {
     useStore.getState().setAllListings(JSON.parse(savedAllListings))
+  }
+  if (savedListings) {
+    useStore.setState({ savedListings: JSON.parse(savedListings) })
   }
 }

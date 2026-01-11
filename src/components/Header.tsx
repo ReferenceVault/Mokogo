@@ -57,7 +57,7 @@ const Header = () => {
           </Link>
           
           <Link 
-            to="/auth" 
+            to="/auth?redirect=/dashboard&view=listings" 
             className="relative group"
           >
             <span className={`text-sm font-medium transition-all duration-300 ${
