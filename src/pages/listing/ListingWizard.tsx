@@ -80,7 +80,45 @@ const ListingWizard = () => {
 
   const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
 
-  const handleLogout = () => handleLogoutUtil(navigate)
+
+  // Helper function to format date for HTML date input (YYYY-MM-DD)
+  const formatDateForInput = (date: string | Date | undefined): string => {
+    if (!date) return ''
+    if (typeof date === 'string') {
+      // If it's already in YYYY-MM-DD format, return as is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date
+      // If it's an ISO string, extract the date part
+      const dateObj = new Date(date)
+      if (!isNaN(dateObj.getTime())) {
+        return dateObj.toISOString().split('T')[0]
+      }
+      return date
+    }
+    if (date instanceof Date) {
+      return date.toISOString().split('T')[0]
+    }
+    return ''
+  }
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      setUser(null)
+      setCurrentListing(null)
+      setAllListings([])
+      setRequests([])
+      localStorage.removeItem('mokogo-user')
+      localStorage.removeItem('mokogo-listing')
+      localStorage.removeItem('mokogo-all-listings')
+      localStorage.removeItem('mokogo-requests')
+      localStorage.removeItem('mokogo-access-token')
+      localStorage.removeItem('mokogo-refresh-token')
+      navigate('/auth')
+    }
+  }
   
   // Check if we're editing an existing listing (has real ID and not a draft)
   const isEditing = currentListing?.id && !currentListing.id.startsWith('listing-') && currentListing.status !== 'draft'
@@ -115,14 +153,26 @@ const ListingWizard = () => {
   useEffect(() => {
     if (isEditing && currentListing) {
       // Editing mode: load all data and mark all steps as validated
-      listingDataRef.current = currentListing
-      setListingData(currentListing)
+      // Format date for HTML input
+      const formattedListing = {
+        ...currentListing,
+        moveInDate: formatDateForInput(currentListing.moveInDate),
+      }
+      listingDataRef.current = formattedListing
+      setListingData(formattedListing)
       // Mark all steps as validated since we're editing a complete listing
       setValidatedSteps(new Set([0, 1, 2, 3, 4]))
       // Start at first step
       setCurrentStep(0)
       setExpandedSections(new Set([0]))
     } else if (currentListing && currentListing.status === 'draft') {
+      // Format date for HTML input
+      const formattedListing = {
+        ...currentListing,
+        moveInDate: formatDateForInput(currentListing.moveInDate),
+      }
+      listingDataRef.current = formattedListing
+      setListingData(formattedListing)
       // Draft mode: determine starting step based on what's filled
       let step = 0
       if (currentListing.photos && currentListing.photos.length >= 3) step = 1
@@ -424,7 +474,7 @@ const ListingWizard = () => {
   useEffect(() => {
     listingDataRef.current = listingData
     // NO API calls here - only update local ref
-    // API calls happen ONLY when Continue button is clicked
+    // API calls happen when photos are uploaded or Continue button is clicked
   }, [listingData])
 
   /**
@@ -525,20 +575,115 @@ const ListingWizard = () => {
   /**
    * Handles Continue button click for a specific step
    * 1. Validates ONLY that step's fields
-   * 2. If valid: saves as DRAFT via API and moves to next step
+   * 2. If valid: updates listing via UPDATE API and moves to next step
    * 3. If invalid: shows errors scoped to that step only
-   * 
-   * This is the ONLY place where API is called for saving drafts
    */
-  const handleSectionContinue = (stepIndex: number) => {
+  const handleSectionContinue = async (stepIndex: number) => {
     // Validate ONLY this step (not future steps)
     if (validateStep(stepIndex)) {
-      // Mark this step as validated
-      setValidatedSteps(prev => new Set(prev).add(stepIndex))
+      // Create updated validatedSteps set that includes current step (since setState is async)
+      const updatedValidatedSteps = new Set(validatedSteps)
+      updatedValidatedSteps.add(stepIndex)
       
-      // Save current step's data as DRAFT via API
-      // This is the ONLY API call for saving drafts
-      saveDraft(true)
+      // Mark this step as validated in state
+      setValidatedSteps(updatedValidatedSteps)
+      
+      // Update listing with current step's data via UPDATE API
+      // Only proceed if we have a listing ID (created after photo upload)
+      const listingId = currentListing?.id || listingDataRef.current.id
+      if (!listingId || listingId.startsWith('listing-')) {
+        // No listing created yet, wait for photo upload
+        return
+      }
+      
+      try {
+        setIsSaving(true)
+        const dataToSave = listingDataRef.current
+        
+        // Build update data - include current step and all previously validated steps
+        const updateData: Partial<CreateListingRequest> = {
+          status: 'draft', // Keep as draft
+        }
+        
+        // Include photos if photos step (step 0) is validated
+        if (updatedValidatedSteps.has(0) && dataToSave.photos && dataToSave.photos.length >= 3) {
+          updateData.photos = dataToSave.photos
+        }
+        
+        // Include location fields if location step (step 1) is validated
+        if (updatedValidatedSteps.has(1)) {
+          if (dataToSave.city && dataToSave.city.trim()) updateData.city = dataToSave.city
+          if (dataToSave.locality && dataToSave.locality.trim()) updateData.locality = dataToSave.locality
+          if (dataToSave.societyName && dataToSave.societyName.trim()) updateData.societyName = dataToSave.societyName
+        }
+        
+        // Include details fields if details step (step 2) is validated
+        if (updatedValidatedSteps.has(2)) {
+          if (dataToSave.bhkType && dataToSave.bhkType.trim()) updateData.bhkType = dataToSave.bhkType
+          if (dataToSave.roomType && dataToSave.roomType.trim()) updateData.roomType = dataToSave.roomType
+          if (dataToSave.furnishingLevel && dataToSave.furnishingLevel.trim()) updateData.furnishingLevel = dataToSave.furnishingLevel
+          if (dataToSave.bathroomType && dataToSave.bathroomType.trim()) updateData.bathroomType = dataToSave.bathroomType
+          if (dataToSave.flatAmenities && dataToSave.flatAmenities.length > 0) updateData.flatAmenities = dataToSave.flatAmenities
+          if (dataToSave.societyAmenities && dataToSave.societyAmenities.length > 0) updateData.societyAmenities = dataToSave.societyAmenities
+        }
+        
+        // Include pricing fields if pricing step (step 3) is validated
+        if (updatedValidatedSteps.has(3)) {
+          if (dataToSave.rent && dataToSave.rent > 0) updateData.rent = dataToSave.rent
+          if (dataToSave.deposit && dataToSave.deposit > 0) updateData.deposit = dataToSave.deposit
+          if (dataToSave.moveInDate && dataToSave.moveInDate.trim()) updateData.moveInDate = dataToSave.moveInDate
+        }
+        
+        // Include preferences fields if preferences step (step 4) is validated
+        if (updatedValidatedSteps.has(4)) {
+          if (dataToSave.preferredGender && dataToSave.preferredGender.trim()) updateData.preferredGender = dataToSave.preferredGender
+        }
+        
+        // Include description if provided
+        if (dataToSave.description && dataToSave.description.trim()) {
+          updateData.description = dataToSave.description
+        }
+        
+        // Update listing via UPDATE API
+        const savedListing = await listingsApi.update(listingId, updateData)
+        
+        // Map API response to frontend format, but merge with current local state to preserve all fields
+        const mappedListing: Listing = {
+          id: savedListing._id || savedListing.id,
+          title: savedListing.title || dataToSave.title || '',
+          city: savedListing.city || dataToSave.city || '',
+          locality: savedListing.locality || dataToSave.locality || '',
+          societyName: savedListing.societyName || dataToSave.societyName,
+          bhkType: savedListing.bhkType || dataToSave.bhkType || '',
+          roomType: savedListing.roomType || dataToSave.roomType || '',
+          rent: savedListing.rent ?? dataToSave.rent ?? 0,
+          deposit: savedListing.deposit ?? dataToSave.deposit ?? 0,
+          moveInDate: formatDateForInput(savedListing.moveInDate) || dataToSave.moveInDate || '',
+          furnishingLevel: savedListing.furnishingLevel || dataToSave.furnishingLevel || '',
+          bathroomType: savedListing.bathroomType || dataToSave.bathroomType,
+          flatAmenities: savedListing.flatAmenities || dataToSave.flatAmenities || [],
+          societyAmenities: savedListing.societyAmenities || dataToSave.societyAmenities || [],
+          preferredGender: savedListing.preferredGender || dataToSave.preferredGender || '',
+          description: savedListing.description || dataToSave.description,
+          photos: savedListing.photos || dataToSave.photos || [],
+          status: savedListing.status || dataToSave.status || 'draft',
+          createdAt: savedListing.createdAt || dataToSave.createdAt || new Date().toISOString(),
+          updatedAt: savedListing.updatedAt || dataToSave.updatedAt || new Date().toISOString(),
+        }
+        
+        // Update state with merged data
+        listingDataRef.current = mappedListing
+        setListingData(mappedListing)
+        setCurrentListing(mappedListing)
+        setLastSaved(new Date())
+        
+        // Show toast notification after successful update
+        setShowToast(true)
+      } catch (error) {
+        console.error('Error updating listing:', error)
+      } finally {
+        setIsSaving(false)
+      }
       
       // Collapse current section
       setExpandedSections(prev => {
@@ -561,7 +706,7 @@ const ListingWizard = () => {
           document.getElementById(`section-${nextStep}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }, 100)
       } else {
-        // Last section - validate ALL steps and create listing
+        // Last section - validate ALL steps and publish listing
         handleCreateListing()
       }
     }
@@ -654,18 +799,15 @@ const ListingWizard = () => {
         status: 'live',
       }
 
-      let savedListing
-      // Check if we're editing an existing listing
-      if (isEditing && currentListing?.id) {
-        // Update existing listing (keep same ID, update all fields)
-        savedListing = await listingsApi.update(currentListing.id, listingDataToSave)
-      } else if (currentListing?.id && !currentListing.id.startsWith('listing-')) {
-        // Update existing draft listing
-        savedListing = await listingsApi.update(currentListing.id, listingDataToSave)
-      } else {
-        // Create new listing
-        savedListing = await listingsApi.create(listingDataToSave)
+      // Always use UPDATE API to change status from draft to live
+      // The listing should already exist (created after photo upload)
+      const listingId = currentListing?.id || listingDataRef.current.id
+      if (!listingId || listingId.startsWith('listing-')) {
+        throw new Error('Listing not found. Please upload photos first.')
       }
+      
+      // Update listing with status='live' - backend will validate all required fields
+      const savedListing = await listingsApi.update(listingId, listingDataToSave)
 
       // Map API response to frontend format
       const publishedListing: Listing = {
@@ -678,7 +820,7 @@ const ListingWizard = () => {
         roomType: savedListing.roomType,
         rent: savedListing.rent,
         deposit: savedListing.deposit,
-        moveInDate: savedListing.moveInDate,
+        moveInDate: formatDateForInput(savedListing.moveInDate),
         furnishingLevel: savedListing.furnishingLevel,
         bathroomType: savedListing.bathroomType,
         flatAmenities: savedListing.flatAmenities,
@@ -774,14 +916,60 @@ const ListingWizard = () => {
    * ONLY updates local state - NO API calls
    * API calls happen ONLY when Continue button is clicked
    */
-  const handleDataChange = (updates: Partial<Listing>) => {
-    setListingData((prev) => {
-      const updated = { ...prev, ...updates }
-      listingDataRef.current = updated
-      return updated
-    })
-    // NO API calls here - only local state update
-    // Typing in inputs will NEVER trigger backend API calls
+  const handleDataChange = async (updates: Partial<Listing>) => {
+    const updated = { ...listingData, ...updates }
+    listingDataRef.current = updated
+    setListingData(updated)
+    
+    // If photos are being updated and we have >= 3 photos, create listing immediately
+    if (updates.photos && updates.photos.length >= 3 && !currentListing?.id) {
+      // Create listing with photos and draft status only
+      try {
+        setIsSaving(true)
+        const draftData: CreateListingRequest = {
+          title: generateTitle(),
+          photos: updates.photos,
+          status: 'draft',
+        }
+        
+        const savedListing = await listingsApi.create(draftData)
+        
+        // Map API response to frontend format
+        const mappedListing: Listing = {
+          id: savedListing._id || savedListing.id,
+          title: savedListing.title,
+          city: savedListing.city || '',
+          locality: savedListing.locality || '',
+          societyName: savedListing.societyName,
+          bhkType: savedListing.bhkType || '',
+          roomType: savedListing.roomType || '',
+          rent: savedListing.rent || 0,
+          deposit: savedListing.deposit || 0,
+          moveInDate: formatDateForInput(savedListing.moveInDate) || '',
+          furnishingLevel: savedListing.furnishingLevel || '',
+          bathroomType: savedListing.bathroomType,
+          flatAmenities: savedListing.flatAmenities || [],
+          societyAmenities: savedListing.societyAmenities || [],
+          preferredGender: savedListing.preferredGender || '',
+          description: savedListing.description,
+          photos: savedListing.photos,
+          status: savedListing.status,
+          createdAt: savedListing.createdAt,
+          updatedAt: savedListing.updatedAt,
+        }
+        
+        // Update state with the created listing
+        listingDataRef.current = { ...updated, ...mappedListing }
+        setListingData({ ...updated, ...mappedListing })
+        setCurrentListing(mappedListing)
+        setValidatedSteps(prev => new Set(prev).add(0)) // Mark photos step as validated
+        setLastSaved(new Date())
+      } catch (error) {
+        console.error('Error creating listing with photos:', error)
+      } finally {
+        setIsSaving(false)
+      }
+    }
   }
 
   const formatLastSaved = () => {

@@ -4,6 +4,9 @@ import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import { MoveInDateField } from '@/components/MoveInDateField'
 import { formatPrice, formatDate } from '@/utils/formatters'
+import { requestsApi } from '@/services/api'
+import UserAvatar from './UserAvatar'
+
 import {
   MapPin,
   Shield,
@@ -81,13 +84,32 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
   }
 
   const handleContactHost = async () => {
+    if (!user || !listing) return
+    
     setIsSubmitting(true)
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsSubmitting(false)
-    // Navigate to requests in dashboard
-    if (onBack) {
-      onBack()
-      // Could trigger a view change to requests here
+    try {
+      await requestsApi.create({
+        listingId: listing.id,
+        message: message || undefined,
+        moveInDate: moveInDate || undefined,
+      })
+      
+      // Show success message
+      alert('Request sent successfully!')
+      
+      // Clear form
+      setMessage('')
+      setMoveInDate('')
+      
+      // Navigate to requests in dashboard
+      if (onBack) {
+        onBack()
+      }
+    } catch (error: any) {
+      console.error('Error sending request:', error)
+      alert(error.response?.data?.message || 'Failed to send request. Please try again.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -347,11 +369,15 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
                 
                 <div className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
-                    <div className="w-16 h-16 rounded-full bg-orange-400 flex items-center justify-center border-2 border-orange-400/20">
-                      <span className="text-white font-semibold text-base">
-                        {user?.name?.[0]?.toUpperCase() || 'H'}
-                      </span>
-                    </div>
+                    <UserAvatar 
+                      user={{ 
+                        name: user?.name, 
+                        profileImageUrl: (user as any)?.profileImageUrl 
+                      }}
+                      size="xl"
+                      showBorder={true}
+                      className="bg-orange-400 border-orange-400/20"
+                    />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-base font-bold text-gray-900 mb-2">{user?.name || 'Host'}</h3>

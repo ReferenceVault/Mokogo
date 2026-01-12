@@ -43,6 +43,7 @@ const Dashboard = () => {
   const [activeView, setActiveView] = useState<ViewType>('overview')
   const [viewingListingId, setViewingListingId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
 
   // Track if fetch is in progress to prevent duplicate calls
   const fetchInProgressRef = useRef(false)
@@ -242,6 +243,7 @@ const Dashboard = () => {
   const showRequestsTab = hasListings || hasSentRequests // Show Requests tab if user has listings OR sent requests
   const userName = user?.name || 'User'
   const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
+  const userImageUrl = (user as any)?.profileImageUrl
 
   // Redirect to overview if user tries to access requests without listings or sent requests
   useEffect(() => {
@@ -270,6 +272,7 @@ const Dashboard = () => {
         userName={userName}
         userEmail={user?.email || ''}
         userInitial={userInitial}
+        userImageUrl={userImageUrl}
         onProfile={() => setActiveView('profile')}
         onLogout={handleLogout}
       />
@@ -373,18 +376,25 @@ const Dashboard = () => {
               }}
             />
           ) : activeView === 'messages' ? (
-            <MessagesContent />
-          ) : activeView === 'profile' ? (
+            <MessagesContent initialConversationId={selectedConversationId || undefined} />
+              ) : activeView === 'profile' ? (
             <ProfileContent />
           ) : activeView === 'requests' ? (
-            <RequestsContent 
+            <RequestsContent
               initialTab={requestsInitialTab || 'received'}
               onListingClick={(listingId) => {
                 setViewingListingId(listingId)
                 setActiveView('listing-detail')
               }}
+              onApprove={async (requestId) => {
+                // When a request is approved, navigate to messages
+                // The backend creates the conversation automatically
+                setActiveView('messages')
+                // MessagesContent will fetch conversations and show the new one
+              }}
             />
           ) : activeView === 'overview' ? (
+
             <>
               {/* Hero Stats Section */}
               <section className="px-8 py-8">

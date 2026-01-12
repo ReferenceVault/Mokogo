@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useStore } from '@/store/useStore'
+import { requestsApi, RequestResponse } from '@/services/api'
+import { websocketService } from '@/services/websocket'
+import UserAvatar from './UserAvatar'
+
 import { 
   CheckCircle, 
   Clock, 
@@ -17,163 +22,210 @@ import {
   X,
   Home
 } from 'lucide-react'
-import { useStore } from '@/store/useStore'
+
 import { Listing } from '@/types'
 import { formatRent, formatDateRelative } from '@/utils/formatters'
 
 interface RequestsContentProps {
   initialTab?: 'received' | 'sent'
   onListingClick?: (listingId: string) => void
+  onApprove?: (requestId: string, conversationId?: string) => void
 }
 
-const RequestsContent = ({ initialTab = 'received', onListingClick }: RequestsContentProps) => {
+const RequestsContent = ({
+  initialTab = 'received',
+  onListingClick,
+  onApprove
+}: RequestsContentProps) => {
   const navigate = useNavigate()
   const { user, allListings, requests, updateRequest } = useStore()
+
+  const [allRequests, setAllRequests] = useState<RequestResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [processingId, setProcessingId] = useState<string | null>(null)
+
   const hasListings = allListings.length > 0
-  // Default to 'sent' tab if user has no listings, otherwise use initialTab or 'received'
-  const defaultTab = hasListings ? (initialTab || 'received') : 'sent'
+  const defaultTab = hasListings ? initialTab : 'sent'
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>(defaultTab)
 
-  // Update active tab when initialTab prop changes or when listings change
   useEffect(() => {
     if (hasListings && initialTab) {
       setActiveTab(initialTab)
     } else if (!hasListings) {
-      // If user has no listings, force to 'sent' tab
       setActiveTab('sent')
     }
   }, [initialTab, hasListings])
 
-  // Use formatRent and formatDateRelative from utils/formatters
+  useEffect(() => {
+    fetchRequests()
 
-  // Get user's listing IDs
-  const userListingIds = allListings.map(l => l.id)
+    const token = localStorage.getItem('mokogo-access-token')
+    if (token && user) {
+      websocketService.connect(token)
+    }
 
-  // Filter received requests (requests for user's listings)
-  const receivedRequests = requests.filter(request => 
-    userListingIds.includes(request.listingId)
-  )
+    const handleNewRequest = (newRequest: RequestResponse) => {
+      setAllRequests(prev => {
+        const exists = prev.some(
+          r => (r._id || r.id) === (newRequest._id || newRequest.id)
+        )
+        if (exists) return prev
 
-  // Filter sent requests (requests sent by current user)
-  const sentRequests = requests.filter(request => 
-    request.seekerId === user?.id
-  )
+        const updated = [newRequest, ...prev]
+        return updated.sort((a, b) => {
+          if (a.status === 'pending' && b.status !== 'pending') return -1
+          if (a.status !== 'pending' && b.status === 'pending') return 1
+          return (
+            new Date(b.createdAt).getTime() -
+            new Date(a.createdAt).getTime()
+          )
+        })
+      })
+    }
 
-  // Get listing details for a request
-  const getListingForRequest = (listingId: string): Listing | undefined => {
-    return allListings.find(l => l.id === listingId)
-  }
+    const handleRequestUpdate = (updatedRequest: RequestResponse) => {
+      setAllRequests(prev => {
+        const index = prev.findIndex(
+          r => (r._id || r.id) === (updatedRequest._id || updatedRequest.id)
+        )
+        if (index >= 0) {
+          const updated = [...prev]
+          updated[index] = updatedRequest
+          return updated.sort((a, b) => {
+            if (a.status === 'pending' && b.status !== 'pending') return -1
+            if (a.status !== 'pending' && b.status === 'pending') return 1
+            return (
+              new Date(b.createdAt).getTime() -
+              new Date(a.createdAt).getTime()
+            )
+          })
+        }
+        return prev
+      })
+    }
 
-  // Get status counts for received requests
-  const receivedStats = {
-    total: receivedRequests.length,
-    pending: receivedRequests.filter(r => r.status === 'pending').length,
-    accepted: receivedRequests.filter(r => r.status === 'accepted').length,
-    rejected: receivedRequests.filter(r => r.status === 'rejected').length,
-  }
+    websocketService.on('new_request', handleNewRequest)
+    websocketService.on('request_updated', handleRequestUpdate)
 
-  // Get status counts for sent requests
-  const sentStats = {
-    total: sentRequests.length,
-    pending: sentRequests.filter(r => r.status === 'pending').length,
-    accepted: sentRequests.filter(r => r.status === 'accepted').length,
-    rejected: sentRequests.filter(r => r.status === 'rejected').length,
-  }
+    return () => {
+      websocketService.off('new_request', handleNewRequest)
+      websocketService.off('request_updated', handleRequestUpdate)
+    }
+  }, [user])
 
-  // Handle withdraw request
-  const handleWithdraw = (requestId: string) => {
-    if (window.confirm('Are you sure you want to withdraw this request?')) {
-      updateRequest(requestId, { status: 'rejected' }) // Or create a 'withdrawn' status
+  const fetchRequests = async () => {
+    if (!user) return
+    
+    setLoading(true)
+    try {
+      // Fetch all requests (pending, approved, rejected)
+      const requests = await requestsApi.getAllForOwner()
+      // Sort: pending first, then by date
+      const sorted = requests.sort((a, b) => {
+        if (a.status === 'pending' && b.status !== 'pending') return -1
+        if (a.status !== 'pending' && b.status === 'pending') return 1
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+      setAllRequests(sorted)
+    } catch (error) {
+      console.error('Error fetching requests:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
-  // Handle view listing
-  const handleViewListing = (listingId: string) => {
-    if (onListingClick) {
-      // Navigate within dashboard
-      onListingClick(listingId)
-    } else {
-      // Fallback: navigate to public listing page (shouldn't happen in dashboard context)
-      navigate(`/listings/${listingId}`)
+  const handleApprove = async (request: RequestResponse) => {
+    if (!user) return
+    
+    setProcessingId(request._id || request.id)
+    try {
+      const updated = await requestsApi.update(request._id || request.id, { status: 'approved' })
+      
+      // Update the request in the list with new status
+      setAllRequests(prev => prev.map(r => 
+        (r._id || r.id) === (request._id || request.id) ? updated : r
+      ))
+      
+      // If onApprove callback is provided, call it with conversation info
+      if (onApprove) {
+        // We need to get the conversation - it should be created by the backend
+        // For now, we'll just navigate to messages
+        onApprove(request._id || request.id)
+      }
+    } catch (error: any) {
+      console.error('Error approving request:', error)
+      alert(error.response?.data?.message || 'Failed to approve request. Please try again.')
+    } finally {
+      setProcessingId(null)
     }
   }
 
-  // Handle message (if accepted)
-  const handleMessage = (_listingId: string) => {
-    // Navigate to messages with the lister
-    navigate('/dashboard?view=messages')
+  const handleReject = async (request: RequestResponse) => {
+    if (!user) return
+    
+    if (!confirm('Are you sure you want to reject this request?')) {
+      return
+    }
+    
+    setProcessingId(request._id || request.id)
+    try {
+      const updated = await requestsApi.update(request._id || request.id, { status: 'rejected' })
+      
+      // Update the request in the list with new status
+      setAllRequests(prev => prev.map(r => 
+        (r._id || r.id) === (request._id || request.id) ? updated : r
+      ))
+    } catch (error: any) {
+      console.error('Error rejecting request:', error)
+      alert(error.response?.data?.message || 'Failed to reject request. Please try again.')
+    } finally {
+      setProcessingId(null)
+    }
   }
 
-  // Mock data for received requests display (using Request type structure)
-  const mockReceivedRequests = [
-    {
-      id: '1',
-      listingId: '1',
-      seekerId: 'seeker1',
-      seekerName: 'Rahul Gupta',
-      seekerAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-      seekerAge: 28,
-      seekerOccupation: 'Software Engineer at TCS',
-      seekerCity: 'Mumbai',
-      introMessage: "Hi Priya! I'm relocating to Pune for a new job at TCS and your room in Baner looks perfect. I'm a clean, responsible tenant with excellent references. I don't smoke, rarely have guests, and prefer a quiet environment for work. My budget aligns perfectly with your asking price. Would love to schedule a virtual tour this weekend if possible. Looking forward to hearing from you!",
-      status: 'pending' as const,
-      requestedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      desiredMoveInDate: '2024-12-15',
-      contactRevealed: false
-    },
-    {
-      id: '2',
-      listingId: '1',
-      seekerId: 'seeker2',
-      seekerName: 'Sneha Joshi',
-      seekerAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-      seekerAge: 26,
-      seekerOccupation: 'Marketing Manager at Wipro',
-      seekerCity: 'Bangalore',
-      introMessage: "Hello! I'm Sneha, moving to Pune for work. I'm particularly interested in your room as I value cleanliness and a peaceful environment. I work in marketing, have flexible hours, and am very respectful of shared spaces. I've been looking for a place with a female roommate preference. Can we arrange a video call to discuss further?",
-      status: 'pending' as const,
-      requestedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-      desiredMoveInDate: '2025-01-01',
-      contactRevealed: false
-    }
-  ]
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Not specified'
+    return new Date(dateString).toLocaleDateString('en-IN', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+  }
 
-  // Mock data for sent requests
-  const mockSentRequests = [
-    {
-      id: '3',
-      listingId: '2',
-      seekerId: user?.id || 'current-user',
-      seekerName: user?.name || 'You',
-      introMessage: "Hi! I'm very interested in this room. I'm a working professional looking for a clean, quiet place. The location is perfect for my commute. Would love to schedule a visit!",
-      status: 'pending' as const,
-      requestedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-      desiredMoveInDate: '2024-12-20',
-      contactRevealed: false
-    },
-    {
-      id: '4',
-      listingId: '3',
-      seekerId: user?.id || 'current-user',
-      seekerName: user?.name || 'You',
-      introMessage: "Hello! This room looks perfect for my needs. I'm a software engineer with flexible work hours. I maintain a clean lifestyle and respect shared spaces.",
-      status: 'accepted' as const,
-      requestedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      desiredMoveInDate: '2025-01-05',
-      contactRevealed: true
-    },
-    {
-      id: '5',
-      listingId: '4',
-      seekerId: user?.id || 'current-user',
-      seekerName: user?.name || 'You',
-      introMessage: "Hi, I'm interested in viewing this property. The amenities match what I'm looking for.",
-      status: 'rejected' as const,
-      requestedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      desiredMoveInDate: '2024-12-25',
-      contactRevealed: false
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
+    return formatDate(dateString)
+  }
+
+  const getRequesterInfo = (request: RequestResponse) => {
+    const requester = typeof request.requesterId === 'object' ? request.requesterId : null
+    return {
+      id: requester?._id || (typeof request.requesterId === 'string' ? request.requesterId : ''),
+      name: requester?.name || 'Unknown',
+      email: requester?.email || '',
+      profileImageUrl: requester ? (requester as any).profileImageUrl : undefined,
     }
-  ]
+  }
+
+
+  const getListingInfo = (request: RequestResponse) => {
+    const listing = typeof request.listingId === 'object' ? request.listingId : null
+    return {
+      id: listing?._id || (typeof request.listingId === 'string' ? request.listingId : ''),
+      title: listing?.title || 'Unknown Listing',
+      city: listing?.city || '',
+      locality: listing?.locality || '',
+      photos: listing?.photos || [],
+    }
+  }
+
 
   // Use mock data if requests array is empty (for demo purposes)
   const displayReceivedRequests = receivedRequests.length > 0 ? receivedRequests : mockReceivedRequests
@@ -319,104 +371,253 @@ const RequestsContent = ({ initialTab = 'received', onListingClick }: RequestsCo
       {/* Requests Section */}
       <section className="px-8 py-4">
         <div className="max-w-7xl mx-auto">
-          {activeTab === 'received' ? (
-            <>
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Received Requests</h2>
-              
-              <div className="space-y-4">
-                {displayReceivedRequests.length === 0 ? (
-                  <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
-                    <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No received requests yet</p>
-                    <p className="text-sm text-gray-500 mt-2">Requests from seekers will appear here</p>
+{activeTab === 'received' ? (
+  <>
+    <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">
+      Received Requests
+    </h2>
+
+    <div className="space-y-4">
+      {displayReceivedRequests.length === 0 ? (
+        <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
+          <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">No received requests yet</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Requests from seekers will appear here
+          </p>
+        </div>
+      ) : (
+        displayReceivedRequests.map((request, index) => {
+          const listing = getListingForRequest(request.listingId)
+
+          return (
+            <div
+              key={request.id}
+              className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
+              style={{
+                animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              <div className="relative flex items-start gap-3">
+                <div className="relative flex-shrink-0">
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
+                    <img
+                      src={
+                        request.seekerAvatar ||
+                        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'
+                      }
+                      alt={request.seekerName}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                ) : (
-                  displayReceivedRequests.map((request, index) => {
-                    const listing = getListingForRequest(request.listingId)
-                    return (
-                      <div
-                        key={request.id}
-                        className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
-                        style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        <div className="relative flex items-start gap-3">
-                          <div className="relative flex-shrink-0">
-                            <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
-                              <img 
-                                src={request.seekerAvatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'} 
-                                alt={request.seekerName} 
-                                className="w-full h-full object-cover" 
-                              />
-                            </div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1.5">
-                                  <h4 className="text-base font-semibold text-gray-900">{request.seekerName}</h4>
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                    request.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {request.status.toUpperCase()}
-                                  </span>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-2">
-                                  {request.seekerOccupation && (
-                                    <span className="flex items-center gap-1">
-                                      <Briefcase className="w-3.5 h-3.5 text-orange-500" />
-                                      {request.seekerOccupation}
-                                    </span>
-                                  )}
-                                  {request.seekerAge && (
-                                    <span className="flex items-center gap-1">
-                                      <Cake className="w-3.5 h-3.5 text-orange-500" />
-                                      {request.seekerAge} years old
-                                    </span>
-                                  )}
-                                  {request.seekerCity && (
-                                    <span className="flex items-center gap-1">
-                                      <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                                      Currently in {request.seekerCity}
-                                    </span>
-                                  )}
-                                  {request.desiredMoveInDate && (
-                                    <span className="flex items-center gap-1">
-                                      <Calendar className="w-3.5 h-3.5 text-orange-500" />
-                                      Move-in: {new Date(request.desiredMoveInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                    </span>
-                                  )}
-                                </div>
-                                {listing && (
-                                  <div className="text-xs text-gray-500 mb-2">
-                                    Interested in: <span className="font-semibold text-gray-700">{listing.title || `${listing.roomType} in ${listing.locality}`}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-sm text-gray-700 leading-relaxed mb-3 italic">"{request.introMessage}"</p>
-                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-3">
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 text-orange-500" />
-                                Received {formatDateRelative(request.requestedAt)}
-                              </span>
-                            </div>
-                            {request.status === 'pending' && (
-                              <div className="flex flex-wrap gap-2 justify-end">
-                                <button className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all duration-300 flex items-center gap-1.5">
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  Reject
-                                </button>
-                                <button className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5">
+                </div>
+
+                <div className="flex-1">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <h4 className="text-base font-semibold text-gray-900">
+                          {request.seekerName}
+                        </h4>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            request.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : request.status === 'accepted'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {request.status.toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-2">
+                        {request.seekerOccupation && (
+                          <span className="flex items-center gap-1">
+                            <Briefcase className="w-3.5 h-3.5 text-orange-500" />
+                            {request.seekerOccupation}
+                          </span>
+                        )}
+                        {request.seekerAge && (
+                          <span className="flex items-center gap-1">
+                            <Cake className="w-3.5 h-3.5 text-orange-500" />
+                            {request.seekerAge} years old
+                          </span>
+                        )}
+                        {request.seekerCity && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                            Currently in {request.seekerCity}
+                          </span>
+                        )}
+                        {request.desiredMoveInDate && (
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-orange-500" />
+                            Move-in:{' '}
+                            {new Date(
+                              request.desiredMoveInDate
+                            ).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short'
+                            })}
+                          </span>
+                        )}
+                      </div>
+
+                      {listing && (
+                        <div className="text-xs text-gray-500 mb-2">
+                          Interested in:{' '}
+                          <span className="font-semibold text-gray-700">
+                            {listing.title ||
+                              `${listing.roomType} in ${listing.locality}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-gray-700 leading-relaxed mb-3 italic">
+                    "{request.introMessage}"
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-3">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-orange-500" />
+                      Received {formatDateRelative(request.requestedAt)}
+                    </span>
+                  </div>
+
+                  {request.status === 'pending' && (
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      <button className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all duration-300 flex items-center gap-1.5">
+                        <XCircle className="w-3.5 h-3.5" />
+                        Reject
+                      </button>
+                      <button className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Accept
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
+  </>
+) : (
+  <>
+    <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">
+      Requests
+    </h2>
+
+    {loading ? (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    ) : allRequests.length === 0 ? (
+      <div className="text-center py-12">
+        <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <p className="text-gray-600">No requests yet</p>
+      </div>
+    ) : (
+      <div className="space-y-4">
+        {allRequests.map((request, index) => {
+          const requester = getRequesterInfo(request)
+          const listing = getListingInfo(request)
+          const isProcessing =
+            processingId === (request._id || request.id)
+
+          return (
+            <div
+              key={request._id || request.id}
+              className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
+              style={{
+                animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              <div className="relative flex items-start gap-3">
+                <UserAvatar user={requester} size="lg" />
+
+                <div className="flex-1">
+                  <h4 className="text-base font-semibold text-gray-900 mb-1.5">
+                    {requester.name}
+                  </h4>
+
+                  <div className="text-xs text-gray-500 mb-2">
+                    Interested in:{' '}
+                    <span className="font-semibold">{listing.title}</span>
+                  </div>
+
+                  {request.message && (
+                    <p className="text-sm text-gray-700 italic mb-3">
+                      "{request.message}"
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <Clock className="w-3.5 h-3.5 text-orange-500" />
+                    Received {formatTimeAgo(request.createdAt)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )}
+  </>
+)}
+
+                        </div>
+                        {/* Only show action buttons for pending requests */}
+                        {request.status === 'pending' && (
+                          <div className="flex flex-wrap gap-2 justify-end">
+                            <button 
+                              onClick={() => handleReject(request)}
+                              disabled={isProcessing || processingId === (request._id || request.id)}
+                              className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Reject
+                            </button>
+                            <button 
+                              onClick={() => handleApprove(request)}
+                              disabled={isProcessing || processingId === (request._id || request.id)}
+                              className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isProcessing && processingId === (request._id || request.id) ? (
+                                <>
+                                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
                                   <CheckCircle className="w-3.5 h-3.5" />
                                   Accept
-                                </button>
-                              </div>
-                            )}
+                                </>
+                              )}
+                            </button>
                           </div>
-                        </div>
+                        )}
+                        {/* Show message for approved/rejected requests */}
+                        {request.status === 'approved' && (
+                          <div className="text-sm text-green-700 font-medium text-right">
+                            ✓ Request approved - Conversation started
+                          </div>
+                        )}
+                        {request.status === 'rejected' && (
+                          <div className="text-sm text-red-700 font-medium text-right">
+                            ✗ Request rejected
+                          </div>
+                        )}
                       </div>
                     )
                   })
@@ -425,14 +626,18 @@ const RequestsContent = ({ initialTab = 'received', onListingClick }: RequestsCo
             </>
           ) : (
             <>
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Sent Requests</h2>
-              
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">
+                Sent Requests
+              </h2>
+
               <div className="space-y-4">
                 {displaySentRequests.length === 0 ? (
                   <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
                     <Send className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600">No sent requests yet</p>
-                    <p className="text-sm text-gray-500 mt-2">Requests you send to listings will appear here</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Requests you send to listings will appear here
+                    </p>
                   </div>
                 ) : (
                   displaySentRequests.map((request, index) => {
@@ -443,17 +648,25 @@ const RequestsContent = ({ initialTab = 'received', onListingClick }: RequestsCo
                       <div
                         key={request.id}
                         className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
-                        style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
+                        style={{
+                          animation: `fadeInUp 0.6s ease-out ${
+                            index * 0.1
+                          }s both`
+                        }}
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
                         <div className="relative flex flex-col md:flex-row gap-4">
                           {/* Listing Image */}
                           <div className="flex-shrink-0">
                             <div className="w-full md:w-48 h-48 rounded-lg overflow-hidden border-2 border-orange-200">
-                              <img 
-                                src={listing.photos?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop'} 
-                                alt={listing.title} 
-                                className="w-full h-full object-cover" 
+                              <img
+                                src={
+                                  listing.photos?.[0] ||
+                                  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop'
+                                }
+                                alt={listing.title}
+                                className="w-full h-full object-cover"
                               />
                             </div>
                           </div>
@@ -464,16 +677,22 @@ const RequestsContent = ({ initialTab = 'received', onListingClick }: RequestsCo
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                   <h3 className="text-lg font-semibold text-gray-900">
-                                    {listing.title || `${listing.roomType} in ${listing.locality}`}
+                                    {listing.title ||
+                                      `${listing.roomType} in ${listing.locality}`}
                                   </h3>
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                    request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                    request.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                      request.status === 'pending'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : request.status === 'accepted'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-red-100 text-red-800'
+                                    }`}
+                                  >
                                     {request.status.toUpperCase()}
                                   </span>
                                 </div>
+
                                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
                                   <span className="flex items-center gap-1">
                                     <MapPin className="w-4 h-4 text-orange-500" />
@@ -485,24 +704,39 @@ const RequestsContent = ({ initialTab = 'received', onListingClick }: RequestsCo
                                   </span>
                                   {listing.status !== 'live' && (
                                     <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
-                                      {listing.status === 'fulfilled' ? 'Filled' : 'Unavailable'}
+                                      {listing.status === 'fulfilled'
+                                        ? 'Filled'
+                                        : 'Unavailable'}
                                     </span>
                                   )}
                                 </div>
+
                                 <div className="text-xs text-gray-500 mb-3">
                                   <span className="flex items-center gap-1">
                                     <Clock className="w-3.5 h-3.5 text-orange-500" />
-                                    Sent {formatDateRelative(request.requestedAt)}
+                                    Sent{' '}
+                                    {formatDateRelative(
+                                      request.requestedAt
+                                    )}
                                   </span>
                                 </div>
+
                                 <p className="text-sm text-gray-700 leading-relaxed mb-4 italic">
                                   "{request.introMessage}"
                                 </p>
+
                                 {request.desiredMoveInDate && (
                                   <div className="text-xs text-gray-600 mb-4">
                                     <span className="flex items-center gap-1">
                                       <Calendar className="w-3.5 h-3.5 text-orange-500" />
-                                      Desired move-in: {new Date(request.desiredMoveInDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                      Desired move-in:{' '}
+                                      {new Date(
+                                        request.desiredMoveInDate
+                                      ).toLocaleDateString('en-IN', {
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric'
+                                      })}
                                     </span>
                                   </div>
                                 )}
@@ -512,24 +746,32 @@ const RequestsContent = ({ initialTab = 'received', onListingClick }: RequestsCo
                             {/* Actions */}
                             <div className="flex flex-wrap gap-2">
                               <button
-                                onClick={() => handleViewListing(request.listingId)}
+                                onClick={() =>
+                                  handleViewListing(request.listingId)
+                                }
                                 className="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-100 transition-all duration-300 flex items-center gap-1.5"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 View Listing
                               </button>
+
                               {request.status === 'pending' && (
                                 <button
-                                  onClick={() => handleWithdraw(request.id)}
+                                  onClick={() =>
+                                    handleWithdraw(request.id)
+                                  }
                                   className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-all duration-300 flex items-center gap-1.5"
                                 >
                                   <X className="w-3.5 h-3.5" />
                                   Withdraw
                                 </button>
                               )}
+
                               {request.status === 'accepted' && (
                                 <button
-                                  onClick={() => handleMessage(request.listingId)}
+                                  onClick={() =>
+                                    handleMessage(request.listingId)
+                                  }
                                   className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5"
                                 >
                                   <MessageSquare className="w-3.5 h-3.5" />
@@ -545,6 +787,8 @@ const RequestsContent = ({ initialTab = 'received', onListingClick }: RequestsCo
                 )}
               </div>
             </>
+          )}
+
           )}
         </div>
       </section>

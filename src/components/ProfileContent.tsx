@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
-import { User, Mail, Phone, Calendar, Users, Briefcase, Building, MapPin, FileText, Cigarette, Wine, Utensils, X, Clock, Plus, Copy, Heart } from 'lucide-react'
+import { usersApi, uploadApi } from '@/services/api'
+import { User, Mail, Phone, Calendar, Users, Briefcase, Building, MapPin, FileText, Cigarette, Wine, Utensils, HelpCircle, X, Clock, Plus, Copy, Heart } from 'lucide-react'
 
 const ProfileContent = () => {
   const { user, setUser } = useStore()
@@ -21,7 +22,7 @@ const ProfileContent = () => {
     firstName: nameParts.first,
     lastName: nameParts.last,
     email: user?.email || '',
-    phone: userData?.phone || user?.phone || '',
+    phone: userData?.phoneNumber || userData?.phone || '',
     dateOfBirth: userData?.dateOfBirth || '',
     gender: userData?.gender || '',
     occupation: userData?.occupation || '',
@@ -34,15 +35,113 @@ const ProfileContent = () => {
     foodPreference: userData?.foodPreference || ''
   })
 
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(userData?.profileImageUrl || null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch profile data on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return
+      
+      setLoading(true)
+      try {
+        const profile = await usersApi.getMyProfile()
+        
+        // Parse name
+        const nameParts = profile.name ? profile.name.split(' ') : ['', '']
+        const firstName = nameParts[0] || ''
+        const lastName = nameParts.slice(1).join(' ') || ''
+        
+        // Format date of birth if exists
+        let dateOfBirth = ''
+        if (profile.dateOfBirth) {
+          const date = new Date(profile.dateOfBirth)
+          dateOfBirth = date.toISOString().split('T')[0]
+        }
+        
+        setFormData({
+          firstName,
+          lastName,
+          email: profile.email || '',
+          phone: profile.phoneNumber || '',
+          dateOfBirth,
+          gender: profile.gender || '',
+          occupation: profile.occupation || '',
+          companyName: profile.companyName || '',
+          currentCity: profile.currentCity || '',
+          area: profile.area || '',
+          about: profile.about || '',
+          smoking: profile.smoking || '',
+          drinking: profile.drinking || '',
+          foodPreference: profile.foodPreference || ''
+        })
+        
+        if (profile.profileImageUrl) {
+          setProfileImageUrl(profile.profileImageUrl)
+        }
+        
+        // Update user in store
+        setUser({ ...user, ...profile } as any)
+      } catch (error) {
+        console.error('Error fetching profile:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchProfile()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (2MB max)
+    const maxSize = 2 * 1024 * 1024 // 2MB
+    if (file.size > maxSize) {
+      alert('Image size must be less than 2MB')
+      return
+    }
+
+    setUploadingImage(true)
+    try {
+      const url = await uploadApi.uploadProfileImage(file)
+      setProfileImageUrl(url)
+      
+      // Save image URL to profile immediately
+      await usersApi.updateMyProfile({ profileImageUrl: url })
+      
+      // Update user in store
+      setUser({ ...user, profileImageUrl: url } as any)
+    } catch (error: any) {
+      console.error('Error uploading image:', error)
+      alert(error.response?.data?.message || 'Failed to upload image. Please try again.')
+    } finally {
+      setUploadingImage(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -68,50 +167,88 @@ const ProfileContent = () => {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSave = () => {
-    if (validate()) {
+  const handleSave = async () => {
+    if (!validate()) return
+
+    setSaving(true)
+    try {
+      const updateData = {
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        phoneNumber: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        occupation: formData.occupation,
+        companyName: formData.companyName,
+        currentCity: formData.currentCity,
+        area: formData.area,
+        about: formData.about,
+        smoking: formData.smoking,
+        drinking: formData.drinking,
+        foodPreference: formData.foodPreference,
+        ...(profileImageUrl && { profileImageUrl }),
+      }
+
+      const updatedProfile = await usersApi.updateMyProfile(updateData)
+      
       // Update user in store
-      const updatedUser = {
-        ...user,
-        name: `${formData.firstName} ${formData.lastName}`.trim() || user?.name,
-        phone: formData.phone,
-        ...(formData.dateOfBirth && { dateOfBirth: formData.dateOfBirth }),
-        ...(formData.gender && { gender: formData.gender }),
-        ...(formData.occupation && { occupation: formData.occupation }),
-        ...(formData.companyName && { companyName: formData.companyName }),
-        ...(formData.currentCity && { currentCity: formData.currentCity }),
-        ...(formData.area && { area: formData.area }),
-        ...(formData.about && { about: formData.about }),
-        ...(formData.smoking && { smoking: formData.smoking }),
-        ...(formData.drinking && { drinking: formData.drinking }),
-        ...(formData.foodPreference && { foodPreference: formData.foodPreference })
-      } as any
-      setUser(updatedUser)
-      // In a real app, you would save to backend here
+      setUser({ ...user, ...updatedProfile } as any)
+      
       alert('Profile saved successfully!')
+    } catch (error: any) {
+      console.error('Error saving profile:', error)
+      alert(error.response?.data?.message || 'Failed to save profile. Please try again.')
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleCancel = () => {
-    // Reset form to original user data
-    const nameParts = getUserName()
-    setFormData({
-      firstName: nameParts.first,
-      lastName: nameParts.last,
-      email: user?.email || '',
-      phone: (user as any)?.phone || '',
-      dateOfBirth: (user as any)?.dateOfBirth || '',
-      gender: (user as any)?.gender || '',
-      occupation: (user as any)?.occupation || '',
-      companyName: (user as any)?.companyName || '',
-      currentCity: (user as any)?.currentCity || '',
-      area: (user as any)?.area || '',
-      about: (user as any)?.about || '',
-      smoking: (user as any)?.smoking || '',
-      drinking: (user as any)?.drinking || '',
-      foodPreference: (user as any)?.foodPreference || ''
-    })
-    setErrors({})
+  const handleCancel = async () => {
+    // Reset form by fetching profile again
+    if (!user?.id) return
+    
+    setLoading(true)
+    try {
+      const profile = await usersApi.getMyProfile()
+      
+      const nameParts = profile.name ? profile.name.split(' ') : ['', '']
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+      
+      let dateOfBirth = ''
+      if (profile.dateOfBirth) {
+        const date = new Date(profile.dateOfBirth)
+        dateOfBirth = date.toISOString().split('T')[0]
+      }
+      
+      setFormData({
+        firstName,
+        lastName,
+        email: profile.email || '',
+        phone: profile.phoneNumber || '',
+        dateOfBirth,
+        gender: profile.gender || '',
+        occupation: profile.occupation || '',
+        companyName: profile.companyName || '',
+        currentCity: profile.currentCity || '',
+        area: profile.area || '',
+        about: profile.about || '',
+        smoking: profile.smoking || '',
+        drinking: profile.drinking || '',
+        foodPreference: profile.foodPreference || ''
+      })
+      
+      if (profile.profileImageUrl) {
+        setProfileImageUrl(profile.profileImageUrl)
+      } else {
+        setProfileImageUrl(null)
+      }
+      
+      setErrors({})
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Close modal when clicking outside
@@ -170,6 +307,16 @@ const ProfileContent = () => {
     setShowTemplateModal(false)
   }
 
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Profile</h1>
@@ -180,24 +327,46 @@ const ProfileContent = () => {
         <div className="flex items-center gap-4">
           <div className="relative">
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               className="hidden"
               id="profile-photo"
+              onChange={handleImageUpload}
+              disabled={uploadingImage}
             />
             <label
               htmlFor="profile-photo"
-              className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white text-2xl font-semibold cursor-pointer hover:opacity-90 transition-opacity relative group"
+              className={`w-24 h-24 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white text-2xl font-semibold cursor-pointer hover:opacity-90 transition-opacity relative group overflow-hidden ${
+                uploadingImage ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              {formData.firstName[0]?.toUpperCase() || 'U'}
-              <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                <span className="text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity">Upload</span>
-              </div>
+              {profileImageUrl ? (
+                <img
+                  src={profileImageUrl}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                formData.firstName[0]?.toUpperCase() || 'U'
+              )}
+              {uploadingImage ? (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                  <span className="text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity">Upload</span>
+                </div>
+              )}
             </label>
           </div>
           <div>
             <p className="text-xs text-gray-500">Click on photo to upload</p>
             <p className="text-xs text-gray-400 mt-0.5">JPG, PNG or GIF. Max size 2MB</p>
+            {uploadingImage && (
+              <p className="text-xs text-orange-500 mt-1">Uploading...</p>
+            )}
           </div>
         </div>
       </div>
@@ -621,9 +790,17 @@ const ProfileContent = () => {
         </button>
         <button
           onClick={handleSave}
-          className="px-6 py-2.5 bg-orange-400 text-white rounded-lg text-sm font-semibold hover:bg-orange-500 transition-colors shadow-lg shadow-orange-400/30"
+          disabled={saving}
+          className="px-6 py-2.5 bg-orange-400 text-white rounded-lg text-sm font-semibold hover:bg-orange-500 transition-colors shadow-lg shadow-orange-400/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          Save Changes
+          {saving ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Saving...
+            </>
+          ) : (
+            'Save Changes'
+          )}
         </button>
       </div>
     </div>

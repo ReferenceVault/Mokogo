@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
+import { listingsApi, ListingResponse } from '@/services/api'
 import CustomSelect from '@/components/CustomSelect'
 import { formatRent } from '@/utils/formatters'
 import { MoveInDateField } from '@/components/MoveInDateField'
@@ -19,172 +20,55 @@ const LandingPage = () => {
     maxRent: '',
     genderPreference: ''
   })
+  const [isLoadingListings, setIsLoadingListings] = useState(true)
 
   const searchCities = [
     'Pune', 'Mumbai', 'Hyderabad', 'Bangalore'
   ]
 
-  // Initialize with mock listings if none exist
+  // Fetch all live listings from API
   useEffect(() => {
-    if (allListings.length === 0) {
-      const mockListings: Listing[] = [
-        {
-          id: '1',
-          title: 'Private Room in 2BHK · Kothrud · ₹15,000',
-          city: 'Pune',
-          locality: 'Kothrud',
-          societyName: 'Green Valley',
-          bhkType: '2BHK',
-          roomType: 'Private Room',
-          rent: 15000,
-          deposit: 30000,
-          moveInDate: '2024-02-01',
-          furnishingLevel: 'Furnished',
-          flatAmenities: ['WiFi', 'AC', 'Geyser', 'Washing machine'],
-          societyAmenities: ['Lift', 'Gym', 'Parking'],
-          preferredGender: 'Any',
-          photos: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400'],
-          status: 'live',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          title: 'Shared Room in 3BHK · Hinjewadi · ₹8,000',
-          city: 'Pune',
-          locality: 'Hinjewadi',
-          bhkType: '3BHK',
-          roomType: 'Shared Room',
-          rent: 8000,
-          deposit: 16000,
-          moveInDate: '2024-01-15',
-          furnishingLevel: 'Semi-furnished',
-          flatAmenities: ['WiFi', 'Geyser'],
-          societyAmenities: ['Lift', 'Parking'],
-          preferredGender: 'Male',
-          photos: ['https://images.unsplash.com/photo-1554995207-c18c203602cb?w=400'],
-          status: 'live',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          title: 'Master Room in 2BHK · Viman Nagar · ₹18,000',
-          city: 'Pune',
-          locality: 'Viman Nagar',
-          bhkType: '2BHK',
-          roomType: 'Master Room',
-          rent: 18000,
-          deposit: 36000,
-          moveInDate: '2024-02-10',
-          furnishingLevel: 'Furnished',
-          flatAmenities: ['WiFi', 'AC', 'Geyser', 'Washing machine', 'TV'],
-          societyAmenities: ['Lift', 'Gym', 'Pool', 'Parking'],
-          preferredGender: 'Any',
-          photos: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400'],
-          status: 'live',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: '4',
-          title: 'Private Room in 1BHK · Baner · ₹12,000',
-          city: 'Pune',
-          locality: 'Baner',
-          bhkType: '1BHK',
-          roomType: 'Private Room',
-          rent: 12000,
-          deposit: 24000,
-          moveInDate: '2024-01-20',
-          furnishingLevel: 'Unfurnished',
-          flatAmenities: ['WiFi', 'Geyser'],
-          societyAmenities: ['Lift'],
-          preferredGender: 'Female',
-          photos: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400'],
-          status: 'live',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: '5',
-          title: 'Shared Room in 4BHK · Aundh · ₹7,000',
-          city: 'Pune',
-          locality: 'Aundh',
-          bhkType: '4BHK',
-          roomType: 'Shared Room',
-          rent: 7000,
-          deposit: 14000,
-          moveInDate: '2024-01-25',
-          furnishingLevel: 'Semi-furnished',
-          flatAmenities: ['WiFi', 'AC', 'Washing machine'],
-          societyAmenities: ['Lift', 'Gym', 'Parking'],
-          preferredGender: 'Any',
-          photos: ['https://images.unsplash.com/photo-1556912172-45b7abe8b7e4?w=400'],
-          status: 'live',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: '6',
-          title: 'Private Room in 3BHK · Wakad · ₹14,000',
-          city: 'Pune',
-          locality: 'Wakad',
-          bhkType: '3BHK',
-          roomType: 'Private Room',
-          rent: 14000,
-          deposit: 28000,
-          moveInDate: '2024-02-05',
-          furnishingLevel: 'Furnished',
-          flatAmenities: ['WiFi', 'AC', 'Geyser', 'Washing machine', 'Fridge'],
-          societyAmenities: ['Lift', 'Gym', 'Parking', 'CCTV'],
-          preferredGender: 'Any',
-          photos: ['https://images.unsplash.com/photo-1560448075-cbc16bb4af33?w=400'],
-          status: 'live',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: '7',
-          title: 'Master Room in 2BHK · Koregaon Park · ₹20,000',
-          city: 'Pune',
-          locality: 'Koregaon Park',
-          bhkType: '2BHK',
-          roomType: 'Master Room',
-          rent: 20000,
-          deposit: 40000,
-          moveInDate: '2024-02-15',
-          furnishingLevel: 'Luxury',
-          flatAmenities: ['WiFi', 'AC', 'Geyser', 'Washing machine', 'TV', 'Microwave'],
-          societyAmenities: ['Lift', 'Gym', 'Pool', 'Parking', 'Clubhouse'],
-          preferredGender: 'Any',
-          photos: ['https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=400'],
-          status: 'live',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: '8',
-          title: 'Private Room in 2BHK · Hadapsar · ₹11,000',
-          city: 'Pune',
-          locality: 'Hadapsar',
-          bhkType: '2BHK',
-          roomType: 'Private Room',
-          rent: 11000,
-          deposit: 22000,
-          moveInDate: '2024-01-30',
-          furnishingLevel: 'Semi-furnished',
-          flatAmenities: ['WiFi', 'Geyser'],
-          societyAmenities: ['Lift', 'Parking'],
-          preferredGender: 'Any',
-          photos: ['https://images.unsplash.com/photo-1505693416388-ac5ce068fe35?w=400'],
-          status: 'live',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ]
-      setAllListings(mockListings)
+    const fetchListings = async () => {
+      setIsLoadingListings(true)
+      try {
+        const listings = await listingsApi.getAllPublic('live')
+        
+        // Map API response to frontend format
+        const mappedListings: Listing[] = listings.map((listing: ListingResponse) => ({
+          id: listing._id || listing.id,
+          title: listing.title,
+          city: listing.city || '',
+          locality: listing.locality || '',
+          societyName: listing.societyName,
+          bhkType: listing.bhkType || '',
+          roomType: listing.roomType || '',
+          rent: listing.rent || 0,
+          deposit: listing.deposit || 0,
+          moveInDate: listing.moveInDate || '',
+          furnishingLevel: listing.furnishingLevel || '',
+          bathroomType: listing.bathroomType,
+          flatAmenities: listing.flatAmenities || [],
+          societyAmenities: listing.societyAmenities || [],
+          preferredGender: listing.preferredGender || '',
+          description: listing.description,
+          photos: listing.photos || [],
+          status: listing.status,
+          createdAt: listing.createdAt,
+          updatedAt: listing.updatedAt,
+        }))
+        
+        setAllListings(mappedListings)
+      } catch (error) {
+        console.error('Error fetching public listings:', error)
+        // Keep existing listings or empty array on error
+      } finally {
+        setIsLoadingListings(false)
+      }
     }
-  }, [allListings.length, setAllListings])
+
+    fetchListings()
+  }, [setAllListings])
+
 
   const handleSearch = () => {
     // Navigate to city listings page if city is selected
@@ -441,7 +325,9 @@ const LandingPage = () => {
           {/* Listings Grid */}
           <section className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">6,789+ Available Properties</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {isLoadingListings ? 'Loading...' : `${allListings.filter(l => l.status === 'live').length}+ Available Properties`}
+              </h2>
               <Link 
                 to="/explore"
                 className="text-orange-500 font-semibold flex items-center gap-2 hover:gap-3 transition-all group hover:text-orange-600"
@@ -453,11 +339,23 @@ const LandingPage = () => {
               </Link>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {displayedListings.map((listing) => (
+            {isLoadingListings ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                  <p className="mt-4 text-gray-600">Loading listings...</p>
+                </div>
+              </div>
+            ) : displayedListings.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-600">No listings available at the moment. Check back soon!</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {displayedListings.map((listing) => (
                 <Link
                   key={listing.id}
-                  to={`/dashboard?listing=${listing.id}`}
+                  to={`/listings/${listing.id}`}
                   className="bg-white/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all group border border-white/60 block"
                 >
                   {/* Image */}
@@ -516,15 +414,18 @@ const LandingPage = () => {
                   </div>
                 </Link>
               ))}
-            </div>
+              </div>
+            )}
 
-            <div className="text-center pt-4">
-              <Link to="/explore">
-                <button className="btn-secondary">
-                  Load More Listings
-                </button>
-              </Link>
-            </div>
+            {!isLoadingListings && displayedListings.length > 0 && (
+              <div className="text-center pt-4">
+                <Link to="/explore">
+                  <button className="btn-secondary">
+                    Load More Listings
+                  </button>
+                </Link>
+              </div>
+            )}
           </section>
 
           {/* Popular Areas */}

@@ -1,11 +1,14 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import Logo from '@/components/Logo'
 import { useStore } from '@/store/useStore'
+
 import { formatPrice, formatDate } from '@/utils/formatters'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
+import { authApi, requestsApi } from '@/services/api'
+
 import {
   MapPin,
   Shield,
@@ -60,6 +63,8 @@ const ListingDetail = () => {
       setIsSaved(false)
     }
   }, [listingId, user, savedListings, isListingSaved])
+  // No need to redirect - this is now a protected route, user must be logged in
+
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null)
   const [moveInDate, setMoveInDate] = useState('')
   const [duration, setDuration] = useState('6 months')
@@ -144,24 +149,40 @@ const ListingDetail = () => {
     // You can add a report modal or navigate to report page
     alert('Report functionality will be implemented')
   }
-
   const handleContactHost = async () => {
-    // Check if user is logged in
-    if (!user) {
-      // Redirect to login with redirect params to go to sent requests after login
-      navigate(`/auth?redirect=/dashboard&view=requests&tab=sent`)
-      return
-    }
+  // Check if user is logged in
+  if (!user) {
+    // Redirect to login with redirect params to go to sent requests after login
+    navigate(`/auth?redirect=/dashboard&view=requests&tab=sent`)
+    return
+  }
 
-    // User is logged in - proceed with contact host
-    setIsSubmitting(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsSubmitting(false)
-    // In real app, this would create a request
+  if (!listing) return
+
+  setIsSubmitting(true)
+  try {
+    await requestsApi.create({
+      listingId: listing.id,
+      message: message || undefined,
+      moveInDate: moveInDate || undefined,
+    })
+
+    // Clear form
+    setMessage('')
+    setMoveInDate('')
+
     // Navigate to dashboard requests page with sent tab
     navigate('/dashboard?view=requests&tab=sent')
+  } catch (error: any) {
+    console.error('Error sending request:', error)
+    alert(
+      error.response?.data?.message ||
+        'Failed to send request. Please try again.'
+    )
+  } finally {
+    setIsSubmitting(false)
   }
+}
 
   const toggleFAQ = (faqId: string) => {
     setExpandedFAQ(expandedFAQ === faqId ? null : faqId)

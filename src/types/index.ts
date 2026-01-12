@@ -3,6 +3,18 @@ export interface User {
   phone: string
   email: string
   name?: string
+  profileImageUrl?: string
+  phoneNumber?: string
+  dateOfBirth?: string
+  gender?: string
+  occupation?: string
+  companyName?: string
+  currentCity?: string
+  area?: string
+  about?: string
+  smoking?: string
+  drinking?: string
+  foodPreference?: string
 }
 
 export interface Listing {

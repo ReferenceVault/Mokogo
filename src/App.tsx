@@ -24,6 +24,7 @@ import Contact from './pages/Contact'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import CookieConsent from './components/CookieConsent'
+import ProtectedRoute from './components/ProtectedRoute'
 import { trackPageView, initializeGADisableFlag } from './utils/analytics'
 
 // Component to track page views on route changes
@@ -48,17 +49,13 @@ function App() {
     <Router>
       <PageViewTracker />
       <Routes>
+        {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/auth/email" element={<AuthEmail />} />
         <Route path="/auth/forgot-password" element={<ForgotPassword />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
-        <Route path="/listing/wizard" element={<ListingWizard />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/requests" element={<RequestsList />} />
-        <Route path="/requests/:requestId" element={<RequestDetail />} />
-        <Route path="/listings/:listingId" element={<ListingDetail />} />
         <Route path="/explore" element={<ExploreProperties />} />
         <Route path="/city/:cityName" element={<CityListings />} />
         <Route path="/safety-tips" element={<SafetyTips />} />
@@ -70,7 +67,56 @@ function App() {
         <Route path="/about-us" element={<AboutUs />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        
+        {/* Protected routes - require authentication */}
+        <Route
+          path="/listing/wizard"
+          element={
+            <ProtectedRoute>
+              <ListingWizard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/requests"
+          element={
+            <ProtectedRoute>
+              <RequestsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/requests/:requestId"
+          element={
+            <ProtectedRoute>
+              <RequestDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/listings/:listingId"
+          element={
+            <ProtectedRoute>
+              <ListingDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
       <CookieConsent />
     </Router>
