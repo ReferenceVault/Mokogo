@@ -1,13 +1,15 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import Logo from '@/components/Logo'
+import UserAvatar from '@/components/UserAvatar'
 import { useStore } from '@/store/useStore'
 
 import { formatPrice, formatDate } from '@/utils/formatters'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
-import { authApi, requestsApi } from '@/services/api'
+import { requestsApi, listingsApi } from '@/services/api'
+import { Listing } from '@/types'
 
 import {
   MapPin,
@@ -45,15 +47,89 @@ import {
 const ListingDetail = () => {
   const { listingId } = useParams()
   const navigate = useNavigate()
-  const { allListings, user, requests, toggleSavedListing, isListingSaved, savedListings } = useStore()
+  const { allListings, user, requests, toggleSavedListing, isListingSaved, savedListings, setAllListings } = useStore()
   const [isSaved, setIsSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [listing, setListing] = useState<Listing | null>(null)
 
-  // Redirect to dashboard if user is logged in
+  // Fetch listing if not found in allListings
   useEffect(() => {
-    if (user && listingId) {
-      navigate(`/dashboard?listing=${listingId}`, { replace: true })
+    const fetchListing = async () => {
+      if (!listingId) {
+        setLoading(false)
+        return
+      }
+
+      // First check if it's in allListings
+      const foundInStore = allListings.find(l => l.id === listingId)
+      if (foundInStore) {
+        setListing(foundInStore)
+        // Try to get ownerId from API
+        // If getById succeeds, user is the owner
+        // If it fails, fetch from public listings to get ownerId
+        try {
+          const listingDetail = await listingsApi.getById(listingId)
+          setListingOwnerId(listingDetail.ownerId)
+        } catch (error) {
+          // getById failed - user is not the owner, fetch from public to get ownerId
+          try {
+            const publicListings = await listingsApi.getAllPublic('live')
+            const found = publicListings.find(l => (l._id || l.id) === listingId)
+            if (found) {
+              setListingOwnerId((found as any).ownerId || null)
+            }
+          } catch (publicError) {
+            console.error('Error fetching public listing:', publicError)
+          }
+        }
+        setLoading(false)
+        return
+      }
+
+      // If not found, try to fetch from public listings
+      try {
+        setLoading(true)
+        const publicListings = await listingsApi.getAllPublic('live')
+        const found = publicListings.find(l => (l._id || l.id) === listingId)
+        
+        if (found) {
+          // Map API response to frontend format
+          const mappedListing: Listing = {
+            id: found._id || found.id,
+            title: found.title,
+            city: found.city,
+            locality: found.locality,
+            societyName: found.societyName,
+            bhkType: found.bhkType,
+            roomType: found.roomType,
+            rent: found.rent,
+            deposit: found.deposit,
+            moveInDate: found.moveInDate,
+            furnishingLevel: found.furnishingLevel,
+            bathroomType: found.bathroomType,
+            flatAmenities: found.flatAmenities || [],
+            societyAmenities: found.societyAmenities || [],
+            preferredGender: found.preferredGender,
+            description: found.description,
+            photos: found.photos || [],
+            status: found.status,
+            createdAt: found.createdAt,
+            updatedAt: found.updatedAt,
+          }
+          setListing(mappedListing)
+          // Store ownerId to check ownership
+          setListingOwnerId((found as any).ownerId || null)
+          // Don't add public listings to allListings - keep them separate
+        }
+      } catch (error) {
+        console.error('Error fetching listing:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [user, listingId, navigate])
+
+    fetchListing()
+  }, [listingId, allListings, setAllListings])
 
   // Check if listing is saved when component loads, listingId changes, or savedListings changes
   useEffect(() => {
@@ -63,7 +139,6 @@ const ListingDetail = () => {
       setIsSaved(false)
     }
   }, [listingId, user, savedListings, isListingSaved])
-  // No need to redirect - this is now a protected route, user must be logged in
 
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null)
   const [moveInDate, setMoveInDate] = useState('')
@@ -71,17 +146,35 @@ const ListingDetail = () => {
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [listingOwnerId, setListingOwnerId] = useState<string | null>(null)
 
   const handleLogout = () => handleLogoutUtil(navigate)
 
-  const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
-
-  const listing = allListings.find(l => l.id === listingId)
+  // Check if current user is the owner of this listing
+  // Only check ownerId from API response, not allListings (which may contain public listings)
+  const isOwner = !!user && !!listingOwnerId && (
+    listingOwnerId === user.id || listingOwnerId === (user as any)._id
+  )
 
   // Check if user has already contacted this property
   const existingRequest = listingId && user 
     ? requests.find(r => r.listingId === listingId && r.seekerId === user.id)
     : null
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-mokogo-off-white flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading listing...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
 
   if (!listing) {
     return (
@@ -152,8 +245,8 @@ const ListingDetail = () => {
   const handleContactHost = async () => {
   // Check if user is logged in
   if (!user) {
-    // Redirect to login with redirect params to go to sent requests after login
-    navigate(`/auth?redirect=/dashboard&view=requests&tab=sent`)
+    // Redirect to login with redirect params to come back to this listing
+    navigate(`/auth?redirect=/listings/${listingId}`)
     return
   }
 
@@ -255,80 +348,87 @@ const ListingDetail = () => {
 
   return (
     <div className="min-h-screen bg-stone-100 flex flex-col">
-      {/* Lister Dashboard Header */}
-      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <Logo />
-              
-              <nav className="hidden md:flex items-center space-x-1">
-                <Link 
-                  to="/dashboard"
-                  className="px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-white/50"
-                >
-                  Dashboard
-                </Link>
-                <Link 
-                  to="/dashboard"
-                  className="px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-white/50"
-                >
-                  My Listings
-                </Link>
-              </nav>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="hidden lg:flex items-center bg-white/85 backdrop-blur-md rounded-xl px-4 py-2 border border-stone-200">
-                <Search className="w-4 h-4 text-gray-400 mr-3" />
-                <input 
-                  type="text" 
-                  placeholder="Search listings, areas..." 
-                  className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 w-64" 
-                />
-              </div>
-              
-              <button className="relative p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-orange-400 rounded-full"></span>
-              </button>
-              
-              <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200">
-                <HeartFav className="w-5 h-5" />
-              </button>
-              
-              <div 
-                className="flex items-center gap-3 cursor-pointer relative"
-                onClick={() => setShowUserMenu(!showUserMenu)}
-              >
-                <div className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center border-2 border-orange-400">
-                  <span className="text-white font-medium text-sm">
-                    {userInitial}
-                  </span>
+      {user ? (
+        <>
+          {/* Lister Dashboard Header */}
+          <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-stone-200">
+            <div className="max-w-7xl mx-auto px-6 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-8">
+                  <Logo />
+                  
+                  <nav className="hidden md:flex items-center space-x-1">
+                    <Link 
+                      to="/dashboard"
+                      className="px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-white/50"
+                    >
+                      Dashboard
+                    </Link>
+                    <Link 
+                      to="/dashboard"
+                      className="px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-white/50"
+                    >
+                      My Listings
+                    </Link>
+                  </nav>
                 </div>
-              </div>
-
-              {showUserMenu && (
-                <div className="absolute top-full right-4 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Log out
+                
+                <div className="flex items-center space-x-4">
+                  <div className="hidden lg:flex items-center bg-white/85 backdrop-blur-md rounded-xl px-4 py-2 border border-stone-200">
+                    <Search className="w-4 h-4 text-gray-400 mr-3" />
+                    <input 
+                      type="text" 
+                      placeholder="Search listings, areas..." 
+                      className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 w-64" 
+                    />
+                  </div>
+                  
+                  <button className="relative p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200">
+                    <Bell className="w-5 h-5" />
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-orange-400 rounded-full"></span>
                   </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+                  
+                  <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200">
+                    <HeartFav className="w-5 h-5" />
+                  </button>
+                  
+                  <div 
+                    className="flex items-center gap-3 cursor-pointer relative"
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                  >
+                    <UserAvatar 
+                      user={user}
+                      size="md"
+                      showBorder={true}
+                      className="shadow-lg bg-gradient-to-br from-orange-400 to-orange-500 text-white"
+                    />
+                  </div>
 
-      {/* Click outside to close user menu */}
-      {showUserMenu && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowUserMenu(false)}
-        />
+                  {showUserMenu && (
+                    <div className="absolute top-full right-4 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Click outside to close user menu */}
+          {showUserMenu && (
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={() => setShowUserMenu(false)}
+            />
+          )}
+        </>
+      ) : (
+        <Header />
       )}
 
       {/* Breadcrumb Navigation */}
@@ -456,10 +556,10 @@ const ListingDetail = () => {
       {/* Main Content Section */}
       <section className="py-8">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className={`grid grid-cols-1 gap-12 ${!isOwner ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
             
             {/* Left Content */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className={`space-y-8 ${!isOwner ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
               
               {/* Room Details */}
               <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg border border-white/35 p-8">
@@ -738,7 +838,8 @@ const ListingDetail = () => {
               
             </div>
             
-            {/* Right Sidebar */}
+            {/* Right Sidebar - Only show for non-owners */}
+            {!isOwner && (
             <div className="lg:col-span-1">
               <div className="sticky top-24 space-y-6">
                 
@@ -909,6 +1010,7 @@ const ListingDetail = () => {
                 
               </div>
             </div>
+            )}
             
           </div>
         </div>

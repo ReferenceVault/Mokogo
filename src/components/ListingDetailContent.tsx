@@ -52,7 +52,9 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   // Check if current user is the owner of this listing
-  const isOwner = currentListing?.id === listingId
+  // If listing is in allListings, it means it's the user's own listing
+  // (allListings only contains user's own listings from getAll API)
+  const isOwner = !!user && allListings.some(l => l.id === listingId)
 
   const foundListing = allListings.find(l => l.id === listingId)
   
@@ -278,10 +280,10 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
       {/* Main Content Section */}
       <section className="py-4">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className={`grid grid-cols-1 gap-6 ${!isOwner ? 'lg:grid-cols-3' : 'lg:grid-cols-1'}`}>
             
             {/* Left Content */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className={`space-y-4 ${!isOwner ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
               
               {/* Room Details */}
               <div className="bg-white/70 backdrop-blur-md rounded-xl shadow-lg border border-white/35 p-5">
@@ -400,7 +402,8 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
               
             </div>
             
-            {/* Right Sidebar */}
+            {/* Right Sidebar - Only show for non-owners */}
+            {!isOwner && (
             <div className="lg:col-span-1">
               <div className="sticky top-24 space-y-4">
                 
@@ -533,6 +536,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
                 
               </div>
             </div>
+            )}
             
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { useEffect, useState } from 'react'
+import { usersApi } from '@/services/api'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -32,41 +33,28 @@ const isValidTokenFormat = (token: string): boolean => {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const user = useStore((state) => state.user)
+  const setUser = useStore((state) => state.setUser)
   const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
-    // Check authentication on mount
-    const accessToken = localStorage.getItem('mokogo-access-token')
-    const savedUser = localStorage.getItem('mokogo-user')
+    const checkAuthAndFetchProfile = async () => {
+      // Check authentication on mount
+      const accessToken = localStorage.getItem('mokogo-access-token')
+      const savedUser = localStorage.getItem('mokogo-user')
 
-    // If no token or user, redirect immediately
-    if (!accessToken || !savedUser) {
-      // Clear any stale data
-      localStorage.removeItem('mokogo-user')
-      localStorage.removeItem('mokogo-access-token')
-      localStorage.removeItem('mokogo-refresh-token')
-      setIsChecking(false)
-      return
-    }
+      // If no token or user, redirect immediately
+      if (!accessToken || !savedUser) {
+        // Clear any stale data
+        localStorage.removeItem('mokogo-user')
+        localStorage.removeItem('mokogo-access-token')
+        localStorage.removeItem('mokogo-refresh-token')
+        setIsChecking(false)
+        return
+      }
 
-    // Validate token format and expiration
-    if (!isValidTokenFormat(accessToken)) {
-      // Token is invalid or expired, clear it
-      localStorage.removeItem('mokogo-user')
-      localStorage.removeItem('mokogo-access-token')
-      localStorage.removeItem('mokogo-refresh-token')
-      useStore.getState().setUser(null)
-      setIsChecking(false)
-      return
-    }
-
-    // If token exists but user state is not loaded, try to load it
-    if (!user && savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser)
-        useStore.getState().setUser(parsedUser)
-      } catch (error) {
-        console.error('Error parsing saved user:', error)
+      // Validate token format and expiration
+      if (!isValidTokenFormat(accessToken)) {
+        // Token is invalid or expired, clear it
         localStorage.removeItem('mokogo-user')
         localStorage.removeItem('mokogo-access-token')
         localStorage.removeItem('mokogo-refresh-token')
@@ -74,10 +62,43 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         setIsChecking(false)
         return
       }
+
+      // If token exists but user state is not loaded, try to load it
+      let currentUser = user
+      if (!currentUser && savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser)
+          useStore.getState().setUser(parsedUser)
+          currentUser = parsedUser
+        } catch (error) {
+          console.error('Error parsing saved user:', error)
+          localStorage.removeItem('mokogo-user')
+          localStorage.removeItem('mokogo-access-token')
+          localStorage.removeItem('mokogo-refresh-token')
+          useStore.getState().setUser(null)
+          setIsChecking(false)
+          return
+        }
+      }
+
+      // Fetch full profile if user exists but doesn't have profileImageUrl
+      if (currentUser && !(currentUser as any).profileImageUrl) {
+        try {
+          const profile = await usersApi.getMyProfile()
+          // Merge profile data with existing user data
+          const updatedUser = { ...currentUser, ...profile }
+          setUser(updatedUser as any)
+        } catch (error) {
+          console.error('Error fetching user profile:', error)
+          // Continue even if profile fetch fails
+        }
+      }
+
+      setIsChecking(false)
     }
 
-    setIsChecking(false)
-  }, [user])
+    checkAuthAndFetchProfile()
+  }, [user, setUser])
 
   // Show loading state while checking
   if (isChecking) {
