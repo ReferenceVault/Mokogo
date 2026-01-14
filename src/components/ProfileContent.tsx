@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
 import { usersApi, uploadApi } from '@/services/api'
-import { User, Mail, Phone, Calendar, Users, Briefcase, Building, MapPin, FileText, Cigarette, Wine, Utensils, HelpCircle, X, Clock, Plus, Copy, Heart } from 'lucide-react'
+import { User, Mail, Phone, Calendar, Users, Briefcase, Building, MapPin, FileText, Cigarette, Wine, Utensils, X, Clock, Plus, Copy, Heart } from 'lucide-react'
 
 const ProfileContent = () => {
   const { user, setUser } = useStore()

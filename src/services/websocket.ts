@@ -40,8 +40,18 @@ class WebSocketService {
 
   disconnect() {
     if (this.socket) {
+      // Remove all listeners before disconnecting
+      this.listeners.forEach((callbacks, event) => {
+        callbacks.forEach((callback) => {
+          this.socket?.off(event, callback)
+        })
+      })
+      this.listeners.clear()
+      
+      // Disconnect the socket
       this.socket.disconnect()
       this.socket = null
+      console.log('WebSocket disconnected and cleaned up')
     }
   }
 

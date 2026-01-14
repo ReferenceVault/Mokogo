@@ -67,6 +67,7 @@ function App() {
         <Route path="/about-us" element={<AboutUs />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/listings/:listingId" element={<ListingDetail />} />
         
         {/* Protected routes - require authentication */}
         <Route
@@ -98,14 +99,6 @@ function App() {
           element={
             <ProtectedRoute>
               <RequestDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/listings/:listingId"
-          element={
-            <ProtectedRoute>
-              <ListingDetail />
             </ProtectedRoute>
           }
         />

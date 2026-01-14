@@ -10,7 +10,7 @@ import MessagesContent from '@/components/MessagesContent'
 import ProfileContent from '@/components/ProfileContent'
 import ExploreContent from '@/components/ExploreContent'
 import { useStore } from '@/store/useStore'
-import { listingsApi, ListingResponse } from '@/services/api'
+import { listingsApi, ListingResponse, usersApi, messagesApi, requestsApi } from '@/services/api'
 import { Listing } from '@/types'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
 import { 
@@ -36,7 +36,7 @@ type ViewType = 'overview' | 'listings' | 'requests' | 'listing-detail' | 'messa
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { user, currentListing, setCurrentListing, allListings, setAllListings, requests } = useStore()
+  const { user, currentListing, setCurrentListing, allListings, setAllListings, requests, setUser } = useStore()
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -44,6 +44,8 @@ const Dashboard = () => {
   const [viewingListingId, setViewingListingId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
+  const [conversationsCount, setConversationsCount] = useState<number>(0)
+  const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0)
 
   // Track if fetch is in progress to prevent duplicate calls
   const fetchInProgressRef = useRef(false)
@@ -121,6 +123,78 @@ const Dashboard = () => {
     fetchListings()
   }, [user])
 
+  // Fetch user profile on mount to ensure profileImageUrl is available
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return
+      
+      // Only fetch if profileImageUrl is missing
+      if ((user as any).profileImageUrl) return
+      
+      try {
+        const profile = await usersApi.getMyProfile()
+        // Merge profile data with existing user data
+        const updatedUser = { ...user, ...profile }
+        setUser(updatedUser as any)
+      } catch (error) {
+        console.error('Error fetching user profile:', error)
+      }
+    }
+    
+    fetchProfile()
+  }, [user, setUser])
+
+  // Fetch conversations count on mount and when messages view is active
+  // Use a ref to prevent duplicate calls
+  const conversationsFetchRef = useRef(false)
+  
+  useEffect(() => {
+    const fetchConversationsCount = async () => {
+      if (!user?.id) {
+        setConversationsCount(0)
+        return
+      }
+      
+      // Prevent duplicate calls within 2 seconds
+      if (conversationsFetchRef.current) {
+        return
+      }
+      
+      conversationsFetchRef.current = true
+      
+      try {
+        const conversations = await messagesApi.getAllConversations()
+        setConversationsCount(conversations.length)
+      } catch (error: any) {
+        // Handle 429 (Too Many Requests) gracefully
+        if (error.response?.status === 429) {
+          console.warn('Rate limited on conversations fetch, using cached count')
+          // Don't update count, keep existing value
+        } else {
+          console.error('Error fetching conversations count:', error)
+          setConversationsCount(0)
+        }
+      } finally {
+        // Reset after 2 seconds to allow retry
+        setTimeout(() => {
+          conversationsFetchRef.current = false
+        }, 2000)
+      }
+    }
+    
+    fetchConversationsCount()
+    
+    // Only refresh count when messages view becomes active (not on every change)
+    if (activeView === 'messages') {
+      // Small delay to avoid immediate duplicate call
+      const timeoutId = setTimeout(() => {
+        conversationsFetchRef.current = false
+        fetchConversationsCount()
+      }, 500)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [user, activeView])
+
   // Check if we're viewing a listing or specific view from URL query params
   const [requestsInitialTab, setRequestsInitialTab] = useState<'received' | 'sent' | undefined>(undefined)
   
@@ -148,6 +222,14 @@ const Dashboard = () => {
           setRequestsInitialTab('sent')
         } else if (viewParam === 'requests' && tabParam === 'received') {
           setRequestsInitialTab('received')
+        }
+        
+        // Handle conversation param for messages view
+        if (viewParam === 'messages') {
+          const conversationParam = urlParams.get('conversation')
+          if (conversationParam) {
+            setSelectedConversationId(conversationParam)
+          }
         }
       }
       
@@ -241,8 +323,31 @@ const Dashboard = () => {
   const sentRequests = requests.filter(r => r.seekerId === user?.id)
   const hasSentRequests = sentRequests.length > 0 // Check if user has sent any requests
   const showRequestsTab = hasListings || hasSentRequests // Show Requests tab if user has listings OR sent requests
+
+  // Fetch pending received requests count
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      if (!user || !hasListings) {
+        setPendingRequestsCount(0)
+        return
+      }
+
+      try {
+        const receivedRequests = await requestsApi.getAllForOwner('pending')
+        setPendingRequestsCount(receivedRequests.length)
+      } catch (error) {
+        console.error('Error fetching pending requests count:', error)
+        setPendingRequestsCount(0)
+      }
+    }
+
+    fetchPendingCount()
+    // Also refetch when activeView changes to requests to update count
+    if (activeView === 'requests') {
+      fetchPendingCount()
+    }
+  }, [user, hasListings, allListings.length, activeView])
   const userName = user?.name || 'User'
-  const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
   const userImageUrl = (user as any)?.profileImageUrl
 
   // Redirect to overview if user tries to access requests without listings or sent requests
@@ -271,7 +376,6 @@ const Dashboard = () => {
         ]}
         userName={userName}
         userEmail={user?.email || ''}
-        userInitial={userInitial}
         userImageUrl={userImageUrl}
         onProfile={() => setActiveView('profile')}
         onLogout={handleLogout}
@@ -308,7 +412,7 @@ const Dashboard = () => {
               id: 'messages',
               label: 'Conversations',
               icon: MessageSquare,
-              badge: 12,
+              badge: conversationsCount > 0 ? conversationsCount : undefined,
               onClick: () => setActiveView('messages')
             },
             {
@@ -322,6 +426,7 @@ const Dashboard = () => {
               id: 'requests',
               label: 'Requests',
               icon: Calendar,
+              badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined,
               onClick: () => setActiveView('requests')
             }] : [])
           ]}
@@ -382,11 +487,7 @@ const Dashboard = () => {
           ) : activeView === 'requests' ? (
             <RequestsContent
               initialTab={requestsInitialTab || 'received'}
-              onListingClick={(listingId) => {
-                setViewingListingId(listingId)
-                setActiveView('listing-detail')
-              }}
-              onApprove={async (requestId) => {
+              onApprove={async () => {
                 // When a request is approved, navigate to messages
                 // The backend creates the conversation automatically
                 setActiveView('messages')
