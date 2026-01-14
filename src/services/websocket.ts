@@ -2,6 +2,20 @@ import { io, Socket } from 'socket.io-client'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
+// Get WebSocket base URL - strip /api if present, or use VITE_WS_URL if set
+const getWebSocketBaseURL = (): string => {
+  const wsUrl = import.meta.env.VITE_WS_URL
+  if (wsUrl) {
+    return wsUrl
+  }
+  
+  // Remove /api suffix if present
+  const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '')
+  return baseUrl
+}
+
+const WS_BASE_URL = getWebSocketBaseURL()
+
 class WebSocketService {
   private socket: Socket | null = null
   private listeners: Map<string, Set<(data: any) => void>> = new Map()
@@ -11,7 +25,7 @@ class WebSocketService {
       return
     }
 
-    this.socket = io(`${API_BASE_URL}/messages`, {
+    this.socket = io(`${WS_BASE_URL}/messages`, {
       auth: {
         token,
       },
