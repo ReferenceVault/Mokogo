@@ -153,8 +153,8 @@ const RequestsContent = ({
       
       // If onApprove callback is provided, call it with conversation info
       if (onApprove) {
-        // We need to get the conversation - it should be created by the backend
-        // For now, we'll just navigate to messages
+        // Backend automatically creates conversation on approval
+        // Navigate to messages - conversation will be there
         onApprove(request._id || request.id)
       }
     } catch (error: any) {

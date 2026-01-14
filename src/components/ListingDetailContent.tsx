@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import { MoveInDateField } from '@/components/MoveInDateField'
 import { formatPrice, formatDate } from '@/utils/formatters'
-import { requestsApi } from '@/services/api'
+import { requestsApi, messagesApi } from '@/services/api'
 import UserAvatar from './UserAvatar'
 
 import {
@@ -45,7 +45,8 @@ interface ListingDetailContentProps {
 }
 
 const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailContentProps) => {
-  const { allListings, user, currentListing, setAllListings, requests } = useStore()
+  const navigate = useNavigate()
+  const { allListings, user, currentListing, setAllListings } = useStore()
   const [isSaved, setIsSaved] = useState(false)
   const [moveInDate, setMoveInDate] = useState('')
   const [message, setMessage] = useState('')
@@ -76,10 +77,136 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
   // Type assertion to ensure TypeScript recognizes the full Listing type with 'fulfilled' status
   const listing: Listing = foundListing as Listing
 
-  // Check if user has already contacted this property
-  const existingRequest = listingId && user 
-    ? requests.find(r => r.listingId === listingId && r.seekerId === user.id)
-    : null
+  // Request status state - fetched from API
+  const [requestStatus, setRequestStatus] = useState<{
+    status: 'pending' | 'approved' | 'rejected' | null
+    requestId?: string
+  }>({ status: null })
+  const [loadingRequestStatus, setLoadingRequestStatus] = useState(true)
+  const [conversationId, setConversationId] = useState<string | null>(null)
+
+  // Fetch request status on mount and when listingId/user changes
+  useEffect(() => {
+    const fetchRequestStatus = async () => {
+      if (!user || !listingId) {
+        setRequestStatus({ status: null })
+        setLoadingRequestStatus(false)
+        return
+      }
+
+      setLoadingRequestStatus(true)
+      try {
+        const request = await requestsApi.getStatusByListing(listingId)
+        if (request) {
+          const status = request.status === 'approved' 
+            ? 'approved' 
+            : request.status === 'rejected'
+            ? 'rejected'
+            : 'pending'
+          setRequestStatus({
+            status,
+            requestId: request._id || request.id
+          })
+        } else {
+          setRequestStatus({ status: null })
+        }
+      } catch (error) {
+        console.error('Error fetching request status:', error)
+        setRequestStatus({ status: null })
+      } finally {
+        setLoadingRequestStatus(false)
+      }
+    }
+
+    fetchRequestStatus()
+  }, [user, listingId])
+
+  // Check if conversation exists for this listing (only if request is approved)
+  // Use a ref to prevent duplicate calls and cache results
+  const conversationCheckRef = useRef<{ key: string; timestamp: number } | null>(null)
+  const CONVERSATION_CACHE_TTL = 30000 // 30 seconds cache
+  
+  useEffect(() => {
+    const checkConversation = async () => {
+      if (!user || !listingId || requestStatus.status !== 'approved') {
+        setConversationId(null)
+        return
+      }
+
+      // Check cache - prevent duplicate calls within TTL
+      const cacheKey = `${listingId}-${requestStatus.status}`
+      const now = Date.now()
+      if (conversationCheckRef.current?.key === cacheKey && 
+          (now - conversationCheckRef.current.timestamp) < CONVERSATION_CACHE_TTL) {
+        return
+      }
+
+      conversationCheckRef.current = { key: cacheKey, timestamp: now }
+
+      try {
+        const conversations = await messagesApi.getAllConversations()
+        const conversation = conversations.find(conv => {
+          const convListingId = typeof conv.listingId === 'object' 
+            ? (conv.listingId as any)._id || (conv.listingId as any).id 
+            : conv.listingId
+          return convListingId === listingId
+        })
+        setConversationId(conversation ? (conversation._id || conversation.id) : null)
+      } catch (error: any) {
+        // Handle 429 (Too Many Requests) gracefully - don't retry immediately
+        if (error.response?.status === 429) {
+          console.warn('Rate limited on conversation check, will retry later')
+          // Keep existing conversationId or null, don't update
+          // Extend cache to prevent immediate retry
+          if (conversationCheckRef.current) {
+            conversationCheckRef.current.timestamp = now + 60000 // Extend by 1 minute
+          }
+        } else {
+          console.error('Error checking conversation:', error)
+          setConversationId(null)
+        }
+      }
+    }
+
+    // Only check if status is approved, with debounce
+    if (requestStatus.status === 'approved') {
+      const timeoutId = setTimeout(() => {
+        checkConversation()
+      }, 500) // Increased debounce to 500ms
+
+      return () => clearTimeout(timeoutId)
+    } else {
+      setConversationId(null)
+    }
+  }, [user, listingId, requestStatus.status])
+
+  // Handle navigation to messages
+  // If request is approved, conversation should exist (created by backend)
+  // Navigate to messages - user can find the conversation there
+  const handleStartConversation = () => {
+    // If we have conversationId, navigate directly to it
+    if (conversationId) {
+      navigate(`/dashboard?view=messages&conversation=${conversationId}`)
+    } else if (requestStatus.status === 'approved') {
+      // Request is approved, conversation should exist - navigate to messages
+      // MessagesContent will load conversations and user can find theirs
+      navigate('/dashboard?view=messages')
+    } else {
+      // Fallback
+      navigate('/dashboard?view=messages')
+    }
+  }
+
+  // Handle sending request after rejection
+  const handleSendRequestAgain = () => {
+    // Reset request status to allow new request
+    setRequestStatus({ status: null })
+    // Reset form
+    setMessage('')
+    setMoveInDate('')
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const handleSave = () => {
     setIsSaved(!isSaved)
@@ -90,14 +217,20 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
     
     setIsSubmitting(true)
     try {
-      await requestsApi.create({
+      const newRequest = await requestsApi.create({
         listingId: listing.id,
         message: message || undefined,
         moveInDate: moveInDate || undefined,
       })
       
+      // Update request status
+      setRequestStatus({
+        status: 'pending',
+        requestId: newRequest._id || newRequest.id
+      })
+      
       // Show success message
-      alert('Request sent successfully!')
+      alert('Request sent successfully! The host will review your request.')
       
       // Clear form
       setMessage('')
@@ -107,13 +240,35 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
       if (onBack) {
         onBack()
       }
-    } catch (error: any) {
-      console.error('Error sending request:', error)
-      alert(error.response?.data?.message || 'Failed to send request. Please try again.')
-    } finally {
-      setIsSubmitting(false)
+  } catch (error: any) {
+    console.error('Error sending request:', error)
+    const errorMessage = error.response?.data?.message || 'Failed to send request. Please try again.'
+    alert(errorMessage)
+    
+    // If error is about existing request, refresh status
+    if (errorMessage.includes('already') || errorMessage.includes('pending') || errorMessage.includes('approved')) {
+      // Refetch request status
+      try {
+        const request = await requestsApi.getStatusByListing(listing.id)
+        if (request) {
+          const status = request.status === 'approved' 
+            ? 'approved' 
+            : request.status === 'rejected'
+            ? 'rejected'
+            : 'pending'
+          setRequestStatus({
+            status,
+            requestId: request._id || request.id
+          })
+        }
+      } catch (refreshError) {
+        console.error('Error refreshing request status:', refreshError)
+      }
     }
+  } finally {
+    setIsSubmitting(false)
   }
+}
 
   const handleMarkAsFulfilled = () => {
     if (listing) {
@@ -448,20 +603,39 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
                         </div>
                       </div>
                       
-                      {existingRequest ? (
-                        // Show status if user has already contacted
-                        <div className="w-full bg-blue-50 border border-blue-200 rounded-lg py-2.5 px-4 mb-3">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Clock className="w-4 h-4 text-blue-600" />
-                            <span className="text-blue-800 font-semibold text-sm">
-                              {existingRequest.status === 'pending' 
-                                ? 'Already contacted, awaiting approval' 
-                                : existingRequest.status === 'accepted'
-                                ? 'Request accepted'
-                                : 'Request rejected'}
-                            </span>
-                          </div>
-                        </div>
+                      {/* Contact Host Button - Single button that changes based on request status */}
+                      {loadingRequestStatus ? (
+                        <button 
+                          disabled
+                          className="w-full bg-gray-200 text-gray-500 font-semibold py-2.5 rounded-lg cursor-not-allowed mb-3 text-sm"
+                        >
+                          <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin inline-block mr-2"></div>
+                          Loading...
+                        </button>
+                      ) : requestStatus.status === 'pending' ? (
+                        <button 
+                          disabled
+                          className="w-full bg-gray-300 text-gray-600 font-semibold py-2.5 rounded-lg cursor-not-allowed mb-3 text-sm"
+                        >
+                          <Clock className="w-4 h-4 inline mr-2" />
+                          Request Sent
+                        </button>
+                      ) : requestStatus.status === 'approved' ? (
+                        <button 
+                          onClick={handleStartConversation}
+                          className="w-full bg-green-500 text-white font-semibold py-2.5 rounded-lg hover:bg-green-600 hover:shadow-lg transition-all transform hover:scale-105 mb-3 text-sm"
+                        >
+                          <MessageCircle className="w-4 h-4 inline mr-2" />
+                          Start Conversation
+                        </button>
+                      ) : requestStatus.status === 'rejected' ? (
+                        <button 
+                          onClick={handleSendRequestAgain}
+                          className="w-full bg-orange-400 text-white font-semibold py-2.5 rounded-lg hover:bg-orange-500 hover:shadow-lg transition-all transform hover:scale-105 mb-3 text-sm"
+                        >
+                          <MessageCircle className="w-4 h-4 inline mr-2" />
+                          Send Request Again
+                        </button>
                       ) : (
                         <>
                           <button 

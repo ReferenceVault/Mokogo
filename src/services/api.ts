@@ -372,6 +372,19 @@ export const requestsApi = {
     return response.data
   },
 
+  getStatusByListing: async (listingId: string): Promise<RequestResponse | null> => {
+    try {
+      const response = await api.get<RequestResponse>(`/requests/status/${listingId}`)
+      return response.data
+    } catch (error: any) {
+      // If 404 or no request exists, return null
+      if (error.response?.status === 404) {
+        return null
+      }
+      throw error
+    }
+  },
+
   update: async (id: string, data: UpdateRequestRequest): Promise<RequestResponse> => {
     const response = await api.patch<RequestResponse>(`/requests/${id}`, data)
     return response.data

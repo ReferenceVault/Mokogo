@@ -10,7 +10,7 @@ import MessagesContent from '@/components/MessagesContent'
 import ProfileContent from '@/components/ProfileContent'
 import ExploreContent from '@/components/ExploreContent'
 import { useStore } from '@/store/useStore'
-import { listingsApi, ListingResponse, usersApi, messagesApi } from '@/services/api'
+import { listingsApi, ListingResponse, usersApi, messagesApi, requestsApi } from '@/services/api'
 import { Listing } from '@/types'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
 import { 
@@ -45,6 +45,7 @@ const Dashboard = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
   const [conversationsCount, setConversationsCount] = useState<number>(0)
+  const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0)
 
   // Track if fetch is in progress to prevent duplicate calls
   const fetchInProgressRef = useRef(false)
@@ -144,6 +145,9 @@ const Dashboard = () => {
   }, [user, setUser])
 
   // Fetch conversations count on mount and when messages view is active
+  // Use a ref to prevent duplicate calls
+  const conversationsFetchRef = useRef(false)
+  
   useEffect(() => {
     const fetchConversationsCount = async () => {
       if (!user?.id) {
@@ -151,20 +155,43 @@ const Dashboard = () => {
         return
       }
       
+      // Prevent duplicate calls within 2 seconds
+      if (conversationsFetchRef.current) {
+        return
+      }
+      
+      conversationsFetchRef.current = true
+      
       try {
         const conversations = await messagesApi.getAllConversations()
         setConversationsCount(conversations.length)
-      } catch (error) {
-        console.error('Error fetching conversations count:', error)
-        setConversationsCount(0)
+      } catch (error: any) {
+        // Handle 429 (Too Many Requests) gracefully
+        if (error.response?.status === 429) {
+          console.warn('Rate limited on conversations fetch, using cached count')
+          // Don't update count, keep existing value
+        } else {
+          console.error('Error fetching conversations count:', error)
+          setConversationsCount(0)
+        }
+      } finally {
+        // Reset after 2 seconds to allow retry
+        setTimeout(() => {
+          conversationsFetchRef.current = false
+        }, 2000)
       }
     }
     
     fetchConversationsCount()
     
-    // Refresh count when messages view becomes active
+    // Only refresh count when messages view becomes active (not on every change)
     if (activeView === 'messages') {
-      fetchConversationsCount()
+      // Small delay to avoid immediate duplicate call
+      const timeoutId = setTimeout(() => {
+        conversationsFetchRef.current = false
+        fetchConversationsCount()
+      }, 500)
+      return () => clearTimeout(timeoutId)
     }
   }, [user, activeView])
 
@@ -195,6 +222,14 @@ const Dashboard = () => {
           setRequestsInitialTab('sent')
         } else if (viewParam === 'requests' && tabParam === 'received') {
           setRequestsInitialTab('received')
+        }
+        
+        // Handle conversation param for messages view
+        if (viewParam === 'messages') {
+          const conversationParam = urlParams.get('conversation')
+          if (conversationParam) {
+            setSelectedConversationId(conversationParam)
+          }
         }
       }
       
@@ -288,6 +323,30 @@ const Dashboard = () => {
   const sentRequests = requests.filter(r => r.seekerId === user?.id)
   const hasSentRequests = sentRequests.length > 0 // Check if user has sent any requests
   const showRequestsTab = hasListings || hasSentRequests // Show Requests tab if user has listings OR sent requests
+
+  // Fetch pending received requests count
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      if (!user || !hasListings) {
+        setPendingRequestsCount(0)
+        return
+      }
+
+      try {
+        const receivedRequests = await requestsApi.getAllForOwner('pending')
+        setPendingRequestsCount(receivedRequests.length)
+      } catch (error) {
+        console.error('Error fetching pending requests count:', error)
+        setPendingRequestsCount(0)
+      }
+    }
+
+    fetchPendingCount()
+    // Also refetch when activeView changes to requests to update count
+    if (activeView === 'requests') {
+      fetchPendingCount()
+    }
+  }, [user, hasListings, allListings.length, activeView])
   const userName = user?.name || 'User'
   const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
   const userImageUrl = (user as any)?.profileImageUrl
@@ -369,6 +428,7 @@ const Dashboard = () => {
               id: 'requests',
               label: 'Requests',
               icon: Calendar,
+              badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined,
               onClick: () => setActiveView('requests')
             }] : [])
           ]}
