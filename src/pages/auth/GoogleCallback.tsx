@@ -4,12 +4,13 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Logo from '@/components/Logo'
 import { useStore } from '@/store/useStore'
-import { authApi } from '@/services/api'
+import { authApi, usersApi } from '@/services/api'
 
 const GoogleCallback = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const setUser = useStore((state) => state.setUser)
+  const setSavedListings = useStore((state) => state.setSavedListings)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const hasExchanged = useRef(false)
@@ -55,12 +56,32 @@ const GoogleCallback = () => {
           phone: '',
         })
 
-        // Get redirect params from URL (passed through Google OAuth state)
-        // For now, default to dashboard - in production, you'd pass state through OAuth flow
+        if (result.user.savedListings) {
+          const localRaw = localStorage.getItem('mokogo-saved-listings')
+          const localIds: string[] = localRaw ? JSON.parse(localRaw) : []
+          const merged = Array.from(new Set([...result.user.savedListings, ...localIds]))
+          if (merged.length !== result.user.savedListings.length) {
+            const toAdd = merged.filter((id) => !result.user.savedListings?.includes(id))
+            if (toAdd.length) {
+              await Promise.all(toAdd.map((id) => usersApi.saveListing(id).catch(() => null)))
+            }
+            const refreshed = await usersApi.getSavedListings()
+            setSavedListings(refreshed)
+          } else {
+            setSavedListings(result.user.savedListings)
+          }
+        }
+
+        const storedRedirect = typeof window !== 'undefined'
+          ? sessionStorage.getItem('mokogo-auth-redirect')
+          : null
+        const parsedRedirect = storedRedirect ? JSON.parse(storedRedirect) : null
+
+        // Get redirect params from URL (passed through Google OAuth state) or stored session
         const urlParams = new URLSearchParams(window.location.search)
-        const redirectPath = urlParams.get('redirect') || '/dashboard'
-        const redirectView = urlParams.get('view') || null
-        const redirectTab = urlParams.get('tab') || null
+        const redirectPath = urlParams.get('redirect') || parsedRedirect?.path || '/dashboard'
+        const redirectView = urlParams.get('view') || parsedRedirect?.view || null
+        const redirectTab = urlParams.get('tab') || parsedRedirect?.tab || null
         const params = new URLSearchParams()
         if (redirectView) params.set('view', redirectView)
         if (redirectTab) params.set('tab', redirectTab)
@@ -68,6 +89,7 @@ const GoogleCallback = () => {
         const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
 
         setTimeout(() => {
+          sessionStorage.removeItem('mokogo-auth-redirect')
           navigate(redirectUrl)
         }, 500)
       } catch (err: any) {

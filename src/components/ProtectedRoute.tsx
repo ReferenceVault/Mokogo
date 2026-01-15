@@ -7,27 +7,29 @@ interface ProtectedRouteProps {
 }
 
 // Helper to validate JWT token format (basic check)
-const isValidTokenFormat = (token: string): boolean => {
+const decodeJwtPayload = (token: string) => {
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
   try {
-    // JWT tokens have 3 parts separated by dots
-    const parts = token.split('.')
-    if (parts.length !== 3) return false
-    
-    // Try to decode the payload (second part)
-    const payload = JSON.parse(atob(parts[1]))
-    
-    // Check if token has expired (if exp claim exists)
-    if (payload.exp) {
-      const expirationTime = payload.exp * 1000 // Convert to milliseconds
-      if (Date.now() >= expirationTime) {
-        return false // Token has expired
-      }
-    }
-    
-    return true
+    const base64Url = parts[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+    return JSON.parse(atob(padded))
   } catch (error) {
-    return false
+    return null
   }
+}
+
+const isValidTokenFormat = (token: string): boolean => {
+  const payload = decodeJwtPayload(token)
+  if (!payload) return false
+  if (payload.exp) {
+    const expirationTime = payload.exp * 1000 // Convert to milliseconds
+    if (Date.now() >= expirationTime) {
+      return false // Token has expired
+    }
+  }
+  return true
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {

@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import { MoveInDateField } from '@/components/MoveInDateField'
 import { formatPrice, formatDate } from '@/utils/formatters'
-import { requestsApi } from '@/services/api'
+import { listingsApi, ListingResponse, requestsApi, usersApi } from '@/services/api'
 import UserAvatar from './UserAvatar'
 
 import {
@@ -13,7 +13,6 @@ import {
   Share2,
   Heart,
   Flag,
-  Play,
   Images,
   Bed,
   Bath,
@@ -45,18 +44,113 @@ interface ListingDetailContentProps {
 }
 
 const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailContentProps) => {
-  const { allListings, user, currentListing, setAllListings, requests } = useStore()
+  const { allListings, user, currentListing, setAllListings, requests, toggleSavedListing, isListingSaved, savedListings, setSavedListings } = useStore()
   const [isSaved, setIsSaved] = useState(false)
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [moveInDate, setMoveInDate] = useState('')
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [listing, setListing] = useState<Listing | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const hostAbout =
+    user?.about?.trim() ||
+    `Hi! I'm ${user?.name || 'a professional'} working in ${listing?.city || 'this city'}. I love meeting new people and creating a comfortable, friendly environment for my flatmates. I'm clean, organized, and respect personal space while being approachable for any questions or concerns.`
   
   // Check if current user is the owner of this listing
   const isOwner = currentListing?.id === listingId
 
   const foundListing = allListings.find(l => l.id === listingId)
-  
-  if (!foundListing) {
+
+  useEffect(() => {
+    const loadListing = async () => {
+      if (foundListing) {
+        setListing(foundListing)
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      try {
+        const response = await listingsApi.getById(listingId)
+        const mappedListing: Listing = {
+          id: response._id || response.id,
+          title: response.title,
+          city: response.city || '',
+          locality: response.locality || '',
+          societyName: response.societyName,
+          bhkType: response.bhkType || '',
+          roomType: response.roomType || '',
+          rent: response.rent || 0,
+          deposit: response.deposit || 0,
+          moveInDate: response.moveInDate || '',
+          furnishingLevel: response.furnishingLevel || '',
+          bathroomType: response.bathroomType,
+          flatAmenities: response.flatAmenities || [],
+          societyAmenities: response.societyAmenities || [],
+          preferredGender: response.preferredGender || '',
+          description: response.description,
+          photos: response.photos || [],
+          status: response.status,
+          createdAt: response.createdAt,
+          updatedAt: response.updatedAt,
+          mikoTags: response.mikoTags,
+        }
+        setListing(mappedListing)
+      } catch (error) {
+        try {
+          const publicListings = await listingsApi.getAllPublic('live')
+          const mappedListings: Listing[] = publicListings.map((item: ListingResponse) => ({
+            id: item._id || item.id,
+            title: item.title,
+            city: item.city || '',
+            locality: item.locality || '',
+            societyName: item.societyName,
+            bhkType: item.bhkType || '',
+            roomType: item.roomType || '',
+            rent: item.rent || 0,
+            deposit: item.deposit || 0,
+            moveInDate: item.moveInDate || '',
+            furnishingLevel: item.furnishingLevel || '',
+            bathroomType: item.bathroomType,
+            flatAmenities: item.flatAmenities || [],
+            societyAmenities: item.societyAmenities || [],
+            preferredGender: item.preferredGender || '',
+            description: item.description,
+            photos: item.photos || [],
+            status: item.status,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            mikoTags: item.mikoTags,
+          }))
+          const fallback = mappedListings.find((item) => item.id === listingId) || null
+          setListing(fallback)
+        } catch (fallbackError) {
+          console.error('Error loading listing detail:', fallbackError)
+          setListing(null)
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadListing()
+  }, [listingId, foundListing])
+
+  useEffect(() => {
+    if (listingId) {
+      setIsSaved(isListingSaved(listingId))
+    }
+  }, [listingId, savedListings, isListingSaved])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] text-gray-600">
+        Loading listing...
+      </div>
+    )
+  }
+
+  if (!listing) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -71,16 +165,51 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
     )
   }
 
-  // Type assertion to ensure TypeScript recognizes the full Listing type with 'fulfilled' status
-  const listing: Listing = foundListing as Listing
-
   // Check if user has already contacted this property
   const existingRequest = listingId && user 
     ? requests.find(r => r.listingId === listingId && r.seekerId === user.id)
     : null
 
   const handleSave = () => {
-    setIsSaved(!isSaved)
+    if (!listingId) return
+    const willSave = !isListingSaved(listingId)
+    const request = willSave
+      ? usersApi.saveListing(listingId)
+      : usersApi.removeSavedListing(listingId)
+    request
+      .then((updated) => {
+        setSavedListings(updated)
+        setIsSaved(updated.includes(listingId))
+      })
+      .catch(() => {
+        toggleSavedListing(listingId)
+        setIsSaved(!isSaved)
+      })
+  }
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: listing?.title,
+        text: listing?.description,
+        url: window.location.href,
+      }).catch(() => {
+        // User cancelled or error occurred
+      })
+    } else {
+      navigator.clipboard.writeText(window.location.href)
+    }
+  }
+
+  const handlePhotoNav = (direction: 'prev' | 'next') => {
+    if (!listing?.photos || listing.photos.length === 0) return
+    setActivePhotoIndex((prev) => {
+      const lastIndex = listing.photos.length - 1
+      if (direction === 'prev') {
+        return prev === 0 ? lastIndex : prev - 1
+      }
+      return prev === lastIndex ? 0 : prev + 1
+    })
   }
 
   const handleContactHost = async () => {
@@ -211,7 +340,10 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
               )}
               {!isOwner && (
                 <>
-                  <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
                     <Share2 className="w-4 h-4 text-gray-600" />
                     <span>Share</span>
                   </button>
@@ -241,18 +373,34 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
               {listing.photos && listing.photos.length > 0 ? (
                 <img 
                   className="w-full h-[300px] lg:h-[350px] object-cover" 
-                  src={listing.photos[0]} 
-                  alt={listing.title} 
+                  src={listing.photos[activePhotoIndex]} 
+                  alt={`${listing.title} photo ${activePhotoIndex + 1}`} 
                 />
               ) : (
                 <div className="w-full h-[300px] lg:h-[350px] bg-gray-200 flex items-center justify-center">
                   <Home className="w-12 h-12 text-gray-400" />
                 </div>
               )}
-              <button className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-xs font-medium">
-                <Play className="w-3.5 h-3.5 inline mr-1.5" />
-                Virtual Tour
-              </button>
+              {listing.photos && listing.photos.length > 1 && (
+                <>
+                  <button
+                    onClick={() => handlePhotoNav('prev')}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm w-8 h-8 rounded-full flex items-center justify-center text-gray-700 hover:bg-white transition-colors"
+                    type="button"
+                    aria-label="Previous photo"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => handlePhotoNav('next')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm w-8 h-8 rounded-full flex items-center justify-center text-gray-700 hover:bg-white transition-colors"
+                    type="button"
+                    aria-label="Next photo"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               {listing.photos?.slice(1, 5).map((photo, idx) => (
@@ -383,7 +531,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
                     <h3 className="text-base font-bold text-gray-900 mb-2">{user?.name || 'Host'}</h3>
                     
                     <p className="text-sm text-gray-700 mb-3">
-                      Hi! I'm {user?.name || 'a professional'} working in {listing.city}. I love meeting new people and creating a comfortable, friendly environment for my flatmates. I'm clean, organized, and respect personal space while being approachable for any questions or concerns.
+                      {hostAbout}
                     </p>
                     
                     <div className="flex items-center space-x-4">
@@ -569,11 +717,21 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
                     <button 
                       onClick={(e) => {
                         e.preventDefault()
-                        setIsSaved(!isSaved)
+                        const willSave = !isListingSaved(similar.id)
+                        const request = willSave
+                          ? usersApi.saveListing(similar.id)
+                          : usersApi.removeSavedListing(similar.id)
+                        request
+                          .then((updated) => {
+                            setSavedListings(updated)
+                          })
+                          .catch(() => {
+                            toggleSavedListing(similar.id)
+                          })
                       }}
                       className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm p-1.5 rounded-full hover:bg-white transition-colors"
                     >
-                      <Heart className={`w-4 h-4 ${isSaved ? 'text-red-500 fill-red-500' : 'text-gray-700'}`} />
+                      <Heart className={`w-4 h-4 ${isListingSaved(similar.id) ? 'text-red-500 fill-red-500' : 'text-gray-700'}`} />
                     </button>
                   </div>
                   <div className="p-4">

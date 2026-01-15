@@ -1,27 +1,122 @@
-import { useState, useMemo } from 'react'
-import { useStore } from '@/store/useStore'
+import { useState, useMemo, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import CustomSelect from '@/components/CustomSelect'
 import { MoveInDateField } from '@/components/MoveInDateField'
 import { MapPin, Home, Heart } from 'lucide-react'
+import { Listing, VibeTagId } from '@/types'
+import { getListingMikoTags, getMikoMatchPercent, getMikoMatchScore } from '@/utils/miko'
+import MikoTagPills from '@/components/MikoTagPills'
+import { listingsApi, ListingResponse } from '@/services/api'
 
 interface ExploreContentProps {
   onListingClick: (listingId: string) => void
 }
 
 const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
-  const { allListings } = useStore()
+  const location = useLocation()
+  const [exploreListings, setExploreListings] = useState<Listing[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   // Filter state
-  const [filters, setFilters] = useState({
-    city: '',
-    area: '',
-    maxRent: '',
-    moveInDate: '',
-    genderPreference: ''
+  const [filters, setFilters] = useState(() => {
+    const params = new URLSearchParams(location.search)
+    return {
+      city: params.get('city') || '',
+      area: params.get('area') || '',
+      maxRent: params.get('maxRent') || '',
+      moveInDate: params.get('moveInDate') || '',
+      genderPreference: params.get('genderPreference') || '',
+    }
   })
 
+  const [isMikoMode, setIsMikoMode] = useState(() => {
+    const params = new URLSearchParams(location.search)
+    return params.get('miko') === '1'
+  })
+  const [mikoTags, setMikoTags] = useState<VibeTagId[]>(() => {
+    const params = new URLSearchParams(location.search)
+    const tags = params.get('tags') || ''
+    return tags
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean) as VibeTagId[]
+  })
+  const [roomTypePreference, setRoomTypePreference] = useState<'private' | 'shared' | 'either' | null>(() => {
+    const params = new URLSearchParams(location.search)
+    const value = params.get('roomType')
+    if (value === 'private' || value === 'shared' || value === 'either') {
+      return value
+    }
+    return null
+  })
+
+  useEffect(() => {
+    const fetchListings = async () => {
+      setIsLoading(true)
+      try {
+        const listings = await listingsApi.getAllPublic('live')
+        const mappedListings: Listing[] = listings.map((listing: ListingResponse) => ({
+          id: listing._id || listing.id,
+          title: listing.title,
+          city: listing.city || '',
+          locality: listing.locality || '',
+          societyName: listing.societyName,
+          bhkType: listing.bhkType || '',
+          roomType: listing.roomType || '',
+          rent: listing.rent || 0,
+          deposit: listing.deposit || 0,
+          moveInDate: listing.moveInDate || '',
+          furnishingLevel: listing.furnishingLevel || '',
+          bathroomType: listing.bathroomType,
+          flatAmenities: listing.flatAmenities || [],
+          societyAmenities: listing.societyAmenities || [],
+          preferredGender: listing.preferredGender || '',
+          description: listing.description,
+          photos: listing.photos || [],
+          status: listing.status,
+          createdAt: listing.createdAt,
+          updatedAt: listing.updatedAt,
+          mikoTags: listing.mikoTags,
+        }))
+        setExploreListings(mappedListings)
+      } catch (error) {
+        console.error('Error fetching public listings:', error)
+        setExploreListings([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchListings()
+  }, [])
+
   // Get all live listings
-  const allLiveListings = allListings.filter(listing => listing.status === 'live')
+  const allLiveListings = exploreListings.filter(listing => listing.status === 'live')
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    setFilters({
+      city: params.get('city') || '',
+      area: params.get('area') || '',
+      maxRent: params.get('maxRent') || '',
+      moveInDate: params.get('moveInDate') || '',
+      genderPreference: params.get('genderPreference') || '',
+    })
+    setIsMikoMode(params.get('miko') === '1')
+    const tags = params.get('tags') || ''
+    setMikoTags(
+      tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(Boolean) as VibeTagId[]
+    )
+    const roomType = params.get('roomType')
+    if (roomType === 'private' || roomType === 'shared' || roomType === 'either') {
+      setRoomTypePreference(roomType)
+    } else {
+      setRoomTypePreference(null)
+    }
+  }, [location.search])
 
   // Get unique cities from all listings
   const availableCities = useMemo(() => {
@@ -77,10 +172,44 @@ const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
           }
         }
       }
+
+      if (isMikoMode && roomTypePreference) {
+        const roomType = listing.roomType.toLowerCase()
+        if (roomTypePreference === 'private') {
+          if (!roomType.includes('private') && !roomType.includes('master')) {
+            return false
+          }
+        }
+        if (roomTypePreference === 'shared') {
+          if (!roomType.includes('shared')) {
+            return false
+          }
+        }
+      }
       
       return true
     })
-  }, [allLiveListings, filters])
+  }, [allLiveListings, filters, isMikoMode, roomTypePreference])
+
+  const rankedListings = useMemo(() => {
+    if (!isMikoMode || mikoTags.length === 0) {
+      return filteredListings
+    }
+
+    return [...filteredListings]
+      .map(listing => {
+        const listingTags = getListingMikoTags(listing)
+        return {
+          listing,
+          score: getMikoMatchScore(mikoTags, listingTags),
+        }
+      })
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score
+        return new Date(b.listing.createdAt).getTime() - new Date(a.listing.createdAt).getTime()
+      })
+      .map(item => item.listing)
+  }, [filteredListings, isMikoMode, mikoTags])
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -112,22 +241,6 @@ const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-orange-50/20">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-orange-100/50 to-orange-50 px-8 py-6">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.15),transparent_60%),radial-gradient(circle_at_bottom_right,rgba(251,146,60,0.12),transparent_60%)]" />
-        
-        <div className="relative mx-auto max-w-7xl">
-          <div className="mb-6">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-              Explore Properties
-            </h1>
-            <p className="text-sm text-gray-700">
-              Browse and discover available rooms in your preferred location
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* Filters Section */}
       <section className="relative z-10 w-full bg-white/50 backdrop-blur-sm border-b border-gray-200 py-6">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
@@ -208,49 +321,90 @@ const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
               </div>
             )}
           </div>
+
+          {isMikoMode && mikoTags.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+              <span className="px-2 py-1 rounded-full bg-orange-50 text-orange-600 font-semibold border border-orange-200">
+                Miko Vibe Active
+              </span>
+              <MikoTagPills tags={mikoTags} max={4} />
+              <button
+                onClick={() => {
+                  setIsMikoMode(false)
+                  setMikoTags([])
+                  setRoomTypePreference(null)
+                }}
+                className="text-orange-600 font-semibold hover:text-orange-700"
+              >
+                Clear Miko
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
       {/* Listings Grid */}
       <section className="py-8 px-6 md:px-12">
         <div className="max-w-7xl mx-auto">
-          {filteredListings.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredListings.map((listing) => (
+          {isLoading ? (
+            <div className="text-center py-16 text-gray-600">
+              Loading listings...
+            </div>
+          ) : rankedListings.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+              {rankedListings.map((listing) => {
+                const listingTags = getListingMikoTags(listing)
+                const matchPercent = isMikoMode ? getMikoMatchPercent(mikoTags, listingTags) : 0
+                return (
                 <button
                   key={listing.id}
                   onClick={() => onListingClick(listing.id)}
-                  className="bg-white/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all group border border-white/60 text-left"
+                  className="bg-white/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all group border border-white/60 text-left flex flex-col h-full"
                 >
                   {/* Image */}
-                  <div className="relative h-48 overflow-hidden">
+                  <div className="relative h-48 overflow-hidden rounded-t-2xl">
                     {listing.photos && listing.photos.length > 0 ? (
                       <img
                         src={listing.photos[0]}
                         alt={listing.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-2xl"
                       />
                     ) : (
-                      <div className="w-full h-full bg-mokogo-gray flex items-center justify-center">
+                      <div className="w-full h-full bg-mokogo-gray flex items-center justify-center rounded-t-2xl">
                         <Home className="w-12 h-12 text-gray-400" />
                       </div>
                     )}
-                    <button 
+                    <span
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation()
                         // Handle save/favorite
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          // Handle save/favorite
+                        }
+                      }}
                       className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
                     >
                       <Heart className="w-5 h-5 text-gray-600" />
-                    </button>
+                    </span>
                     <span className="absolute top-3 left-3 px-3 py-1 bg-mokogo-primary text-white rounded-full text-xs font-medium shadow-md">
                       {listing.roomType === 'Private Room' ? 'Private' : listing.roomType === 'Master Room' ? 'Master' : 'Shared'}
                     </span>
+                    {isMikoMode && mikoTags.length > 0 && (
+                      <span className="absolute bottom-3 left-3 px-2.5 py-1 bg-white/90 backdrop-blur-sm text-xs font-semibold text-orange-600 rounded-full border border-orange-200 shadow-sm">
+                        {matchPercent}% Vibe Match
+                      </span>
+                    )}
                   </div>
 
                   {/* Content */}
-                  <div className="p-4 space-y-3">
+                  <div className="p-4 space-y-3 flex-1 flex flex-col">
+                    <MikoTagPills tags={listingTags} className="mb-1" />
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
                         {listing.title}
@@ -268,7 +422,7 @@ const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
                       <span>{listing.furnishingLevel}</span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 mt-auto">
                       <div>
                         <p className="text-xl font-bold text-gray-900">{formatRent(listing.rent)}</p>
                         <p className="text-xs text-gray-600">per month</p>
@@ -279,7 +433,7 @@ const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
                     </div>
                   </div>
                 </button>
-              ))}
+              )})}
             </div>
           ) : (
             <div className="text-center py-16 space-y-4">

@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import TermsModal from '@/components/TermsModal'
 
-import { authApi } from '@/services/api'
+import { authApi, usersApi } from '@/services/api'
 import { useStore } from '@/store/useStore'
 import SocialSidebar from '@/components/SocialSidebar'
 import { Shield, Zap, Users, CheckCircle, Lock, Eye, EyeOff, ChevronDown } from 'lucide-react'
@@ -13,11 +13,19 @@ const Auth = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const setUser = useStore((state) => state.setUser)
+  const toggleSavedListing = useStore((state) => state.toggleSavedListing)
+  const isListingSaved = useStore((state) => state.isListingSaved)
+  const setSavedListings = useStore((state) => state.setSavedListings)
 
-  // Get redirect params from URL
-  const redirectPath = searchParams.get('redirect') || '/dashboard'
-  const redirectView = searchParams.get('view') || null
-  const redirectTab = searchParams.get('tab') || null
+  const storedRedirect = typeof window !== 'undefined'
+    ? sessionStorage.getItem('mokogo-auth-redirect')
+    : null
+  const parsedRedirect = storedRedirect ? JSON.parse(storedRedirect) : null
+
+  // Get redirect params from URL or stored session
+  const redirectPath = searchParams.get('redirect') || parsedRedirect?.path || '/dashboard'
+  const redirectView = searchParams.get('view') || parsedRedirect?.view || null
+  const redirectTab = searchParams.get('tab') || parsedRedirect?.tab || null
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -33,6 +41,50 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
+
+  const syncSavedListings = async (serverIds?: string[]) => {
+    const localRaw = localStorage.getItem('mokogo-saved-listings')
+    const localIds: string[] = localRaw ? JSON.parse(localRaw) : []
+    const merged = Array.from(new Set([...(serverIds || []), ...localIds]))
+
+    if (!serverIds || merged.length !== serverIds.length) {
+      const toAdd = merged.filter((id) => !serverIds?.includes(id))
+      if (toAdd.length) {
+        await Promise.all(toAdd.map((id) => usersApi.saveListing(id).catch(() => null)))
+      }
+      const refreshed = await usersApi.getSavedListings()
+      setSavedListings(refreshed)
+      return
+    }
+
+    if (serverIds) {
+      setSavedListings(serverIds)
+    }
+  }
+
+  useEffect(() => {
+    const modeParam = searchParams.get('mode')
+    if (modeParam === 'signup' || modeParam === 'signin') {
+      setAuthMode(modeParam)
+    }
+  }, [searchParams])
+
+  const applyPendingSavedListing = async () => {
+    const pendingId = localStorage.getItem('mokogo-pending-saved-listing')
+    if (pendingId) {
+      try {
+        const updated = await usersApi.saveListing(pendingId)
+        setSavedListings(updated)
+      } catch (error) {
+        if (!isListingSaved(pendingId)) {
+          toggleSavedListing(pendingId)
+        }
+      }
+    }
+    if (pendingId) {
+      localStorage.removeItem('mokogo-pending-saved-listing')
+    }
+  }
 
   const handleGoogleSignIn = async () => {
     try {
@@ -105,6 +157,9 @@ const Auth = () => {
         name: response.user.email.split('@')[0],
         phone: '',
       })
+
+      await syncSavedListings(response.user.savedListings)
+      await applyPendingSavedListing()
       
       // Navigate to redirect path with view and tab params if provided
       const params = new URLSearchParams()
@@ -112,6 +167,7 @@ const Auth = () => {
       if (redirectTab) params.set('tab', redirectTab)
       const queryString = params.toString()
       const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
+      sessionStorage.removeItem('mokogo-auth-redirect')
       navigate(redirectUrl)
     } catch (err: any) {
       if (err.response?.status === 429) {
@@ -199,6 +255,9 @@ const Auth = () => {
         name: name.trim(),
         phone: phone,
       })
+
+      await syncSavedListings(loginResponse.user.savedListings)
+      await applyPendingSavedListing()
       
       // Navigate to redirect path with view and tab params if provided
       const params = new URLSearchParams()
@@ -206,6 +265,7 @@ const Auth = () => {
       if (redirectTab) params.set('tab', redirectTab)
       const queryString = params.toString()
       const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
+      sessionStorage.removeItem('mokogo-auth-redirect')
       navigate(redirectUrl)
     } catch (err: any) {
       if (err.response?.status === 429) {

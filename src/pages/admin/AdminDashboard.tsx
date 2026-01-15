@@ -71,7 +71,6 @@ const AdminDashboard = () => {
   }
 
   const userName = 'Admin'
-  const userInitial = userName[0]?.toUpperCase() || 'A'
 
   return (
     <div className="min-h-screen bg-stone-100 flex flex-col">
@@ -87,7 +86,6 @@ const AdminDashboard = () => {
         ]}
         userName={userName}
         userEmail="admin@mokogo.in"
-        userInitial={userInitial}
         onLogout={handleLogout}
       />
 

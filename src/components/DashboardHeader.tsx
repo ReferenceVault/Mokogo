@@ -12,7 +12,6 @@ interface DashboardHeaderProps {
   }>
   userName?: string
   userEmail?: string
-  userInitial?: string
   userImageUrl?: string
   onProfile?: () => void
   onLogout?: () => void
@@ -24,7 +23,6 @@ const DashboardHeader = ({
   menuItems = [],
   userName = 'User',
   userEmail = '',
-  userInitial = 'U',
   userImageUrl,
   onProfile,
   onLogout

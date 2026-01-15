@@ -6,8 +6,7 @@ import Logo from '@/components/Logo'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 
-import { listingsApi, CreateListingRequest } from '@/services/api'
-import { handleLogout as handleLogoutUtil } from '@/utils/auth'
+import { listingsApi, CreateListingRequest, authApi } from '@/services/api'
 import { Search, Bell, Heart as HeartIcon, LayoutGrid, Home, MessageSquare, Bookmark, Calendar, Plus, MoreHorizontal } from 'lucide-react'
 
 import Step1Photos from './steps/Step1Photos'
@@ -15,6 +14,7 @@ import Step2Location from './steps/Step2Location'
 import Step3Details from './steps/Step3Details'
 import Step4Pricing from './steps/Step4Pricing'
 import Step5Preferences from './steps/Step5Preferences'
+import Step6Miko from './steps/Step6Miko'
 
 const STEPS = [
   { 
@@ -63,11 +63,20 @@ const STEPS = [
       </svg>
     )
   },
+  { 
+    id: 'miko', 
+    title: 'MIKO Vibe', 
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l2.2 4.5L19 8l-3.5 3.3L16.4 16 12 13.7 7.6 16l.9-4.7L5 8l4.8-.5L12 3z" />
+      </svg>
+    )
+  },
 ]
 
 const ListingWizard = () => {
   const navigate = useNavigate()
-  const { currentListing, setCurrentListing, allListings, addListing, setAllListings, user } = useStore()
+  const { currentListing, setCurrentListing, allListings, addListing, setAllListings, user, setUser, setRequests } = useStore()
   const [currentStep, setCurrentStep] = useState(0)
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0])) // Only first section expanded by default
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
@@ -77,6 +86,10 @@ const ListingWizard = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [validatedSteps, setValidatedSteps] = useState<Set<number>>(new Set())
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
 
@@ -161,7 +174,7 @@ const ListingWizard = () => {
       listingDataRef.current = formattedListing
       setListingData(formattedListing)
       // Mark all steps as validated since we're editing a complete listing
-      setValidatedSteps(new Set([0, 1, 2, 3, 4]))
+      setValidatedSteps(new Set([0, 1, 2, 3, 4, 5]))
       // Start at first step
       setCurrentStep(0)
       setExpandedSections(new Set([0]))
@@ -201,6 +214,7 @@ const ListingWizard = () => {
         description: '',
         photos: [],
         status: 'draft' as const,
+          mikoTags: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }
@@ -347,6 +361,9 @@ const ListingWizard = () => {
           if (dataToSave.description && dataToSave.description.trim()) {
             draftData.description = dataToSave.description
           }
+          if (dataToSave.mikoTags && dataToSave.mikoTags.length > 0) {
+            draftData.mikoTags = dataToSave.mikoTags
+          }
         } else {
           // Continue button: ONLY include fields from validated steps
           // Only include photos if photos step is validated
@@ -414,6 +431,9 @@ const ListingWizard = () => {
           if (dataToSave.description && dataToSave.description.trim()) {
             draftData.description = dataToSave.description
           }
+          if (validatedSteps.has(5) && dataToSave.mikoTags && dataToSave.mikoTags.length > 0) {
+            draftData.mikoTags = dataToSave.mikoTags
+          }
         }
       }
 
@@ -449,6 +469,7 @@ const ListingWizard = () => {
         preferredGender: savedListing.preferredGender,
         description: savedListing.description,
         photos: savedListing.photos,
+          mikoTags: savedListing.mikoTags || dataToSave.mikoTags,
         status: savedListing.status,
         createdAt: savedListing.createdAt,
         updatedAt: savedListing.updatedAt,
@@ -545,6 +566,8 @@ const ListingWizard = () => {
           newErrors[stepId] = 'Gender preference is required'
         }
         break
+      case 'miko':
+        break
     }
 
     // Update errors: clear this step's errors, then add new ones
@@ -638,6 +661,13 @@ const ListingWizard = () => {
         if (updatedValidatedSteps.has(4)) {
           if (dataToSave.preferredGender && dataToSave.preferredGender.trim()) updateData.preferredGender = dataToSave.preferredGender
         }
+
+        // Include MIKO tags if MIKO step (step 5) is validated
+        if (updatedValidatedSteps.has(5)) {
+          if (dataToSave.mikoTags && dataToSave.mikoTags.length > 0) {
+            updateData.mikoTags = dataToSave.mikoTags
+          }
+        }
         
         // Include description if provided
         if (dataToSave.description && dataToSave.description.trim()) {
@@ -666,6 +696,7 @@ const ListingWizard = () => {
           preferredGender: savedListing.preferredGender || dataToSave.preferredGender || '',
           description: savedListing.description || dataToSave.description,
           photos: savedListing.photos || dataToSave.photos || [],
+          mikoTags: savedListing.mikoTags || dataToSave.mikoTags || [],
           status: savedListing.status || dataToSave.status || 'draft',
           createdAt: savedListing.createdAt || dataToSave.createdAt || new Date().toISOString(),
           updatedAt: savedListing.updatedAt || dataToSave.updatedAt || new Date().toISOString(),
@@ -725,6 +756,8 @@ const ListingWizard = () => {
         return !!(listingData.rent && listingData.deposit && listingData.moveInDate)
       case 'preferences':
         return !!listingData.preferredGender
+      case 'miko':
+        return !!(listingData.mikoTags && listingData.mikoTags.length > 0)
       default:
         return false
     }
@@ -796,6 +829,7 @@ const ListingWizard = () => {
         preferredGender: listingData.preferredGender || '',
         description: listingData.description,
         photos: listingData.photos || [],
+        mikoTags: listingData.mikoTags || [],
         status: 'live',
       }
 
@@ -828,6 +862,7 @@ const ListingWizard = () => {
         preferredGender: savedListing.preferredGender,
         description: savedListing.description,
         photos: savedListing.photos,
+          mikoTags: savedListing.mikoTags || listingData.mikoTags,
         status: savedListing.status,
         createdAt: savedListing.createdAt,
         updatedAt: savedListing.updatedAt,
@@ -953,6 +988,7 @@ const ListingWizard = () => {
           preferredGender: savedListing.preferredGender || '',
           description: savedListing.description,
           photos: savedListing.photos,
+          mikoTags: savedListing.mikoTags || updated.mikoTags || [],
           status: savedListing.status,
           createdAt: savedListing.createdAt,
           updatedAt: savedListing.updatedAt,
@@ -995,6 +1031,8 @@ const ListingWizard = () => {
         return <Step4Pricing data={listingData} onChange={handleDataChange} error={stepError} />
       case 'preferences':
         return <Step5Preferences data={listingData} onChange={handleDataChange} error={stepError} />
+      case 'miko':
+        return <Step6Miko data={listingData} onChange={handleDataChange} error={stepError} />
       default:
         return null
     }
@@ -1257,7 +1295,13 @@ const ListingWizard = () => {
                           className="btn-primary text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <div className="flex items-center gap-1.5">
-                            {isCreating ? (isEditing ? 'Updating...' : 'Creating...') : isSaving ? 'Saving...' : index === STEPS.length - 1 ? (isEditing ? 'Update Listing' : 'Create Listing') : 'Continue'}
+                            {isCreating
+                              ? (isEditing ? 'Updating...' : 'Creating...')
+                              : isSaving
+                              ? 'Saving...'
+                              : index === STEPS.length - 1
+                              ? (isEditing ? 'Update Listing' : 'Create & Activate Listing')
+                              : 'Continue'}
                             {!isCreating && !isSaving && index < STEPS.length - 1 && (
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

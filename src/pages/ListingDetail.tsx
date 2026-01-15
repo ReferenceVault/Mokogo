@@ -1,13 +1,12 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
-import Logo from '@/components/Logo'
 import { useStore } from '@/store/useStore'
 
 import { formatPrice, formatDate } from '@/utils/formatters'
-import { handleLogout as handleLogoutUtil } from '@/utils/auth'
-import { authApi, requestsApi } from '@/services/api'
+import { requestsApi, listingsApi, usersApi } from '@/services/api'
+import { Listing } from '@/types'
 
 import {
   MapPin,
@@ -15,43 +14,40 @@ import {
   Share2,
   Heart,
   Flag,
-  Play,
   Images,
   Bed,
   Bath,
   Square,
   Calendar,
   CheckCircle,
-  XCircle,
   MessageCircle,
   ChevronDown,
   ChevronRight,
   Home,
-  Utensils,
-  ShoppingCart,
-  Bus,
-  Building,
-  Train,
-  Plane,
-  Search,
-  CalendarPlus,
-  Video,
-  Heart as HeartIcon,
-  Bell,
-  Heart as HeartFav,
   Clock
 } from 'lucide-react'
 
 const ListingDetail = () => {
   const { listingId } = useParams()
   const navigate = useNavigate()
-  const { allListings, user, requests, toggleSavedListing, isListingSaved, savedListings } = useStore()
+  const { allListings, user, requests, toggleSavedListing, isListingSaved, savedListings, setSavedListings } = useStore()
   const [isSaved, setIsSaved] = useState(false)
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0)
+  const [listing, setListing] = useState<Listing | null>(null)
+  const [isListingLoading, setIsListingLoading] = useState(true)
+  const hostAbout =
+    user?.about?.trim() ||
+    `Hi! I'm ${user?.name || 'a professional'} working in ${listing?.city || 'this city'}. I love meeting new people and creating a comfortable, friendly environment for my flatmates. I'm clean, organized, and respect personal space while being approachable for any questions or concerns.`
 
-  // Redirect to dashboard if user is logged in
+  // Keep listing detail public regardless of auth state
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  // If user is logged in, show the authenticated view inside dashboard
   useEffect(() => {
     if (user && listingId) {
-      navigate(`/dashboard?listing=${listingId}`, { replace: true })
+      navigate(`/dashboard?listing=${listingId}`)
     }
   }, [user, listingId, navigate])
 
@@ -70,23 +66,81 @@ const ListingDetail = () => {
   const [duration, setDuration] = useState('6 months')
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
 
-  const handleLogout = () => handleLogoutUtil(navigate)
+  useEffect(() => {
+    const loadListing = async () => {
+      if (!listingId) {
+        setListing(null)
+        setIsListingLoading(false)
+        return
+      }
 
-  const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
+      const cachedListing = allListings.find(l => l.id === listingId)
+      if (cachedListing) {
+        setListing(cachedListing)
+        setIsListingLoading(false)
+        return
+      }
 
-  const listing = allListings.find(l => l.id === listingId)
+      setIsListingLoading(true)
+      try {
+        const response = await listingsApi.getById(listingId)
+        const mappedListing: Listing = {
+          id: response._id || response.id,
+          title: response.title,
+          city: response.city || '',
+          locality: response.locality || '',
+          societyName: response.societyName,
+          bhkType: response.bhkType || '',
+          roomType: response.roomType || '',
+          rent: response.rent || 0,
+          deposit: response.deposit || 0,
+          moveInDate: response.moveInDate || '',
+          furnishingLevel: response.furnishingLevel || '',
+          bathroomType: response.bathroomType,
+          flatAmenities: response.flatAmenities || [],
+          societyAmenities: response.societyAmenities || [],
+          preferredGender: response.preferredGender || '',
+          description: response.description,
+          photos: response.photos || [],
+          status: response.status,
+          createdAt: response.createdAt,
+          updatedAt: response.updatedAt,
+          mikoTags: response.mikoTags,
+        }
+        setListing(mappedListing)
+      } catch (error) {
+        console.error('Error loading listing detail:', error)
+        setListing(null)
+      } finally {
+        setIsListingLoading(false)
+      }
+    }
+
+    loadListing()
+  }, [listingId, allListings])
 
   // Check if user has already contacted this property
   const existingRequest = listingId && user 
     ? requests.find(r => r.listingId === listingId && r.seekerId === user.id)
     : null
 
+  if (isListingLoading) {
+    return (
+      <div className="min-h-screen bg-mokogo-off-white flex flex-col">
+        <Header forceGuest />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center text-gray-600">Loading listing...</div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
   if (!listing) {
     return (
       <div className="min-h-screen bg-mokogo-off-white flex flex-col">
-        <Header />
+        <Header forceGuest />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-gray-900 mb-2">Listing not found</h1>
@@ -103,26 +157,37 @@ const ListingDetail = () => {
   const handleSave = () => {
     // Check if user is logged in
     if (!user) {
-      // Redirect to login with redirect params to come back to this listing
-      navigate(`/auth?redirect=/listings/${listingId}`)
+      if (listingId) {
+        localStorage.setItem('mokogo-pending-saved-listing', listingId)
+      }
+      sessionStorage.setItem(
+        'mokogo-auth-redirect',
+        JSON.stringify({ path: '/dashboard', view: 'saved' })
+      )
+      navigate('/auth?redirect=/dashboard&view=saved')
       return
     }
 
     // User is logged in - toggle save
     if (listingId) {
-      toggleSavedListing(listingId)
-      setIsSaved(!isSaved)
+      const willSave = !isListingSaved(listingId)
+      const request = willSave
+        ? usersApi.saveListing(listingId)
+        : usersApi.removeSavedListing(listingId)
+      request
+        .then((updated) => {
+          setSavedListings(updated)
+          setIsSaved(updated.includes(listingId))
+        })
+        .catch(() => {
+          // Fallback to local toggle if API fails
+          toggleSavedListing(listingId)
+          setIsSaved(!isSaved)
+        })
     }
   }
 
   const handleShare = () => {
-    // Check if user is logged in
-    if (!user) {
-      navigate(`/auth?redirect=/listings/${listingId}`)
-      return
-    }
-
-    // User is logged in - implement share functionality
     if (navigator.share) {
       navigator.share({
         title: listing?.title,
@@ -148,6 +213,17 @@ const ListingDetail = () => {
     // User is logged in - implement report functionality
     // You can add a report modal or navigate to report page
     alert('Report functionality will be implemented')
+  }
+
+  const handlePhotoNav = (direction: 'prev' | 'next') => {
+    if (!listing?.photos || listing.photos.length === 0) return
+    setActivePhotoIndex((prev) => {
+      const lastIndex = listing.photos.length - 1
+      if (direction === 'prev') {
+        return prev === 0 ? lastIndex : prev - 1
+      }
+      return prev === lastIndex ? 0 : prev + 1
+    })
   }
   const handleContactHost = async () => {
   // Check if user is logged in
@@ -194,37 +270,6 @@ const ListingDetail = () => {
     .filter(l => l.id !== listingId && l.city === listing.city)
     .slice(0, 3)
 
-  // Mock reviews
-  const reviews = [
-    {
-      id: '1',
-      name: 'Sneha Patel',
-      role: 'Marketing Executive',
-      avatar: 'https://i.pravatar.cc/150?img=5',
-      rating: 5,
-      text: "Excellent experience staying with Priya! The room was exactly as described, very clean and comfortable. Great location with easy access to my office. Priya is a wonderful host - very responsive and helpful.",
-      date: 'Stayed for 8 months • November 2023'
-    },
-    {
-      id: '2',
-      name: 'Anita Desai',
-      role: 'Software Developer',
-      avatar: 'https://i.pravatar.cc/150?img=1',
-      rating: 4,
-      text: "Great place to stay! The room is spacious and well-furnished. Kitchen facilities are excellent and the WiFi is super fast. Only minor issue was occasional noise from the main road, but overall highly recommended.",
-      date: 'Stayed for 6 months • September 2023'
-    },
-    {
-      id: '3',
-      name: 'Kavya Singh',
-      role: 'Business Analyst',
-      avatar: 'https://i.pravatar.cc/150?img=7',
-      rating: 5,
-      text: "Perfect for working professionals! The location is unbeatable - so close to everything you need. Priya maintains the place beautifully and is very accommodating. Would definitely recommend to other female professionals.",
-      date: 'Currently staying • Since August 2023'
-    }
-  ]
-
   const faqs = [
     {
       id: '1',
@@ -255,81 +300,7 @@ const ListingDetail = () => {
 
   return (
     <div className="min-h-screen bg-stone-100 flex flex-col">
-      {/* Lister Dashboard Header */}
-      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <Logo />
-              
-              <nav className="hidden md:flex items-center space-x-1">
-                <Link 
-                  to="/dashboard"
-                  className="px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-white/50"
-                >
-                  Dashboard
-                </Link>
-                <Link 
-                  to="/dashboard"
-                  className="px-4 py-2 text-sm font-medium transition-colors duration-200 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-white/50"
-                >
-                  My Listings
-                </Link>
-              </nav>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="hidden lg:flex items-center bg-white/85 backdrop-blur-md rounded-xl px-4 py-2 border border-stone-200">
-                <Search className="w-4 h-4 text-gray-400 mr-3" />
-                <input 
-                  type="text" 
-                  placeholder="Search listings, areas..." 
-                  className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 w-64" 
-                />
-              </div>
-              
-              <button className="relative p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-orange-400 rounded-full"></span>
-              </button>
-              
-              <button className="p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200">
-                <HeartFav className="w-5 h-5" />
-              </button>
-              
-              <div 
-                className="flex items-center gap-3 cursor-pointer relative"
-                onClick={() => setShowUserMenu(!showUserMenu)}
-              >
-                <div className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center border-2 border-orange-400">
-                  <span className="text-white font-medium text-sm">
-                    {userInitial}
-                  </span>
-                </div>
-              </div>
-
-              {showUserMenu && (
-                <div className="absolute top-full right-4 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Log out
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Click outside to close user menu */}
-      {showUserMenu && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowUserMenu(false)}
-        />
-      )}
+      <Header forceGuest />
 
       {/* Breadcrumb Navigation */}
       <section className="py-4 bg-white border-b border-stone-200">
@@ -384,16 +355,14 @@ const ListingDetail = () => {
             <div className="flex items-center space-x-4 mt-6 lg:mt-0">
               <button 
                 onClick={handleShare}
-                disabled={!user}
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <Share2 className="w-4 h-4 text-gray-600" />
                 <span>Share</span>
               </button>
               <button 
                 onClick={handleSave}
-                disabled={!user}
-                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <Heart className={`w-4 h-4 ${isSaved ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} />
                 <span>Save</span>
@@ -419,18 +388,34 @@ const ListingDetail = () => {
               {listing.photos && listing.photos.length > 0 ? (
                 <img 
                   className="w-full h-[400px] lg:h-[500px] object-cover" 
-                  src={listing.photos[0]} 
-                  alt={listing.title} 
+                  src={listing.photos[activePhotoIndex]} 
+                  alt={`${listing.title} photo ${activePhotoIndex + 1}`} 
                 />
               ) : (
                 <div className="w-full h-[400px] lg:h-[500px] bg-gray-200 flex items-center justify-center">
                   <Home className="w-16 h-16 text-gray-400" />
                 </div>
               )}
-              <button className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg text-sm font-medium">
-                <Play className="w-4 h-4 inline mr-2" />
-                Virtual Tour
-              </button>
+              {listing.photos && listing.photos.length > 1 && (
+                <>
+                  <button
+                    onClick={() => handlePhotoNav('prev')}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm w-9 h-9 rounded-full flex items-center justify-center text-gray-700 hover:bg-white transition-colors"
+                    type="button"
+                    aria-label="Previous photo"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => handlePhotoNav('next')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm w-9 h-9 rounded-full flex items-center justify-center text-gray-700 hover:bg-white transition-colors"
+                    type="button"
+                    aria-label="Next photo"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               {listing.photos?.slice(1, 5).map((photo, idx) => (
@@ -533,128 +518,6 @@ const ListingDetail = () => {
                 </div>
               </div>
               
-              {/* Location & Nearby Section */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg border border-white/35 p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Location & Nearby</h2>
-                
-                <div className="mb-6">
-                  <div className="bg-stone-100 h-64 rounded-xl flex items-center justify-center mb-4">
-                    <div className="text-center">
-                      <MapPin className="w-12 h-12 text-orange-400 mx-auto mb-2" />
-                      <p className="text-gray-600">Interactive Map</p>
-                      <p className="text-sm text-gray-500">{listing.locality}, {listing.city}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Transportation</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Bus className="w-5 h-5 text-orange-400 mr-3" />
-                          <span className="text-gray-700">Bus Stop</span>
-                        </div>
-                        <span className="text-sm text-gray-600">2 min walk</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Train className="w-5 h-5 text-orange-400 mr-3" />
-                          <span className="text-gray-700">Metro Station</span>
-                        </div>
-                        <span className="text-sm text-gray-600">15 min drive</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Plane className="w-5 h-5 text-orange-400 mr-3" />
-                          <span className="text-gray-700">Airport</span>
-                        </div>
-                        <span className="text-sm text-gray-600">45 min drive</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Points of Interest</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Building className="w-5 h-5 text-orange-400 mr-3" />
-                          <span className="text-gray-700">Business District</span>
-                        </div>
-                        <span className="text-sm text-gray-600">5 min walk</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <ShoppingCart className="w-5 h-5 text-orange-400 mr-3" />
-                          <span className="text-gray-700">Shopping Mall</span>
-                        </div>
-                        <span className="text-sm text-gray-600">8 min walk</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Utensils className="w-5 h-5 text-orange-400 mr-3" />
-                          <span className="text-gray-700">Restaurants</span>
-                        </div>
-                        <span className="text-sm text-gray-600">3 min walk</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* House Rules Section */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg border border-white/35 p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">House Rules & Policies</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Allowed</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                        <span className="text-gray-700">Cooking in Kitchen</span>
-                      </div>
-                      <div className="flex items-center">
-                        <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-                        <span className="text-gray-700">Work from Home</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Not Allowed</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <XCircle className="w-5 h-5 text-red-500 mr-3" />
-                        <span className="text-gray-700">Pets</span>
-                      </div>
-                      {listing.preferredGender === 'Female' && (
-                        <div className="flex items-center">
-                          <XCircle className="w-5 h-5 text-red-500 mr-3" />
-                          <span className="text-gray-700">Male Guests</span>
-                        </div>
-                      )}
-                      <div className="flex items-center">
-                        <XCircle className="w-5 h-5 text-red-500 mr-3" />
-                        <span className="text-gray-700">Parties</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-8 p-4 bg-blue-50 rounded-xl">
-                  <h4 className="font-semibold text-gray-900 mb-2">Additional Information</h4>
-                  <ul className="text-sm text-gray-700 space-y-1">
-                    <li>• Security deposit: ₹{formatPrice(listing.deposit)} ({Math.round(listing.deposit / listing.rent)} months rent)</li>
-                    <li>• Notice period: 1 month</li>
-                    <li>• Electricity charges: Shared equally</li>
-                    <li>• Maintenance: ₹500/month</li>
-                  </ul>
-                </div>
-              </div>
-              
               {/* Host Information Section */}
               <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg border border-white/35 p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Meet Your Host</h2>
@@ -688,7 +551,7 @@ const ListingDetail = () => {
                     </div>
                     
                     <p className="text-gray-700 mb-4">
-                      Hi! I'm {user?.name || 'a professional'} working in {listing.city}. I love meeting new people and creating a comfortable, friendly environment for my flatmates. I'm clean, organized, and respect personal space while being approachable for any questions or concerns.
+                      {hostAbout}
                     </p>
                     
                     <div className="flex items-center space-x-4">
@@ -700,39 +563,6 @@ const ListingDetail = () => {
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              
-              {/* Reviews Section */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg border border-white/35 p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Reviews (12)</h2>
-                </div>
-                
-                <div className="space-y-6">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border-b border-stone-200 pb-6 last:border-b-0">
-                      <div className="flex items-start space-x-4">
-                        <img src={review.avatar} alt={review.name} className="w-12 h-12 rounded-full" />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <div>
-                              <h4 className="font-semibold text-gray-900">{review.name}</h4>
-                              <p className="text-sm text-gray-600">{review.role}</p>
-                            </div>
-                          </div>
-                          <p className="text-gray-700 mb-2">{review.text}</p>
-                          <p className="text-sm text-gray-500">{review.date}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="mt-6 text-center">
-                  <button className="border border-orange-400 text-orange-400 hover:bg-orange-400 hover:text-white px-6 py-2 rounded-lg font-medium transition-colors">
-                    View All Reviews
-                  </button>
                 </div>
               </div>
               
@@ -847,37 +677,6 @@ const ListingDetail = () => {
                         <span className="text-gray-900">₹{formatPrice(listing.rent + 500 + listing.deposit)}</span>
                       </div>
                     </div>
-                  </div>
-                </div>
-                
-                {/* Quick Actions */}
-                <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg border border-white/35 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <button className="w-full flex items-center justify-center space-x-2 py-3 border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors">
-                      <CalendarPlus className="w-5 h-5 text-orange-400" />
-                      <span>Schedule Visit</span>
-                    </button>
-                    <button className="w-full flex items-center justify-center space-x-2 py-3 border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors">
-                      <Video className="w-5 h-5 text-orange-400" />
-                      <span>Virtual Tour</span>
-                    </button>
-                    <button 
-                      onClick={handleSave}
-                      disabled={!user}
-                      className="w-full flex items-center justify-center space-x-2 py-3 border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <HeartIcon className={`w-5 h-5 ${isSaved ? 'text-red-500 fill-red-500' : 'text-red-500'}`} />
-                      <span>Save to Favorites</span>
-                    </button>
-                    <button 
-                      onClick={handleShare}
-                      disabled={!user}
-                      className="w-full flex items-center justify-center space-x-2 py-3 border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Share2 className="w-5 h-5 text-orange-400" />
-                      <span>Share Listing</span>
-                    </button>
                   </div>
                 </div>
                 

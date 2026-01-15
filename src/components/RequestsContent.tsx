@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { requestsApi, RequestResponse } from '@/services/api'
 import { websocketService } from '@/services/websocket'
-import UserAvatar from './UserAvatar'
 
 import { 
   CheckCircle, 
@@ -23,7 +22,7 @@ import {
   Home
 } from 'lucide-react'
 
-import { Listing } from '@/types'
+import { Listing, Request } from '@/types'
 import { formatRent, formatDateRelative } from '@/utils/formatters'
 
 interface RequestsContentProps {
@@ -31,6 +30,9 @@ interface RequestsContentProps {
   onListingClick?: (listingId: string) => void
   onApprove?: (requestId: string, conversationId?: string) => void
 }
+
+type ListingRef = RequestResponse['listingId'] | Request['listingId']
+type UiRequest = Omit<Request, 'listingId'> & { _id?: string; listingId: ListingRef }
 
 const RequestsContent = ({
   initialTab = 'received',
@@ -134,7 +136,7 @@ const RequestsContent = ({
     }
   }
 
-  const handleApprove = async (request: RequestResponse) => {
+  const handleApprove = async (request: { _id?: string; id: string }) => {
     if (!user) return
     
     setProcessingId(request._id || request.id)
@@ -160,7 +162,7 @@ const RequestsContent = ({
     }
   }
 
-  const handleReject = async (request: RequestResponse) => {
+  const handleReject = async (request: { _id?: string; id: string }) => {
     if (!user) return
     
     if (!confirm('Are you sure you want to reject this request?')) {
@@ -183,53 +185,108 @@ const RequestsContent = ({
     }
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Not specified'
-    return new Date(dateString).toLocaleDateString('en-IN', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    })
+  const handleWithdraw = (requestId: string) => {
+    if (!confirm('Withdraw this request?')) return
+    updateRequest(requestId, { status: 'rejected' })
   }
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-    
-    if (diffInSeconds < 60) return 'Just now'
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`
-    return formatDate(dateString)
-  }
-
-  const getRequesterInfo = (request: RequestResponse) => {
-    const requester = typeof request.requesterId === 'object' ? request.requesterId : null
-    return {
-      id: requester?._id || (typeof request.requesterId === 'string' ? request.requesterId : ''),
-      name: requester?.name || 'Unknown',
-      email: requester?.email || '',
-      profileImageUrl: requester ? (requester as any).profileImageUrl : undefined,
+  const handleViewListing = (listingId: ListingRef) => {
+    const id = typeof listingId === 'string' ? listingId : listingId._id
+    if (onListingClick) {
+      onListingClick(id)
+      return
     }
+    navigate(`/listings/${id}`)
   }
 
+  const handleMessage = (listingId: ListingRef) => {
+    const id = typeof listingId === 'string' ? listingId : listingId._id
+    navigate(`/listings/${id}`)
+  }
 
-  const getListingInfo = (request: RequestResponse) => {
-    const listing = typeof request.listingId === 'object' ? request.listingId : null
-    return {
-      id: listing?._id || (typeof request.listingId === 'string' ? request.listingId : ''),
-      title: listing?.title || 'Unknown Listing',
-      city: listing?.city || '',
-      locality: listing?.locality || '',
-      photos: listing?.photos || [],
+  const getListingForRequest = (listingRef: ListingRef): Listing | null => {
+    if (!listingRef) return null
+
+    const listingId = typeof listingRef === 'string' ? listingRef : listingRef._id
+    const listing = allListings.find(
+      item => item.id === listingId || (item as any)._id === listingId
+    )
+    if (listing) return listing
+
+    if (typeof listingRef !== 'string') {
+      return {
+        id: listingRef._id,
+        title: listingRef.title,
+        city: listingRef.city,
+        locality: listingRef.locality,
+        societyName: '',
+        bhkType: '',
+        roomType: '',
+        rent: 0,
+        deposit: 0,
+        moveInDate: '',
+        furnishingLevel: '',
+        bathroomType: '',
+        flatAmenities: [],
+        societyAmenities: [],
+        preferredGender: '',
+        description: '',
+        photos: listingRef.photos || [],
+        status: 'live',
+        createdAt: '',
+        updatedAt: '',
+      }
     }
+
+    return null
   }
 
 
-  // Use mock data if requests array is empty (for demo purposes)
-  const displayReceivedRequests = receivedRequests.length > 0 ? receivedRequests : mockReceivedRequests
-  const displaySentRequests = sentRequests.length > 0 ? sentRequests : mockSentRequests
+  const receivedRequests: UiRequest[] = allRequests.map((request) => ({
+    id: request._id || request.id,
+    listingId: request.listingId,
+    seekerId:
+      typeof request.requesterId === 'string'
+        ? request.requesterId
+        : request.requesterId._id,
+    seekerName:
+      typeof request.requesterId === 'object'
+        ? request.requesterId.name
+        : 'Unknown',
+    seekerAvatar:
+      typeof request.requesterId === 'object'
+        ? request.requesterId.profileImageUrl
+        : undefined,
+    seekerAge: undefined,
+    seekerGender: undefined,
+    seekerOccupation: undefined,
+    seekerCity: undefined,
+    introMessage: request.message || '',
+    status: request.status === 'approved' ? 'accepted' : request.status,
+    requestedAt: request.createdAt,
+    desiredMoveInDate: request.moveInDate,
+    contactRevealed: request.status === 'approved',
+    seekerPhone: undefined,
+    seekerEmail: undefined,
+  }))
+
+  const sentRequests = requests
+  const displayReceivedRequests = receivedRequests
+  const displaySentRequests = sentRequests
+
+  const receivedStats = {
+    total: displayReceivedRequests.length,
+    pending: displayReceivedRequests.filter(r => r.status === 'pending').length,
+    accepted: displayReceivedRequests.filter(r => r.status === 'accepted').length,
+    rejected: displayReceivedRequests.filter(r => r.status === 'rejected').length,
+  }
+
+  const sentStats = {
+    total: displaySentRequests.length,
+    pending: displaySentRequests.filter(r => r.status === 'pending').length,
+    accepted: displaySentRequests.filter(r => r.status === 'accepted').length,
+    rejected: displaySentRequests.filter(r => r.status === 'rejected').length,
+  }
 
   const responseTemplates = [
     {
@@ -371,258 +428,189 @@ const RequestsContent = ({
       {/* Requests Section */}
       <section className="px-8 py-4">
         <div className="max-w-7xl mx-auto">
-{activeTab === 'received' ? (
-  <>
-    <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">
-      Received Requests
-    </h2>
+          {activeTab === 'received' ? (
+            <>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">
+                Received Requests
+              </h2>
 
-    <div className="space-y-4">
-      {displayReceivedRequests.length === 0 ? (
-        <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
-          <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No received requests yet</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Requests from seekers will appear here
-          </p>
-        </div>
-      ) : (
-        displayReceivedRequests.map((request, index) => {
-          const listing = getListingForRequest(request.listingId)
-
-          return (
-            <div
-              key={request.id}
-              className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
-              style={{
-                animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
-              }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-              <div className="relative flex items-start gap-3">
-                <div className="relative flex-shrink-0">
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
-                    <img
-                      src={
-                        request.seekerAvatar ||
-                        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'
-                      }
-                      alt={request.seekerName}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  {displayReceivedRequests.length === 0 ? (
+                    <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
+                      <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">No received requests yet</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Requests from seekers will appear here
+                      </p>
+                    </div>
+                  ) : (
+                    displayReceivedRequests.map((request, index) => {
+                      const listing = getListingForRequest(request.listingId)
+                      const isProcessing =
+                        processingId === (request._id || request.id)
 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <h4 className="text-base font-semibold text-gray-900">
-                          {request.seekerName}
-                        </h4>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            request.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : request.status === 'accepted'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
+                      return (
+                        <div
+                          key={request._id || request.id}
+                          className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
+                          style={{
+                            animation: `fadeInUp 0.6s ease-out ${
+                              index * 0.1
+                            }s both`
+                          }}
                         >
-                          {request.status.toUpperCase()}
-                        </span>
-                      </div>
+                          <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-2">
-                        {request.seekerOccupation && (
-                          <span className="flex items-center gap-1">
-                            <Briefcase className="w-3.5 h-3.5 text-orange-500" />
-                            {request.seekerOccupation}
-                          </span>
-                        )}
-                        {request.seekerAge && (
-                          <span className="flex items-center gap-1">
-                            <Cake className="w-3.5 h-3.5 text-orange-500" />
-                            {request.seekerAge} years old
-                          </span>
-                        )}
-                        {request.seekerCity && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                            Currently in {request.seekerCity}
-                          </span>
-                        )}
-                        {request.desiredMoveInDate && (
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-orange-500" />
-                            Move-in:{' '}
-                            {new Date(
-                              request.desiredMoveInDate
-                            ).toLocaleDateString('en-IN', {
-                              day: 'numeric',
-                              month: 'short'
-                            })}
-                          </span>
-                        )}
-                      </div>
+                          <div className="relative">
+                            <div className="flex items-start gap-3 mb-3">
+                              <div className="relative flex-shrink-0">
+                                <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
+                                  <img
+                                    src={
+                                      request.seekerAvatar ||
+                                      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'
+                                    }
+                                    alt={request.seekerName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              </div>
 
-                      {listing && (
-                        <div className="text-xs text-gray-500 mb-2">
-                          Interested in:{' '}
-                          <span className="font-semibold text-gray-700">
-                            {listing.title ||
-                              `${listing.roomType} in ${listing.locality}`}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between mb-2">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                      <h4 className="text-base font-semibold text-gray-900">
+                                        {request.seekerName}
+                                      </h4>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                          request.status === 'pending'
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : request.status === 'accepted'
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
+                                        }`}
+                                      >
+                                        {request.status.toUpperCase()}
+                                      </span>
+                                    </div>
 
-                  <p className="text-sm text-gray-700 leading-relaxed mb-3 italic">
-                    "{request.introMessage}"
-                  </p>
+                                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-2">
+                                      {request.seekerOccupation && (
+                                        <span className="flex items-center gap-1">
+                                          <Briefcase className="w-3.5 h-3.5 text-orange-500" />
+                                          {request.seekerOccupation}
+                                        </span>
+                                      )}
+                                      {request.seekerAge && (
+                                        <span className="flex items-center gap-1">
+                                          <Cake className="w-3.5 h-3.5 text-orange-500" />
+                                          {request.seekerAge} years old
+                                        </span>
+                                      )}
+                                      {request.seekerCity && (
+                                        <span className="flex items-center gap-1">
+                                          <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                                          Currently in {request.seekerCity}
+                                        </span>
+                                      )}
+                                      {request.desiredMoveInDate && (
+                                        <span className="flex items-center gap-1">
+                                          <Calendar className="w-3.5 h-3.5 text-orange-500" />
+                                          Move-in:{' '}
+                                          {new Date(
+                                            request.desiredMoveInDate
+                                          ).toLocaleDateString('en-IN', {
+                                            day: 'numeric',
+                                            month: 'short'
+                                          })}
+                                        </span>
+                                      )}
+                                    </div>
 
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-3">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-orange-500" />
-                      Received {formatDateRelative(request.requestedAt)}
-                    </span>
-                  </div>
+                                    {listing && (
+                                      <div className="text-xs text-gray-500 mb-2">
+                                        Interested in:{' '}
+                                        <span className="font-semibold text-gray-700">
+                                          {listing.title ||
+                                            `${listing.roomType} in ${listing.locality}`}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
 
-                  {request.status === 'pending' && (
-                    <div className="flex flex-wrap gap-2 justify-end">
-                      <button className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all duration-300 flex items-center gap-1.5">
-                        <XCircle className="w-3.5 h-3.5" />
-                        Reject
-                      </button>
-                      <button className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Accept
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )
-        })
-      )}
-    </div>
-  </>
-) : (
-  <>
-    <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">
-      Requests
-    </h2>
+                            {request.introMessage && (
+                              <p className="text-sm text-gray-700 leading-relaxed mb-3 italic">
+                                "{request.introMessage}"
+                              </p>
+                            )}
 
-    {loading ? (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    ) : allRequests.length === 0 ? (
-      <div className="text-center py-12">
-        <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-600">No requests yet</p>
-      </div>
-    ) : (
-      <div className="space-y-4">
-        {allRequests.map((request, index) => {
-          const requester = getRequesterInfo(request)
-          const listing = getListingInfo(request)
-          const isProcessing =
-            processingId === (request._id || request.id)
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-3">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 text-orange-500" />
+                                Received {formatDateRelative(request.requestedAt)}
+                              </span>
+                            </div>
 
-          return (
-            <div
-              key={request._id || request.id}
-              className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
-              style={{
-                animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
-              }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-              <div className="relative flex items-start gap-3">
-                <UserAvatar user={requester} size="lg" />
-
-                <div className="flex-1">
-                  <h4 className="text-base font-semibold text-gray-900 mb-1.5">
-                    {requester.name}
-                  </h4>
-
-                  <div className="text-xs text-gray-500 mb-2">
-                    Interested in:{' '}
-                    <span className="font-semibold">{listing.title}</span>
-                  </div>
-
-                  {request.message && (
-                    <p className="text-sm text-gray-700 italic mb-3">
-                      "{request.message}"
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
-                    <Clock className="w-3.5 h-3.5 text-orange-500" />
-                    Received {formatTimeAgo(request.createdAt)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    )}
-  </>
-)}
-
-                        </div>
-                        {/* Only show action buttons for pending requests */}
-                        {request.status === 'pending' && (
-                          <div className="flex flex-wrap gap-2 justify-end">
-                            <button 
-                              onClick={() => handleReject(request)}
-                              disabled={isProcessing || processingId === (request._id || request.id)}
-                              className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              Reject
-                            </button>
-                            <button 
-                              onClick={() => handleApprove(request)}
-                              disabled={isProcessing || processingId === (request._id || request.id)}
-                              className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isProcessing && processingId === (request._id || request.id) ? (
-                                <>
-                                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                  Processing...
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="w-3.5 h-3.5" />
-                                  Accept
-                                </>
+                            {/* Actions */}
+                            <div>
+                              {request.status === 'pending' && (
+                                <div className="flex flex-wrap gap-2 justify-end">
+                                  <button 
+                                    onClick={() => handleReject(request)}
+                                    disabled={isProcessing || processingId === (request._id || request.id)}
+                                    className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    Reject
+                                  </button>
+                                  <button 
+                                    onClick={() => handleApprove(request)}
+                                    disabled={isProcessing || processingId === (request._id || request.id)}
+                                    className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {isProcessing && processingId === (request._id || request.id) ? (
+                                      <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Processing...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle className="w-3.5 h-3.5" />
+                                        Accept
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
                               )}
-                            </button>
+
+                              {request.status === 'accepted' && (
+                                <div className="text-sm text-green-700 font-medium text-right">
+                                  ✓ Request accepted - Conversation started
+                                </div>
+                              )}
+                              {request.status === 'rejected' && (
+                                <div className="text-sm text-red-700 font-medium text-right">
+                                  ✗ Request rejected
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                        {/* Show message for approved/rejected requests */}
-                        {request.status === 'approved' && (
-                          <div className="text-sm text-green-700 font-medium text-right">
-                            ✓ Request approved - Conversation started
-                          </div>
-                        )}
-                        {request.status === 'rejected' && (
-                          <div className="text-sm text-red-700 font-medium text-right">
-                            ✗ Request rejected
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })
-                )}
-              </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -787,8 +775,6 @@ const RequestsContent = ({
                 )}
               </div>
             </>
-          )}
-
           )}
         </div>
       </section>

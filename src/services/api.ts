@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { VibeTagId } from '@/types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -79,6 +80,7 @@ export interface AuthResponse {
     email: string
     name?: string
     roles: string[]
+    savedListings?: string[]
   }
 }
 
@@ -146,6 +148,29 @@ export const authApi = {
   },
 }
 
+export const usersApi = {
+  getSavedListings: async (): Promise<string[]> => {
+    const response = await api.get<string[]>('/users/saved-listings')
+    return response.data || []
+  },
+  saveListing: async (listingId: string): Promise<string[]> => {
+    const response = await api.post<string[]>(`/users/saved-listings/${listingId}`)
+    return response.data || []
+  },
+  removeSavedListing: async (listingId: string): Promise<string[]> => {
+    const response = await api.delete<string[]>(`/users/saved-listings/${listingId}`)
+    return response.data || []
+  },
+  getMyProfile: async (): Promise<UserProfile> => {
+    const response = await api.get<UserProfile>('/users/profile/me')
+    return response.data
+  },
+  updateMyProfile: async (data: UpdateProfileRequest): Promise<UserProfile> => {
+    const response = await api.patch<UserProfile>('/users/profile/me', data)
+    return response.data
+  },
+}
+
 // Listing API interfaces
 export interface CreateListingRequest {
   title?: string
@@ -164,6 +189,7 @@ export interface CreateListingRequest {
   preferredGender?: string
   description?: string
   photos?: string[]
+  mikoTags?: VibeTagId[]
   status?: 'draft' | 'live' | 'archived' | 'fulfilled'
 }
 
@@ -189,6 +215,7 @@ export interface ListingResponse {
   preferredGender: string
   description?: string
   photos: string[]
+  mikoTags?: VibeTagId[]
   status: 'draft' | 'live' | 'archived' | 'fulfilled'
   createdAt: string
   updatedAt: string
@@ -311,18 +338,6 @@ export interface UpdateProfileRequest {
   smoking?: string
   drinking?: string
   foodPreference?: string
-}
-
-export const usersApi = {
-  getMyProfile: async (): Promise<UserProfile> => {
-    const response = await api.get<UserProfile>('/users/profile/me')
-    return response.data
-  },
-
-  updateMyProfile: async (data: UpdateProfileRequest): Promise<UserProfile> => {
-    const response = await api.patch<UserProfile>('/users/profile/me', data)
-    return response.data
-  },
 }
 
 // Request API interfaces

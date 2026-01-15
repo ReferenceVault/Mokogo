@@ -17,6 +17,27 @@ export interface User {
   foodPreference?: string
 }
 
+export type VibeTagId =
+  | 'calm_vibes'
+  | 'thoughtfully_social'
+  | 'lively'
+  | 'couch_chill_repeat'
+  | 'remote_life'
+  | 'community_living'
+  | 'wallet_friendly'
+  | 'feel_good_space'
+  | 'well_connected_area'
+  | 'asap'
+  | 'next_few_weeks'
+  | 'no_rush'
+  | 'privacy_over_all'
+  | 'open_to_sharing'
+  | 'either_works'
+  | 'smoke_free'
+  | 'peace_over_noise'
+  | 'no_furry_roommates'
+  | 'flexible_overall'
+
 export interface Listing {
   id: string
   title: string
@@ -38,6 +59,7 @@ export interface Listing {
   status: 'draft' | 'live' | 'archived' | 'fulfilled'
   createdAt: string
   updatedAt: string
+  mikoTags?: VibeTagId[]
 }
 
 export interface Request {

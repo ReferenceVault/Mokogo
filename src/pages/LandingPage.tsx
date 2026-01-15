@@ -4,11 +4,14 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
 import { useStore } from '@/store/useStore'
-import { Listing } from '@/types'
+import { Listing, VibeTagId } from '@/types'
 import { listingsApi, ListingResponse } from '@/services/api'
 import CustomSelect from '@/components/CustomSelect'
 import { formatRent } from '@/utils/formatters'
 import { MoveInDateField } from '@/components/MoveInDateField'
+import MikoVibeQuiz from '@/components/MikoVibeQuiz'
+import MikoTagPills from '@/components/MikoTagPills'
+import { getListingMikoTags } from '@/utils/miko'
 import { Quote, Star, ChevronLeft, ChevronRight, Home, Users, MapPin, Clock } from 'lucide-react'
 
 const LandingPage = () => {
@@ -20,6 +23,8 @@ const LandingPage = () => {
     maxRent: '',
     genderPreference: ''
   })
+  const [searchMode, setSearchMode] = useState<'standard' | 'miko'>('standard')
+  const [isMikoOpen, setIsMikoOpen] = useState(false)
   const [isLoadingListings, setIsLoadingListings] = useState(true)
 
   const searchCities = [
@@ -78,6 +83,28 @@ const LandingPage = () => {
       // If no city selected, navigate to explore page
       navigate('/explore')
     }
+  }
+
+  const handleMikoComplete = (result: { tags: VibeTagId[]; roomTypePreference?: 'private' | 'shared' | 'either'; city?: string }) => {
+    const params = new URLSearchParams()
+    params.set('miko', '1')
+    if (result.tags.length) {
+      params.set('tags', result.tags.join(','))
+    }
+    if (result.roomTypePreference) {
+      params.set('roomType', result.roomTypePreference)
+    }
+    if (result.city && result.city !== 'any') {
+      params.set('city', result.city)
+    } else if (searchFilters.city) {
+      params.set('city', searchFilters.city)
+    }
+    if (searchFilters.maxRent) params.set('maxRent', searchFilters.maxRent)
+    if (searchFilters.moveInDate) params.set('moveInDate', searchFilters.moveInDate)
+    if (searchFilters.genderPreference) params.set('genderPreference', searchFilters.genderPreference)
+
+    setIsMikoOpen(false)
+    navigate(`/explore?${params.toString()}`)
   }
 
 
@@ -228,70 +255,118 @@ const LandingPage = () => {
 
                 {/* Search Card */}
                 <div className="relative bg-white/90 backdrop-blur-md rounded-xl p-5 md:p-7 shadow-xl border border-orange-200/50 hover:shadow-2xl transition-all duration-300 hover:border-orange-300">
-                  <div className="grid md:grid-cols-5 gap-3.5 items-end">
-                    <div className="[&_button]:h-[50px] [&_button]:py-0 group">
-                      <CustomSelect
-                        label="Select City"
-                        value={searchFilters.city}
-                        onValueChange={(value) => setSearchFilters({ ...searchFilters, city: value })}
-                        placeholder="Select your city"
-                        options={searchCities.map(city => ({ value: city, label: city }))}
-                      />
-                    </div>
-                    <div className="[&_button]:h-[50px] [&_button]:py-0 group">
-                      <label className="block text-sm font-medium text-stone-700 mb-2">
-                        Move-in Date
-                      </label>
-                      <MoveInDateField
-                        value={searchFilters.moveInDate}
-                        onChange={(date) => setSearchFilters({ ...searchFilters, moveInDate: date })}
-                        min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                        hideLabel={true}
-                        className="!h-[50px] !rounded-lg !border-2 !border-gray-200 hover:!border-orange-300 focus:!ring-2 focus:!ring-orange-400 focus:!border-orange-400"
-                      />
-                    </div>
-                    <div className="[&_button]:h-[50px] [&_button]:py-0 group">
-                      <label className="block text-sm font-medium text-stone-700 mb-2">
-                        Max Rent (₹)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="e.g., 20000"
-                        value={searchFilters.maxRent}
-                        onChange={(e) => setSearchFilters({ ...searchFilters, maxRent: e.target.value })}
-                        className="w-full h-[50px] px-3.5 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white transition-all duration-300 hover:border-orange-300 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                    <div className="[&_button]:h-[50px] [&_button]:py-0 group">
-                      <CustomSelect
-                        label="Gender Preference"
-                        value={searchFilters.genderPreference}
-                        onValueChange={(value) => setSearchFilters({ ...searchFilters, genderPreference: value })}
-                        placeholder="Select"
-                        options={[
-                          { value: 'Male', label: 'Male' },
-                          { value: 'Female', label: 'Female' },
-                          { value: 'Other', label: 'Other' }
-                        ]}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-stone-700 mb-1.5 opacity-0">
-                        Search
-                      </label>
+                  <div className="flex flex-wrap items-center gap-3 justify-between mb-5">
+                    <div className="inline-flex rounded-full bg-orange-50 border border-orange-200 p-1 text-sm font-semibold">
                       <button
                         type="button"
-                        onClick={handleSearch}
-                        className="group relative w-full h-[50px] bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 shadow-lg hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden text-sm"
+                        onClick={() => setSearchMode('standard')}
+                        className={`px-4 py-2 rounded-full transition-all ${
+                          searchMode === 'standard'
+                            ? 'bg-white text-orange-600 shadow-md'
+                            : 'text-orange-500 hover:text-orange-600'
+                        }`}
                       >
-                        <span className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        <svg className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <span className="relative z-10">Search</span>
+                        Standard Search
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSearchMode('miko')}
+                        className={`px-4 py-2 rounded-full transition-all ${
+                          searchMode === 'miko'
+                            ? 'bg-white text-orange-600 shadow-md'
+                            : 'text-orange-500 hover:text-orange-600'
+                        }`}
+                      >
+                        🔮 Miko Vibe Search
                       </button>
                     </div>
+                    <span className="text-xs md:text-sm text-gray-600">
+                      Answer 6 quick questions. Get vibe-matched homes.
+                    </span>
                   </div>
+
+                  {searchMode === 'standard' ? (
+                    <div className="grid md:grid-cols-5 gap-3.5 items-end">
+                      <div className="[&_button]:h-[50px] [&_button]:py-0 group">
+                        <CustomSelect
+                          label="Select City"
+                          value={searchFilters.city}
+                          onValueChange={(value) => setSearchFilters({ ...searchFilters, city: value })}
+                          placeholder="Select your city"
+                          options={searchCities.map(city => ({ value: city, label: city }))}
+                        />
+                      </div>
+                      <div className="[&_button]:h-[50px] [&_button]:py-0 group">
+                        <label className="block text-sm font-medium text-stone-700 mb-2">
+                          Move-in Date
+                        </label>
+                        <MoveInDateField
+                          value={searchFilters.moveInDate}
+                          onChange={(date) => setSearchFilters({ ...searchFilters, moveInDate: date })}
+                          min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                          hideLabel={true}
+                          className="!h-[50px] !rounded-lg !border-2 !border-gray-200 hover:!border-orange-300 focus:!ring-2 focus:!ring-orange-400 focus:!border-orange-400"
+                        />
+                      </div>
+                      <div className="[&_button]:h-[50px] [&_button]:py-0 group">
+                        <label className="block text-sm font-medium text-stone-700 mb-2">
+                          Max Rent (₹)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="e.g., 20000"
+                          value={searchFilters.maxRent}
+                          onChange={(e) => setSearchFilters({ ...searchFilters, maxRent: e.target.value })}
+                          className="w-full h-[50px] px-3.5 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 bg-white transition-all duration-300 hover:border-orange-300 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </div>
+                      <div className="[&_button]:h-[50px] [&_button]:py-0 group">
+                        <CustomSelect
+                          label="Gender Preference"
+                          value={searchFilters.genderPreference}
+                          onValueChange={(value) => setSearchFilters({ ...searchFilters, genderPreference: value })}
+                          placeholder="Select"
+                          options={[
+                            { value: 'Male', label: 'Male' },
+                            { value: 'Female', label: 'Female' },
+                            { value: 'Other', label: 'Other' }
+                          ]}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-stone-700 mb-1.5 opacity-0">
+                          Search
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleSearch}
+                          className="group relative w-full h-[50px] bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 shadow-lg hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden text-sm"
+                        >
+                          <span className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          <svg className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          <span className="relative z-10">Search</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                      <div className="text-left">
+                        <p className="text-lg font-semibold text-gray-900">Find your vibe with Miko</p>
+                        <p className="text-sm text-gray-600">
+                          Get matched with homes that fit your lifestyle, not just your budget.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsMikoOpen(true)}
+                        className="w-full md:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-orange-400 to-orange-500 text-white font-semibold shadow-lg hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300"
+                      >
+                        Start Miko Vibe Search
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Stats */}
@@ -352,7 +427,9 @@ const LandingPage = () => {
               </div>
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {displayedListings.map((listing) => (
+                {displayedListings.map((listing) => {
+                  const listingTags = getListingMikoTags(listing)
+                  return (
                 <Link
                   key={listing.id}
                   to={`/listings/${listing.id}`}
@@ -388,6 +465,7 @@ const LandingPage = () => {
 
                   {/* Content */}
                   <div className="p-4 space-y-3">
+                    <MikoTagPills tags={listingTags} className="mb-1" />
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
                         {listing.title}
@@ -413,7 +491,7 @@ const LandingPage = () => {
                     </div>
                   </div>
                 </Link>
-              ))}
+              )})}
               </div>
             )}
 
@@ -820,6 +898,12 @@ const LandingPage = () => {
       </main>
 
       <Footer />
+
+      <MikoVibeQuiz
+        isOpen={isMikoOpen}
+        onClose={() => setIsMikoOpen(false)}
+        onComplete={handleMikoComplete}
+      />
     </div>
   )
 }

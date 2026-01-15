@@ -8,6 +8,7 @@ interface AppState {
   requests: Request[]
   savedListings: string[] // Array of listing IDs
   setUser: (user: User | null) => void
+  setSavedListings: (listingIds: string[]) => void
   setCurrentListing: (listing: Listing | null) => void
   setAllListings: (listings: Listing[]) => void
   addListing: (listing: Listing) => void
@@ -30,6 +31,8 @@ export const useStore = create<AppState>((set, get) => ({
       localStorage.setItem('mokogo-user', JSON.stringify(user))
     } else {
       localStorage.removeItem('mokogo-user')
+      localStorage.removeItem('mokogo-saved-listings')
+      set({ savedListings: [] })
     }
   },
   setCurrentListing: (listing) => {
@@ -106,6 +109,10 @@ export const useStore = create<AppState>((set, get) => ({
   isListingSaved: (listingId) => {
     const state = get()
     return state.savedListings.includes(listingId)
+  },
+  setSavedListings: (listingIds) => {
+    set({ savedListings: listingIds })
+    localStorage.setItem('mokogo-saved-listings', JSON.stringify(listingIds))
   },
 }))
 

@@ -101,14 +101,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/listings/:listingId"
-          element={
-            <ProtectedRoute>
-              <ListingDetail />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/listings/:listingId" element={<ListingDetail />} />
         <Route
           path="/admin/dashboard"
           element={

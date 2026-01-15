@@ -3,7 +3,11 @@ import Logo from './Logo'
 import { useStore } from '@/store/useStore'
 import { useEffect, useState } from 'react'
 
-const Header = () => {
+interface HeaderProps {
+  forceGuest?: boolean
+}
+
+const Header = ({ forceGuest = false }: HeaderProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useStore((state) => state.user)
@@ -16,14 +20,18 @@ const Header = () => {
     const savedUser = localStorage.getItem('mokogo-user')
     const hasUser = user || (savedUser ? JSON.parse(savedUser) : null)
     
-    setIsAuthenticated(!!(accessToken && hasUser))
+    setIsAuthenticated(!!(accessToken && hasUser) && !forceGuest)
   }, [user])
 
   const currentPath = location.pathname
+  const redirectTarget = encodeURIComponent(location.pathname + location.search)
 
   const isActive = (path: string) => {
     if (path === '/') {
       return currentPath === '/'
+    }
+    if (path === '/listing') {
+      return currentPath.startsWith('/listing') && !currentPath.startsWith('/listings')
     }
     return currentPath.startsWith(path)
   }
@@ -151,7 +159,7 @@ const Header = () => {
             </Link>
           ) : (
             <Link 
-              to="/auth" 
+              to={`/auth?redirect=${redirectTarget}`} 
               className="group relative bg-gradient-to-r from-orange-400 to-orange-500 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 overflow-hidden"
             >
               <span className="relative z-10 flex items-center gap-2">

@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { useStore } from '@/store/useStore'
 
 const AuthEmail = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const setUser = useStore((state) => state.setUser)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -15,6 +16,14 @@ const AuthEmail = () => {
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   }
+
+  const storedRedirect = typeof window !== 'undefined'
+    ? sessionStorage.getItem('mokogo-auth-redirect')
+    : null
+  const parsedRedirect = storedRedirect ? JSON.parse(storedRedirect) : null
+  const redirectPath = searchParams.get('redirect') || parsedRedirect?.path || '/dashboard'
+  const redirectView = searchParams.get('view') || parsedRedirect?.view || null
+  const redirectTab = searchParams.get('tab') || parsedRedirect?.tab || null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,8 +61,13 @@ const AuthEmail = () => {
     setUser(user)
     sessionStorage.removeItem('auth-phone')
 
-    // Navigate to dashboard after login
-    navigate('/dashboard')
+    const params = new URLSearchParams()
+    if (redirectView) params.set('view', redirectView)
+    if (redirectTab) params.set('tab', redirectTab)
+    const queryString = params.toString()
+    const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
+    sessionStorage.removeItem('mokogo-auth-redirect')
+    navigate(redirectUrl)
   }
 
   return (

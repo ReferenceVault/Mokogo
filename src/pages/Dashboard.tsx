@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
@@ -9,9 +9,10 @@ import ListingDetailContent from '@/components/ListingDetailContent'
 import MessagesContent from '@/components/MessagesContent'
 import ProfileContent from '@/components/ProfileContent'
 import ExploreContent from '@/components/ExploreContent'
+import MikoVibeQuiz from '@/components/MikoVibeQuiz'
 import { useStore } from '@/store/useStore'
 import { listingsApi, ListingResponse } from '@/services/api'
-import { Listing } from '@/types'
+import { Listing, VibeTagId } from '@/types'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
 import { 
   LayoutGrid, 
@@ -29,21 +30,27 @@ import {
   Pen,
   Settings,
   Users,
-  CheckCircle
+  CheckCircle,
+  Sparkles
 } from 'lucide-react'
 
-type ViewType = 'overview' | 'listings' | 'requests' | 'listing-detail' | 'messages' | 'profile' | 'explore'
+type ViewType = 'overview' | 'listings' | 'requests' | 'listing-detail' | 'messages' | 'profile' | 'explore' | 'saved'
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { user, currentListing, setCurrentListing, allListings, setAllListings, requests } = useStore()
+  const location = useLocation()
+  const { user, currentListing, setCurrentListing, allListings, setAllListings, requests, savedListings } = useStore()
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [activeView, setActiveView] = useState<ViewType>('overview')
+  const [isMikoOpen, setIsMikoOpen] = useState(false)
   const [viewingListingId, setViewingListingId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
+  const [selectedConversationId] = useState<string | null>(null)
+  const [listingReturnView, setListingReturnView] = useState<ViewType>('overview')
+  const [savedPublicListings, setSavedPublicListings] = useState<Listing[]>([])
+  const [isSavedLoading, setIsSavedLoading] = useState(false)
 
   // Track if fetch is in progress to prevent duplicate calls
   const fetchInProgressRef = useRef(false)
@@ -125,7 +132,7 @@ const Dashboard = () => {
   const [requestsInitialTab, setRequestsInitialTab] = useState<'received' | 'sent' | undefined>(undefined)
   
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(location.search)
     const listingParam = urlParams.get('listing')
     const viewParam = urlParams.get('view')
     const tabParam = urlParams.get('tab')
@@ -135,7 +142,7 @@ const Dashboard = () => {
       setActiveView('listing-detail')
       // Scroll to top when viewing a listing
       window.scrollTo({ top: 0, behavior: 'smooth' })
-    } else if (viewParam && ['overview', 'listings', 'requests', 'messages', 'profile', 'explore'].includes(viewParam)) {
+    } else if (viewParam && ['overview', 'listings', 'requests', 'messages', 'profile', 'explore', 'saved'].includes(viewParam)) {
       // Redirect to overview if user tries to access requests without listings or sent requests
       if (viewParam === 'requests' && !(allListings.length > 0 || requests.filter(r => r.seekerId === user?.id).length > 0)) {
         setActiveView('overview')
@@ -151,15 +158,16 @@ const Dashboard = () => {
         }
       }
       
-      // Clean up URL by removing the view and tab params
+      // Clean up URL by removing the view/tab (and any stale listing) params
       const newParams = new URLSearchParams(urlParams)
       newParams.delete('view')
       newParams.delete('tab')
+      newParams.delete('listing')
       const newSearch = newParams.toString()
       const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname
-      window.history.replaceState({}, '', newUrl)
+      navigate(newUrl, { replace: true })
     }
-  }, [allListings.length, requests, user?.id])
+  }, [allListings.length, requests, user?.id, location.search])
 
   // Scroll to top when activeView changes to listing-detail
   useEffect(() => {
@@ -174,6 +182,31 @@ const Dashboard = () => {
     localStorage.removeItem('mokogo-listing')
     // Navigate directly - user is already authenticated (they're on dashboard)
     navigate('/listing/wizard')
+  }
+
+  const openListingDetail = (listingId: string, returnView: ViewType) => {
+    setListingReturnView(returnView)
+    setViewingListingId(listingId)
+    setActiveView('listing-detail')
+    navigate(`/dashboard?listing=${listingId}`)
+  }
+
+  const handleMikoComplete = (result: { tags: VibeTagId[]; roomTypePreference?: 'private' | 'shared' | 'either'; city?: string }) => {
+    const params = new URLSearchParams()
+    params.set('miko', '1')
+    if (result.tags.length) {
+      params.set('tags', result.tags.join(','))
+    }
+    if (result.roomTypePreference) {
+      params.set('roomType', result.roomTypePreference)
+    }
+    if (result.city && result.city !== 'any') {
+      params.set('city', result.city)
+    }
+
+    setIsMikoOpen(false)
+    setActiveView('explore')
+    navigate(`/explore?${params.toString()}`)
   }
 
   const handleContinueDraft = () => {
@@ -237,12 +270,12 @@ const Dashboard = () => {
   const handleLogout = () => handleLogoutUtil(navigate)
 
   const activeListings = allListings.filter(l => l.status === 'live')
+  const savedListingItems = savedPublicListings.filter(l => savedListings.includes(l.id))
   const hasListings = allListings.length > 0 // Check if user has any listings
   const sentRequests = requests.filter(r => r.seekerId === user?.id)
   const hasSentRequests = sentRequests.length > 0 // Check if user has sent any requests
   const showRequestsTab = hasListings || hasSentRequests // Show Requests tab if user has listings OR sent requests
   const userName = user?.name || 'User'
-  const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
   const userImageUrl = (user as any)?.profileImageUrl
 
   // Redirect to overview if user tries to access requests without listings or sent requests
@@ -251,6 +284,52 @@ const Dashboard = () => {
       setActiveView('overview')
     }
   }, [activeView, showRequestsTab])
+
+  useEffect(() => {
+    const fetchSavedListings = async () => {
+      if (savedListings.length === 0) {
+        setSavedPublicListings([])
+        return
+      }
+      setIsSavedLoading(true)
+      try {
+        const listings = await listingsApi.getAllPublic('live')
+        const mappedListings: Listing[] = listings.map((listing: ListingResponse) => ({
+          id: listing._id || listing.id,
+          title: listing.title,
+          city: listing.city || '',
+          locality: listing.locality || '',
+          societyName: listing.societyName,
+          bhkType: listing.bhkType || '',
+          roomType: listing.roomType || '',
+          rent: listing.rent || 0,
+          deposit: listing.deposit || 0,
+          moveInDate: listing.moveInDate || '',
+          furnishingLevel: listing.furnishingLevel || '',
+          bathroomType: listing.bathroomType,
+          flatAmenities: listing.flatAmenities || [],
+          societyAmenities: listing.societyAmenities || [],
+          preferredGender: listing.preferredGender || '',
+          description: listing.description,
+          photos: listing.photos || [],
+          status: listing.status,
+          createdAt: listing.createdAt,
+          updatedAt: listing.updatedAt,
+          mikoTags: listing.mikoTags,
+        }))
+        setSavedPublicListings(mappedListings)
+      } catch (error) {
+        console.error('Error fetching saved listings:', error)
+        setSavedPublicListings([])
+      } finally {
+        setIsSavedLoading(false)
+      }
+    }
+
+    if (activeView === 'saved') {
+      fetchSavedListings()
+    }
+  }, [activeView, savedListings])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-orange-50/20 flex flex-col">
@@ -271,7 +350,6 @@ const Dashboard = () => {
         ]}
         userName={userName}
         userEmail={user?.email || ''}
-        userInitial={userInitial}
         userImageUrl={userImageUrl}
         onProfile={() => setActiveView('profile')}
         onLogout={handleLogout}
@@ -285,6 +363,12 @@ const Dashboard = () => {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           activeView={activeView}
           menuItems={[
+            {
+              id: 'miko',
+              label: 'Miko Vibe Search',
+              icon: Sparkles,
+              onClick: () => setIsMikoOpen(true)
+            },
             {
               id: 'explore',
               label: 'Explore',
@@ -315,7 +399,8 @@ const Dashboard = () => {
               id: 'saved',
               label: 'Saved Properties',
               icon: Bookmark,
-              onClick: () => {} // No action for saved properties yet
+              badge: savedListings.length > 0 ? savedListings.length : undefined,
+              onClick: () => setActiveView('saved')
             },
             // Only show Requests tab if user has listings OR sent requests
             ...(showRequestsTab ? [{
@@ -360,19 +445,20 @@ const Dashboard = () => {
             <ListingDetailContent 
               listingId={viewingListingId} 
               onBack={() => {
-                setActiveView('listings')
+                setActiveView(listingReturnView)
                 setViewingListingId(null)
+                navigate(`/dashboard?view=${listingReturnView}`)
               }}
               onExplore={() => {
                 setActiveView('explore')
                 setViewingListingId(null)
+                navigate('/dashboard?view=explore')
               }}
             />
           ) : activeView === 'explore' ? (
             <ExploreContent 
               onListingClick={(listingId) => {
-                setViewingListingId(listingId)
-                setActiveView('listing-detail')
+                openListingDetail(listingId, 'explore')
               }}
             />
           ) : activeView === 'messages' ? (
@@ -383,16 +469,90 @@ const Dashboard = () => {
             <RequestsContent
               initialTab={requestsInitialTab || 'received'}
               onListingClick={(listingId) => {
-                setViewingListingId(listingId)
-                setActiveView('listing-detail')
+                openListingDetail(listingId, 'requests')
               }}
-              onApprove={async (requestId) => {
+              onApprove={async () => {
                 // When a request is approved, navigate to messages
                 // The backend creates the conversation automatically
                 setActiveView('messages')
                 // MessagesContent will fetch conversations and show the new one
               }}
             />
+          ) : activeView === 'saved' ? (
+            <section className="px-8 py-8">
+              <div className="max-w-5xl mx-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Saved Properties</h1>
+                    <p className="text-sm text-gray-600">Your saved homes in one place</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveView('explore')}
+                    className="px-5 py-2.5 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300"
+                  >
+                    Browse Listings
+                  </button>
+                </div>
+
+                {isSavedLoading ? (
+                  <div className="text-center py-12 text-gray-600">
+                    Loading saved properties...
+                  </div>
+                ) : savedListingItems.length === 0 ? (
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-orange-200/50 text-center py-12">
+                    <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-lg">
+                      <Bookmark className="w-10 h-10 text-white" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">No saved properties yet</h2>
+                    <p className="text-gray-600 mb-6">Save listings you like and find them here.</p>
+                    <button
+                      onClick={() => setActiveView('explore')}
+                      className="px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300"
+                    >
+                      Explore listings
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {savedListingItems.map((listing) => (
+                      <button
+                        key={listing.id}
+                        type="button"
+                        onClick={() => openListingDetail(listing.id, 'saved')}
+                        className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-orange-200/50 overflow-hidden shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 block cursor-pointer group"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="h-44 overflow-hidden relative">
+                          {listing.photos && listing.photos.length > 0 ? (
+                            <img
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                              src={listing.photos[0]}
+                              alt={listing.title}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50" />
+                          )}
+                        </div>
+                        <div className="p-5 relative">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-orange-600 transition-colors">
+                            {listing.title || 'Untitled Listing'}
+                          </h3>
+                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                            <MapPin className="w-4 h-4 text-orange-400" />
+                            <span>{listing.locality || listing.city || 'Location'}</span>
+                          </div>
+                          {listing.rent && (
+                            <span className="text-base font-bold text-gray-900">
+                              ₹{listing.rent.toLocaleString()}/month
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
           ) : activeView === 'overview' ? (
 
             <>
@@ -457,10 +617,11 @@ const Dashboard = () => {
                   {activeListings.length > 0 ? (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                       {activeListings.slice(0, 3).map((listing, index) => (
-                        <Link
+                        <button
                           key={listing.id}
-                          to={`/dashboard?listing=${listing.id}`}
-                          className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-orange-200/50 overflow-hidden shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 block cursor-pointer group"
+                          type="button"
+                          onClick={() => openListingDetail(listing.id, 'overview')}
+                          className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-orange-200/50 overflow-hidden shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 block cursor-pointer group text-left"
                           style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
                         >
                           <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -517,8 +678,7 @@ const Dashboard = () => {
                                   onClick={(e) => {
                                     e.preventDefault()
                                     e.stopPropagation()
-                                    setViewingListingId(listing.id)
-                                    setActiveView('listing-detail')
+                                    openListingDetail(listing.id, 'listings')
                                   }}
                                   className="w-9 h-9 rounded-lg border border-orange-200 bg-white text-gray-600 hover:text-orange-600 hover:border-orange-400 hover:bg-orange-50 transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow-md"
                                   title="View listing"
@@ -528,7 +688,7 @@ const Dashboard = () => {
                               </div>
                             </div>
                           </div>
-                        </Link>
+                        </button>
                       ))}
                     </div>
                   ) : (
@@ -564,7 +724,7 @@ const Dashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
                       { icon: Plus, title: 'Post New Listing', description: 'Add a new property to attract roommates', onClick: handleCreateListing },
-                      { icon: Search, title: 'Browse Listings', description: 'Discover available properties nearby', to: '/' },
+                      { icon: Search, title: 'Browse Listings', description: 'Discover available properties nearby', to: '/explore' },
                       { icon: Users, title: 'Find Roommates', description: 'Connect with potential roommates', onClick: () => {} },
                       { icon: Settings, title: 'Account Settings', description: 'Manage your profile and preferences', onClick: () => {} }
                     ].map((action, index) => {
@@ -731,8 +891,7 @@ const Dashboard = () => {
                                 <>
                                   <button
                                     onClick={() => {
-                                      setViewingListingId(listing.id)
-                                      setActiveView('listing-detail')
+                                      openListingDetail(listing.id, 'listings')
                                     }}
                                     className="px-5 py-2.5 bg-gradient-to-r from-orange-300 to-orange-400 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-orange-300/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
                                   >
@@ -814,8 +973,7 @@ const Dashboard = () => {
                                 <>
                                   <button
                                     onClick={() => {
-                                      setViewingListingId(listing.id)
-                                      setActiveView('listing-detail')
+                                      openListingDetail(listing.id, 'listings')
                                     }}
                                     className="px-5 py-2.5 bg-white border-2 border-orange-300 text-orange-600 rounded-lg font-bold hover:bg-orange-50 hover:border-orange-400 transition-all duration-300"
                                   >
@@ -943,6 +1101,11 @@ const Dashboard = () => {
 
       
       <Footer />
+      <MikoVibeQuiz
+        isOpen={isMikoOpen}
+        onClose={() => setIsMikoOpen(false)}
+        onComplete={handleMikoComplete}
+      />
     </div>
   )
 }
