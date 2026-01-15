@@ -41,6 +41,28 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
+  const user = useStore((state) => state.user)
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    const checkAuth = () => {
+      const accessToken = localStorage.getItem('mokogo-access-token')
+      const savedUser = localStorage.getItem('mokogo-user')
+      const currentUser = user || (savedUser ? JSON.parse(savedUser) : null)
+      
+      if (accessToken && currentUser) {
+        // User is already logged in, redirect them
+        const params = new URLSearchParams()
+        if (redirectView) params.set('view', redirectView)
+        if (redirectTab) params.set('tab', redirectTab)
+        const queryString = params.toString()
+        const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
+        navigate(redirectUrl, { replace: true })
+      }
+    }
+    
+    checkAuth()
+  }, [user, navigate, redirectPath, redirectView, redirectTab])
 
   const syncSavedListings = async (serverIds?: string[]) => {
     const localRaw = localStorage.getItem('mokogo-saved-listings')

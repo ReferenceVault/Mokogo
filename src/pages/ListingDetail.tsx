@@ -36,7 +36,7 @@ import {
 const ListingDetail = () => {
   const { listingId } = useParams()
   const navigate = useNavigate()
-  const { allListings, user, toggleSavedListing, isListingSaved, savedListings, setSavedListings } = useStore()
+  const { allListings, user, setUser, toggleSavedListing, isListingSaved, savedListings, setSavedListings } = useStore()
   const [isSaved, setIsSaved] = useState(false)
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -174,6 +174,27 @@ const ListingDetail = () => {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [listingOwnerId, setListingOwnerId] = useState<string | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+
+  // Fetch user profile if profileImageUrl is missing
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return
+      
+      // Only fetch if profileImageUrl is missing
+      if ((user as any).profileImageUrl) return
+      
+      try {
+        const profile = await usersApi.getMyProfile()
+        // Merge profile data with existing user data
+        const updatedUser = { ...user, ...profile }
+        setUser(updatedUser as any)
+      } catch (error) {
+        console.error('Error fetching user profile in ListingDetail:', error)
+      }
+    }
+    
+    fetchProfile()
+  }, [user, setUser])
 
   // Request status state - fetched from API
   const [requestStatus, setRequestStatus] = useState<{
@@ -634,21 +655,40 @@ const ListingDetail = () => {
                     className="flex items-center gap-3 cursor-pointer relative"
                     onClick={() => setShowUserMenu(!showUserMenu)}
                   >
-                    <UserAvatar 
-                      user={user}
-                      size="md"
-                      showBorder={true}
-                      className="shadow-lg bg-gradient-to-br from-orange-400 to-orange-500 text-white"
-                    />
+                    <div className="group-hover:scale-110 transition-transform duration-300">
+                      <UserAvatar 
+                        user={{
+                          name: user?.name,
+                          profileImageUrl: (user as any)?.profileImageUrl
+                        }}
+                        size="md"
+                        showBorder={false}
+                        className="shadow-lg bg-gradient-to-br from-orange-400 to-orange-500 text-white"
+                      />
+                    </div>
                   </div>
 
                   {showUserMenu && (
-                    <div className="absolute top-full right-4 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    <div className="absolute top-full right-4 mt-2 w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-orange-200/50 py-2 z-50 overflow-hidden">
+                      <div className="px-4 py-2 border-b border-orange-100">
+                        <p className="text-sm font-semibold text-gray-900">{user?.name || 'User'}</p>
+                        <p className="text-xs text-gray-500">{user?.email || ''}</p>
+                      </div>
+                      <Link
+                        to="/dashboard?view=profile"
+                        onClick={() => setShowUserMenu(false)}
+                        className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
                       >
-                        Log out
+                        Profile
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false)
+                          handleLogout()
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                      >
+                        Logout
                       </button>
                     </div>
                   )}

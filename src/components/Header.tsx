@@ -1,7 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Logo from './Logo'
+import UserAvatar from './UserAvatar'
 import { useStore } from '@/store/useStore'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { handleLogout as handleLogoutUtil } from '@/utils/auth'
+import { usersApi } from '@/services/api'
 
 interface HeaderProps {
   forceGuest?: boolean
@@ -11,17 +14,84 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useStore((state) => state.user)
+  const setUser = useStore((state) => state.setUser)
   const setCurrentListing = useStore((state) => state.setCurrentListing)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     // Check if user is authenticated
-    const accessToken = localStorage.getItem('mokogo-access-token')
-    const savedUser = localStorage.getItem('mokogo-user')
-    const hasUser = user || (savedUser ? JSON.parse(savedUser) : null)
+    const checkAuth = () => {
+      const accessToken = localStorage.getItem('mokogo-access-token')
+      const savedUser = localStorage.getItem('mokogo-user')
+      let currentUser = user
+      if (!currentUser && savedUser) {
+        try {
+          currentUser = JSON.parse(savedUser)
+        } catch (e) {
+          console.error('Error parsing saved user:', e)
+        }
+      }
+      
+      setIsAuthenticated(!!(accessToken && currentUser) && !forceGuest)
+    }
     
-    setIsAuthenticated(!!(accessToken && hasUser) && !forceGuest)
-  }, [user])
+    checkAuth()
+    
+    // Listen for storage changes (when user logs in from another tab/window)
+    const handleStorageChange = () => {
+      checkAuth()
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Also check periodically in case user logs in on same page
+    const interval = setInterval(checkAuth, 1000)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(interval)
+    }
+  }, [user, forceGuest])
+
+  // Fetch user profile if profileImageUrl is missing
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!isAuthenticated || !user?.id) return
+      
+      // Only fetch if profileImageUrl is missing
+      if ((user as any).profileImageUrl) return
+      
+      try {
+        const profile = await usersApi.getMyProfile()
+        // Merge profile data with existing user data
+        const updatedUser = { ...user, ...profile }
+        setUser(updatedUser as any)
+      } catch (error) {
+        console.error('Error fetching user profile in Header:', error)
+      }
+    }
+    
+    fetchProfile()
+  }, [isAuthenticated, user, setUser])
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showUserMenu])
 
   const currentPath = location.pathname
   const redirectTarget = encodeURIComponent(location.pathname + location.search)
@@ -137,26 +207,80 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
 
         </nav>
 
-        {/* Right section with Log in button or Dashboard link */}
+        {/* Right section with Log in button or User menu */}
         <div className="flex items-center">
           {isAuthenticated ? (
-            <Link 
-              to="/dashboard" 
-              className="group relative bg-gradient-to-r from-orange-400 to-orange-500 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 overflow-hidden"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                Dashboard
-                <svg 
-                  className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
-              <span className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </Link>
+            <div className="relative" ref={userMenuRef}>
+              <div 
+                className="flex items-center gap-3 cursor-pointer group"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+              >
+                <div className="group-hover:scale-110 transition-transform duration-300">
+                  {(() => {
+                    // Get current user from store or localStorage
+                    const savedUser = localStorage.getItem('mokogo-user')
+                    let currentUser = user
+                    if (!currentUser && savedUser) {
+                      try {
+                        currentUser = JSON.parse(savedUser)
+                      } catch (e) {
+                        console.error('Error parsing saved user:', e)
+                      }
+                    }
+                    
+                    return (
+                      <UserAvatar 
+                        user={{ 
+                          name: currentUser?.name, 
+                          profileImageUrl: (currentUser as any)?.profileImageUrl 
+                        }}
+                        size="md"
+                        showBorder={false}
+                        className="shadow-lg bg-gradient-to-br from-orange-400 to-orange-500"
+                      />
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {showUserMenu && (() => {
+                // Get current user from store or localStorage
+                const savedUser = localStorage.getItem('mokogo-user')
+                let currentUser = user
+                if (!currentUser && savedUser) {
+                  try {
+                    currentUser = JSON.parse(savedUser)
+                  } catch (e) {
+                    console.error('Error parsing saved user:', e)
+                  }
+                }
+                
+                return (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-orange-200/50 py-2 z-50 overflow-hidden">
+                    <div className="px-4 py-2 border-b border-orange-100">
+                      <p className="text-sm font-semibold text-gray-900">{currentUser?.name || 'User'}</p>
+                      <p className="text-xs text-gray-500">{currentUser?.email || ''}</p>
+                    </div>
+                    <Link
+                      to="/dashboard?view=profile"
+                      onClick={() => setShowUserMenu(false)}
+                      className="block w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false)
+                        handleLogoutUtil(navigate)
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )
+              })()}
+            </div>
           ) : (
             <Link 
               to={`/auth?redirect=${redirectTarget}`} 
