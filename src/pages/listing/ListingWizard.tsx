@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Footer from '@/components/Footer'
 import Toast from '@/components/Toast'
 import Logo from '@/components/Logo'
+import UserAvatar from '@/components/UserAvatar'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 
@@ -90,9 +91,6 @@ const ListingWizard = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
-
-  const userInitial = user?.name?.[0]?.toUpperCase() || 'U'
-
 
   // Helper function to format date for HTML date input (YYYY-MM-DD)
   const formatDateForInput = (date: string | Date | undefined): string => {
@@ -1086,11 +1084,12 @@ const ListingWizard = () => {
                 className="flex items-center gap-3 cursor-pointer relative"
                 onClick={() => setShowUserMenu(!showUserMenu)}
               >
-                <div className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center border-2 border-orange-400">
-                  <span className="text-white font-medium text-sm">
-                    {userInitial}
-                  </span>
-                </div>
+                <UserAvatar 
+                  user={user}
+                  size="md"
+                  showBorder={true}
+                  className="shadow-lg bg-gradient-to-br from-orange-400 to-orange-500 text-white"
+                />
               </div>
 
               {showUserMenu && (

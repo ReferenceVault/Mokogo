@@ -5,6 +5,7 @@
 
 import { authApi } from '@/services/api'
 import { useStore } from '@/store/useStore'
+import { websocketService } from '@/services/websocket'
 
 /**
  * Logout utility function
@@ -15,10 +16,14 @@ export const handleLogout = async (navigate: (path: string) => void) => {
   const { setUser, setCurrentListing, setAllListings, setRequests } = useStore.getState()
   
   try {
+    // Disconnect WebSocket before logout
+    websocketService.disconnect()
     await authApi.logout()
   } catch (error) {
     console.error('Logout error:', error)
   } finally {
+    // Ensure WebSocket is disconnected even if logout API fails
+    websocketService.disconnect()
     setUser(null)
     setCurrentListing(null)
     setAllListings([])

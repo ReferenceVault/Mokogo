@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { requestsApi, RequestResponse } from '@/services/api'
 import { websocketService } from '@/services/websocket'
@@ -10,37 +9,28 @@ import {
   XCircle, 
   MapPin,
   Calendar,
-  Briefcase,
-  Cake,
   MessageSquare,
   ChevronRight,
   Copy,
   Plus,
-  Send,
-  Eye,
-  X,
-  Home
+  Send
 } from 'lucide-react'
 
-import { Listing, Request } from '@/types'
-import { formatRent, formatDateRelative } from '@/utils/formatters'
+import { Listing } from '@/types'
+import { formatTimeAgo } from '@/utils/formatters'
+import UserAvatar from './UserAvatar'
 
 interface RequestsContentProps {
   initialTab?: 'received' | 'sent'
-  onListingClick?: (listingId: string) => void
   onApprove?: (requestId: string, conversationId?: string) => void
+  onListingClick?: (listingId: string) => void
 }
-
-type ListingRef = RequestResponse['listingId'] | Request['listingId']
-type UiRequest = Omit<Request, 'listingId'> & { _id?: string; listingId: ListingRef }
 
 const RequestsContent = ({
   initialTab = 'received',
-  onListingClick,
   onApprove
 }: RequestsContentProps) => {
-  const navigate = useNavigate()
-  const { user, allListings, requests, updateRequest } = useStore()
+  const { user, allListings } = useStore()
 
   const [allRequests, setAllRequests] = useState<RequestResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -120,10 +110,15 @@ const RequestsContent = ({
     
     setLoading(true)
     try {
-      // Fetch all requests (pending, approved, rejected)
-      const requests = await requestsApi.getAllForOwner()
-      // Sort: pending first, then by date
-      const sorted = requests.sort((a, b) => {
+      // Fetch both received (as owner) and sent (as requester) requests
+      const [receivedRequests, sentRequests] = await Promise.all([
+        requestsApi.getAllForOwner().catch(() => []),
+        requestsApi.getAllForRequester().catch(() => [])
+      ])
+      
+      // Combine and sort: pending first, then by date
+      const all = [...receivedRequests, ...sentRequests]
+      const sorted = all.sort((a, b) => {
         if (a.status === 'pending' && b.status !== 'pending') return -1
         if (a.status !== 'pending' && b.status === 'pending') return 1
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -150,8 +145,8 @@ const RequestsContent = ({
       
       // If onApprove callback is provided, call it with conversation info
       if (onApprove) {
-        // We need to get the conversation - it should be created by the backend
-        // For now, we'll just navigate to messages
+        // Backend automatically creates conversation on approval
+        // Navigate to messages - conversation will be there
         onApprove(request._id || request.id)
       }
     } catch (error: any) {
@@ -185,27 +180,41 @@ const RequestsContent = ({
     }
   }
 
-  const handleWithdraw = (requestId: string) => {
-    if (!confirm('Withdraw this request?')) return
-    updateRequest(requestId, { status: 'rejected' })
-  }
-
-  const handleViewListing = (listingId: ListingRef) => {
-    const id = typeof listingId === 'string' ? listingId : listingId._id
-    if (onListingClick) {
-      onListingClick(id)
-      return
+  const getRequesterInfo = (request: RequestResponse) => {
+    const requesterId = typeof request.requesterId === 'object' ? request.requesterId : null
+    return {
+      name: requesterId?.name || 'Unknown',
+      profileImageUrl: requesterId?.profileImageUrl,
+      id: typeof request.requesterId === 'string' ? request.requesterId : requesterId?._id || ''
     }
-    navigate(`/listings/${id}`)
   }
 
-  const handleMessage = (listingId: ListingRef) => {
-    const id = typeof listingId === 'string' ? listingId : listingId._id
-    navigate(`/listings/${id}`)
-  }
-
-  const getListingForRequest = (listingRef: ListingRef): Listing | null => {
-    if (!listingRef) return null
+  const getListingInfo = (request: RequestResponse): Listing => {
+    const listingRef = request.listingId
+    if (!listingRef) {
+      return {
+        id: '',
+        title: 'Unknown Listing',
+        city: '',
+        locality: '',
+        societyName: '',
+        bhkType: '',
+        roomType: '',
+        rent: 0,
+        deposit: 0,
+        moveInDate: '',
+        furnishingLevel: '',
+        bathroomType: '',
+        flatAmenities: [],
+        societyAmenities: [],
+        preferredGender: '',
+        description: '',
+        photos: [],
+        status: 'live',
+        createdAt: '',
+        updatedAt: '',
+      }
+    }
 
     const listingId = typeof listingRef === 'string' ? listingRef : listingRef._id
     const listing = allListings.find(
@@ -238,54 +247,54 @@ const RequestsContent = ({
       }
     }
 
-    return null
+    return {
+      id: listingId,
+      title: 'Unknown Listing',
+      city: '',
+      locality: '',
+      societyName: '',
+      bhkType: '',
+      roomType: '',
+      rent: 0,
+      deposit: 0,
+      moveInDate: '',
+      furnishingLevel: '',
+      bathroomType: '',
+      flatAmenities: [],
+      societyAmenities: [],
+      preferredGender: '',
+      description: '',
+      photos: [],
+      status: 'live',
+      createdAt: '',
+      updatedAt: '',
+    }
   }
 
+  // Filter requests based on user role
+  const receivedRequests = allRequests.filter(request => {
+    const ownerId = typeof request.ownerId === 'object' ? request.ownerId._id : request.ownerId
+    return ownerId === (user as any)?._id || ownerId === user?.id
+  })
 
-  const receivedRequests: UiRequest[] = allRequests.map((request) => ({
-    id: request._id || request.id,
-    listingId: request.listingId,
-    seekerId:
-      typeof request.requesterId === 'string'
-        ? request.requesterId
-        : request.requesterId._id,
-    seekerName:
-      typeof request.requesterId === 'object'
-        ? request.requesterId.name
-        : 'Unknown',
-    seekerAvatar:
-      typeof request.requesterId === 'object'
-        ? request.requesterId.profileImageUrl
-        : undefined,
-    seekerAge: undefined,
-    seekerGender: undefined,
-    seekerOccupation: undefined,
-    seekerCity: undefined,
-    introMessage: request.message || '',
-    status: request.status === 'approved' ? 'accepted' : request.status,
-    requestedAt: request.createdAt,
-    desiredMoveInDate: request.moveInDate,
-    contactRevealed: request.status === 'approved',
-    seekerPhone: undefined,
-    seekerEmail: undefined,
-  }))
+  const sentRequests = allRequests.filter(request => {
+    const requesterId = typeof request.requesterId === 'object' ? request.requesterId._id : request.requesterId
+    return requesterId === (user as any)?._id || requesterId === user?.id
+  })
 
-  const sentRequests = requests
-  const displayReceivedRequests = receivedRequests
-  const displaySentRequests = sentRequests
-
+  // Calculate stats
   const receivedStats = {
-    total: displayReceivedRequests.length,
-    pending: displayReceivedRequests.filter(r => r.status === 'pending').length,
-    accepted: displayReceivedRequests.filter(r => r.status === 'accepted').length,
-    rejected: displayReceivedRequests.filter(r => r.status === 'rejected').length,
+    total: receivedRequests.length,
+    pending: receivedRequests.filter(r => r.status === 'pending').length,
+    accepted: receivedRequests.filter(r => r.status === 'approved').length,
+    rejected: receivedRequests.filter(r => r.status === 'rejected').length
   }
 
   const sentStats = {
-    total: displaySentRequests.length,
-    pending: displaySentRequests.filter(r => r.status === 'pending').length,
-    accepted: displaySentRequests.filter(r => r.status === 'accepted').length,
-    rejected: displaySentRequests.filter(r => r.status === 'rejected').length,
+    total: sentRequests.length,
+    pending: sentRequests.filter(r => r.status === 'pending').length,
+    accepted: sentRequests.filter(r => r.status === 'approved').length,
+    rejected: sentRequests.filter(r => r.status === 'rejected').length
   }
 
   const responseTemplates = [
@@ -438,178 +447,134 @@ const RequestsContent = ({
                 <div className="flex items-center justify-center py-12">
                   <div className="w-8 h-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
                 </div>
+              ) : receivedRequests.length === 0 ? (
+                <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
+                  <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No received requests yet</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Requests from seekers will appear here
+                  </p>
+                </div>
               ) : (
-                <div className="space-y-4">
-                  {displayReceivedRequests.length === 0 ? (
-                    <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
-                      <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No received requests yet</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Requests from seekers will appear here
-                      </p>
-                    </div>
-                  ) : (
-                    displayReceivedRequests.map((request, index) => {
-                      const listing = getListingForRequest(request.listingId)
-                      const isProcessing =
-                        processingId === (request._id || request.id)
+                receivedRequests.map((request, index) => {
+                  const requester = getRequesterInfo(request)
+                  const listing = getListingInfo(request)
+                  const isProcessing = processingId === (request._id || request.id)
 
-                      return (
-                        <div
-                          key={request._id || request.id}
-                          className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
-                          style={{
-                            animation: `fadeInUp 0.6s ease-out ${
-                              index * 0.1
-                            }s both`
-                          }}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  return (
+                    <div
+                      key={request._id || request.id}
+                      className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
+                      style={{
+                        animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                          <div className="relative">
-                            <div className="flex items-start gap-3 mb-3">
-                              <div className="relative flex-shrink-0">
-                                <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
-                                  <img
-                                    src={
-                                      request.seekerAvatar ||
-                                      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop'
-                                    }
-                                    alt={request.seekerName}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              </div>
+                      <div className="relative flex items-start gap-3">
+                        <UserAvatar user={requester} size="lg" />
 
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between mb-2">
-                                  <div>
-                                    <div className="flex items-center gap-2 mb-1.5">
-                                      <h4 className="text-base font-semibold text-gray-900">
-                                        {request.seekerName}
-                                      </h4>
-                                      <span
-                                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                          request.status === 'pending'
-                                            ? 'bg-yellow-100 text-yellow-800'
-                                            : request.status === 'accepted'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
-                                        }`}
-                                      >
-                                        {request.status.toUpperCase()}
-                                      </span>
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-2">
-                                      {request.seekerOccupation && (
-                                        <span className="flex items-center gap-1">
-                                          <Briefcase className="w-3.5 h-3.5 text-orange-500" />
-                                          {request.seekerOccupation}
-                                        </span>
-                                      )}
-                                      {request.seekerAge && (
-                                        <span className="flex items-center gap-1">
-                                          <Cake className="w-3.5 h-3.5 text-orange-500" />
-                                          {request.seekerAge} years old
-                                        </span>
-                                      )}
-                                      {request.seekerCity && (
-                                        <span className="flex items-center gap-1">
-                                          <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                                          Currently in {request.seekerCity}
-                                        </span>
-                                      )}
-                                      {request.desiredMoveInDate && (
-                                        <span className="flex items-center gap-1">
-                                          <Calendar className="w-3.5 h-3.5 text-orange-500" />
-                                          Move-in:{' '}
-                                          {new Date(
-                                            request.desiredMoveInDate
-                                          ).toLocaleDateString('en-IN', {
-                                            day: 'numeric',
-                                            month: 'short'
-                                          })}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {listing && (
-                                      <div className="text-xs text-gray-500 mb-2">
-                                        Interested in:{' '}
-                                        <span className="font-semibold text-gray-700">
-                                          {listing.title ||
-                                            `${listing.roomType} in ${listing.locality}`}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {request.introMessage && (
-                              <p className="text-sm text-gray-700 leading-relaxed mb-3 italic">
-                                "{request.introMessage}"
-                              </p>
-                            )}
-
-                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-3">
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 text-orange-500" />
-                                Received {formatDateRelative(request.requestedAt)}
-                              </span>
-                            </div>
-
-                            {/* Actions */}
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-2">
                             <div>
-                              {request.status === 'pending' && (
-                                <div className="flex flex-wrap gap-2 justify-end">
-                                  <button 
-                                    onClick={() => handleReject(request)}
-                                    disabled={isProcessing || processingId === (request._id || request.id)}
-                                    className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    <XCircle className="w-3.5 h-3.5" />
-                                    Reject
-                                  </button>
-                                  <button 
-                                    onClick={() => handleApprove(request)}
-                                    disabled={isProcessing || processingId === (request._id || request.id)}
-                                    className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {isProcessing && processingId === (request._id || request.id) ? (
-                                      <>
-                                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        Processing...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircle className="w-3.5 h-3.5" />
-                                        Accept
-                                      </>
-                                    )}
-                                  </button>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <h4 className="text-base font-semibold text-gray-900">
+                                  {requester.name}
+                                </h4>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                    request.status === 'pending'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : request.status === 'approved'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-red-100 text-red-800'
+                                  }`}
+                                >
+                                  {request.status.toUpperCase()}
+                                </span>
+                              </div>
 
-                              {request.status === 'accepted' && (
-                                <div className="text-sm text-green-700 font-medium text-right">
-                                  ✓ Request accepted - Conversation started
-                                </div>
-                              )}
-                              {request.status === 'rejected' && (
-                                <div className="text-sm text-red-700 font-medium text-right">
-                                  ✗ Request rejected
+                              {listing && (
+                                <div className="text-xs text-gray-500 mb-2">
+                                  Interested in:{' '}
+                                  <span className="font-semibold text-gray-700">
+                                    {listing.title}
+                                  </span>
                                 </div>
                               )}
                             </div>
                           </div>
+
+                          {request.message && (
+                            <p className="text-sm text-gray-700 leading-relaxed mb-3 italic">
+                              "{request.message}"
+                            </p>
+                          )}
+
+                          {request.moveInDate && (
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-2">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-orange-500" />
+                                Move-in:{' '}
+                                {new Date(request.moveInDate).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short'
+                                })}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 mb-3">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 text-orange-500" />
+                              Received {formatTimeAgo(request.createdAt)}
+                            </span>
+                          </div>
+
+                          {request.status === 'pending' && (
+                            <div className="flex flex-wrap gap-2 justify-end">
+                              <button 
+                                onClick={() => handleReject(request)}
+                                disabled={isProcessing}
+                                className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                Reject
+                              </button>
+                              <button 
+                                onClick={() => handleApprove(request)}
+                                disabled={isProcessing}
+                                className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isProcessing ? (
+                                  <>
+                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Processing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-3.5 h-3.5" />
+                                    Accept
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                          {request.status === 'approved' && (
+                            <div className="text-sm text-green-700 font-medium text-right">
+                              ✓ Request approved - Conversation started
+                            </div>
+                          )}
+                          {request.status === 'rejected' && (
+                            <div className="text-sm text-red-700 font-medium text-right">
+                              ✗ Request rejected
+                            </div>
+                          )}
                         </div>
-                      )
-                    })
-                  )}
-                </div>
+                      </div>
+                    </div>
+                  )
+                })
               )}
             </>
           ) : (
@@ -618,162 +583,104 @@ const RequestsContent = ({
                 Sent Requests
               </h2>
 
-              <div className="space-y-4">
-                {displaySentRequests.length === 0 ? (
-                  <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
-                    <Send className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No sent requests yet</p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Requests you send to listings will appear here
-                    </p>
-                  </div>
-                ) : (
-                  displaySentRequests.map((request, index) => {
-                    const listing = getListingForRequest(request.listingId)
-                    if (!listing) return null
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : sentRequests.length === 0 ? (
+                <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 shadow-md">
+                  <Send className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No sent requests yet</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Requests you send to listings will appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {sentRequests.map((request, index) => {
+                    const listing = getListingInfo(request)
 
                     return (
                       <div
-                        key={request.id}
+                        key={request._id || request.id}
                         className="relative bg-white/80 backdrop-blur-sm rounded-lg border border-orange-200/50 p-4 shadow-md hover:shadow-lg transition-all duration-300 group"
                         style={{
-                          animation: `fadeInUp 0.6s ease-out ${
-                            index * 0.1
-                          }s both`
+                          animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
                         }}
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                         <div className="relative flex flex-col md:flex-row gap-4">
-                          {/* Listing Image */}
-                          <div className="flex-shrink-0">
-                            <div className="w-full md:w-48 h-48 rounded-lg overflow-hidden border-2 border-orange-200">
-                              <img
-                                src={
-                                  listing.photos?.[0] ||
-                                  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop'
-                                }
-                                alt={listing.title}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Request Details */}
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="text-lg font-semibold text-gray-900">
-                                    {listing.title ||
-                                      `${listing.roomType} in ${listing.locality}`}
-                                  </h3>
-                                  <span
-                                    className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                      request.status === 'pending'
-                                        ? 'bg-yellow-100 text-yellow-800'
-                                        : request.status === 'accepted'
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-red-100 text-red-800'
-                                    }`}
-                                  >
-                                    {request.status.toUpperCase()}
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="w-4 h-4 text-orange-500" />
-                                    {listing.locality}, {listing.city}
-                                  </span>
-                                  <span className="flex items-center gap-1 font-semibold text-gray-900">
-                                    <Home className="w-4 h-4 text-orange-500" />
-                                    {formatRent(listing.rent)}/month
-                                  </span>
-                                  {listing.status !== 'live' && (
-                                    <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
-                                      {listing.status === 'fulfilled'
-                                        ? 'Filled'
-                                        : 'Unavailable'}
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="text-xs text-gray-500 mb-3">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3.5 h-3.5 text-orange-500" />
-                                    Sent{' '}
-                                    {formatDateRelative(
-                                      request.requestedAt
-                                    )}
-                                  </span>
-                                </div>
-
-                                <p className="text-sm text-gray-700 leading-relaxed mb-4 italic">
-                                  "{request.introMessage}"
-                                </p>
-
-                                {request.desiredMoveInDate && (
-                                  <div className="text-xs text-gray-600 mb-4">
-                                    <span className="flex items-center gap-1">
-                                      <Calendar className="w-3.5 h-3.5 text-orange-500" />
-                                      Desired move-in:{' '}
-                                      {new Date(
-                                        request.desiredMoveInDate
-                                      ).toLocaleDateString('en-IN', {
-                                        day: 'numeric',
-                                        month: 'long',
-                                        year: 'numeric'
-                                      })}
-                                    </span>
-                                  </div>
-                                )}
+                          {listing.photos && listing.photos.length > 0 && (
+                            <div className="flex-shrink-0">
+                              <div className="w-full md:w-48 h-48 rounded-lg overflow-hidden border-2 border-orange-200">
+                                <img
+                                  src={listing.photos[0]}
+                                  alt={listing.title}
+                                  className="w-full h-full object-cover"
+                                />
                               </div>
                             </div>
+                          )}
 
-                            {/* Actions */}
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                onClick={() =>
-                                  handleViewListing(request.listingId)
-                                }
-                                className="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-100 transition-all duration-300 flex items-center gap-1.5"
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="text-lg font-semibold text-gray-900">
+                                {listing.title}
+                              </h3>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                  request.status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : request.status === 'approved'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
                               >
-                                <Eye className="w-3.5 h-3.5" />
-                                View Listing
-                              </button>
+                                {request.status.toUpperCase()}
+                              </span>
+                            </div>
 
-                              {request.status === 'pending' && (
-                                <button
-                                  onClick={() =>
-                                    handleWithdraw(request.id)
-                                  }
-                                  className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-all duration-300 flex items-center gap-1.5"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                  Withdraw
-                                </button>
-                              )}
+                            {listing.locality && listing.city && (
+                              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-4 h-4 text-orange-500" />
+                                  {listing.locality}, {listing.city}
+                                </span>
+                              </div>
+                            )}
 
-                              {request.status === 'accepted' && (
-                                <button
-                                  onClick={() =>
-                                    handleMessage(request.listingId)
-                                  }
-                                  className="px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-green-500/30 hover:scale-105 transition-all duration-300 flex items-center gap-1.5"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                  Message
-                                </button>
-                              )}
+                            {request.message && (
+                              <p className="text-sm text-gray-700 leading-relaxed mb-3 italic">
+                                "{request.message}"
+                              </p>
+                            )}
+
+                            {request.moveInDate && (
+                              <div className="text-xs text-gray-600 mb-3">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3.5 h-3.5 text-orange-500" />
+                                  Desired move-in:{' '}
+                                  {new Date(request.moveInDate).toLocaleDateString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric'
+                                  })}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <Clock className="w-3.5 h-3.5 text-orange-500" />
+                              Sent {formatTimeAgo(request.createdAt)}
                             </div>
                           </div>
                         </div>
                       </div>
                     )
-                  })
-                )}
-              </div>
+                  })}
+                </div>
+              )}
             </>
           )}
         </div>

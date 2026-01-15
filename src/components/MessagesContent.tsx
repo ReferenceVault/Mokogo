@@ -29,6 +29,7 @@ const MessagesContent = ({ initialConversationId }: MessagesContentProps) => {
   const [sending, setSending] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set()) // Set of online user IDs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const conversationsLoadedRef = useRef(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -42,6 +43,14 @@ const MessagesContent = ({ initialConversationId }: MessagesContentProps) => {
       }
       fetchConversations()
       conversationsLoadedRef.current = true
+    } else if (!user) {
+      // Disconnect WebSocket and clear state when user logs out
+      websocketService.disconnect()
+      setOnlineUsers(new Set())
+      setConversations([])
+      setMessages([])
+      setSelectedConversationId(null)
+      conversationsLoadedRef.current = false
     }
 
     // WebSocket listeners
@@ -159,16 +168,43 @@ const MessagesContent = ({ initialConversationId }: MessagesContentProps) => {
       }
     }
 
+    const handleUserPresence = (data: { userId: string; isOnline: boolean }) => {
+      setOnlineUsers(prev => {
+        const updated = new Set(prev)
+        if (data.isOnline) {
+          updated.add(data.userId)
+        } else {
+          updated.delete(data.userId)
+        }
+        return updated
+      })
+    }
+
     websocketService.on('new_message', handleNewMessage)
     websocketService.on('conversation_updated', handleConversationUpdate)
     websocketService.on('messages_read', handleMessagesRead)
+    websocketService.on('user_presence', handleUserPresence)
 
     return () => {
       websocketService.off('new_message', handleNewMessage)
       websocketService.off('conversation_updated', handleConversationUpdate)
       websocketService.off('messages_read', handleMessagesRead)
+      websocketService.off('user_presence', handleUserPresence)
     }
   }, [user, selectedConversationId])
+
+  // Handle tab close to disconnect WebSocket
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      websocketService.disconnect()
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
 
   useEffect(() => {
     if (initialConversationId && !selectedConversationId) {
@@ -192,8 +228,14 @@ const MessagesContent = ({ initialConversationId }: MessagesContentProps) => {
     
     setLoading(true)
     try {
-      const data = await messagesApi.getAllConversations()
-      setConversations(data)
+      const [conversationsData, onlineUsersData] = await Promise.all([
+        messagesApi.getAllConversations(),
+        messagesApi.getOnlineUsers().catch(() => []) // Fetch online users, ignore errors
+      ])
+      
+      setConversations(conversationsData)
+      setOnlineUsers(new Set(onlineUsersData))
+      
       if (initialConversationId && !selectedConversationId) {
         setSelectedConversationId(initialConversationId)
       }
@@ -454,10 +496,26 @@ const MessagesContent = ({ initialConversationId }: MessagesContentProps) => {
                         user={other}
                         size="lg" 
                       />
+                      {(() => {
+                        const otherUserId = other._id
+                        const isOnline = otherUserId ? onlineUsers.has(otherUserId) : false
+                        return isOnline ? (
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+                        ) : null
+                      })()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-900 truncate">{other.name || 'Unknown'}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-900 truncate">{other.name || 'Unknown'}</span>
+                          {(() => {
+                            const otherUserId = other._id
+                            const isOnline = otherUserId ? onlineUsers.has(otherUserId) : false
+                            return isOnline ? (
+                              <span className="text-xs text-green-600 font-medium">Online</span>
+                            ) : null
+                          })()}
+                        </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="text-xs text-gray-500">
                             {formatTime(conv.lastMessageAt)}
@@ -522,8 +580,19 @@ const MessagesContent = ({ initialConversationId }: MessagesContentProps) => {
                 </div>
                 <div>
                   <span className="text-sm font-semibold text-gray-900">{otherUser.name || 'Unknown'}</span>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>Online</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    {(() => {
+                      const otherUserId = otherUser._id
+                      const isOnline = otherUserId ? onlineUsers.has(otherUserId) : false
+                      return (
+                        <>
+                          <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                          <span className={isOnline ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                            {isOnline ? 'Online' : 'Offline'}
+                          </span>
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
@@ -663,7 +732,20 @@ const MessagesContent = ({ initialConversationId }: MessagesContentProps) => {
                 </div>
                 <div>
                   <span className="text-sm font-semibold text-gray-900">{otherUser.name || 'Unknown'}</span>
-                  <div className="text-xs text-green-500">Online</div>
+                  <div className="flex items-center gap-2 text-xs">
+                    {(() => {
+                      const otherUserId = otherUser._id
+                      const isOnline = otherUserId ? onlineUsers.has(otherUserId) : false
+                      return (
+                        <>
+                          <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                          <span className={isOnline ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                            {isOnline ? 'Online' : 'Offline'}
+                          </span>
+                        </>
+                      )
+                    })()}
+                  </div>
                 </div>
               </div>
               <button
