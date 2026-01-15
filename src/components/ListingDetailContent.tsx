@@ -4,7 +4,7 @@ import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import { MoveInDateField } from '@/components/MoveInDateField'
 import { formatPrice, formatDate } from '@/utils/formatters'
-import { listingsApi, ListingResponse, requestsApi, usersApi, messagesApi } from '@/services/api'
+import { listingsApi, requestsApi, usersApi, messagesApi } from '@/services/api'
 import UserAvatar from './UserAvatar'
 
 import {
@@ -73,6 +73,13 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
 
   useEffect(() => {
     const loadListing = async () => {
+      if (!listingId) {
+        setListing(null)
+        setIsLoading(false)
+        return
+      }
+
+      // First check if it's in allListings (user's own listings)
       if (foundListing) {
         setListing(foundListing)
         setIsLoading(false)
@@ -81,70 +88,67 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
 
       setIsLoading(true)
       try {
-        const response = await listingsApi.getById(listingId)
-        const mappedListing: Listing = {
-          id: response._id || response.id,
-          title: response.title,
-          city: response.city || '',
-          locality: response.locality || '',
-          societyName: response.societyName,
-          bhkType: response.bhkType || '',
-          roomType: response.roomType || '',
-          rent: response.rent || 0,
-          deposit: response.deposit || 0,
-          moveInDate: response.moveInDate || '',
-          furnishingLevel: response.furnishingLevel || '',
-          bathroomType: response.bathroomType,
-          flatAmenities: response.flatAmenities || [],
-          societyAmenities: response.societyAmenities || [],
-          preferredGender: response.preferredGender || '',
-          description: response.description,
-          photos: response.photos || [],
-          status: response.status,
-          createdAt: response.createdAt,
-          updatedAt: response.updatedAt,
-          mikoTags: response.mikoTags,
-        }
-        setListing(mappedListing)
-      } catch (error) {
+        // Try to get listing directly by ID (works for both logged in and not logged in)
+        // The backend endpoint is public, so we can use getByIdPublic
+        let response: any
         try {
-          const publicListings = await listingsApi.getAllPublic('live')
-          const mappedListings: Listing[] = publicListings.map((item: ListingResponse) => ({
-            id: item._id || item.id,
-            title: item.title,
-            city: item.city || '',
-            locality: item.locality || '',
-            societyName: item.societyName,
-            bhkType: item.bhkType || '',
-            roomType: item.roomType || '',
-            rent: item.rent || 0,
-            deposit: item.deposit || 0,
-            moveInDate: item.moveInDate || '',
-            furnishingLevel: item.furnishingLevel || '',
-            bathroomType: item.bathroomType,
-            flatAmenities: item.flatAmenities || [],
-            societyAmenities: item.societyAmenities || [],
-            preferredGender: item.preferredGender || '',
-            description: item.description,
-            photos: item.photos || [],
-            status: item.status,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-            mikoTags: item.mikoTags,
-          }))
-          const fallback = mappedListings.find((item) => item.id === listingId) || null
-          setListing(fallback)
-        } catch (fallbackError) {
-          console.error('Error loading listing detail:', fallbackError)
-          setListing(null)
+          // Try public endpoint first (works without auth)
+          response = await listingsApi.getByIdPublic(listingId)
+        } catch (publicError: any) {
+          // If public fails and user is logged in, try authenticated endpoint
+          if (user) {
+            try {
+              response = await listingsApi.getById(listingId)
+            } catch (authError) {
+              console.error('Error fetching listing:', authError)
+              throw publicError // Use the original error
+            }
+          } else {
+            throw publicError
+          }
         }
+
+        if (response) {
+          const mappedListing: Listing = {
+            id: response._id || response.id,
+            title: response.title,
+            city: response.city || '',
+            locality: response.locality || '',
+            societyName: response.societyName,
+            bhkType: response.bhkType || '',
+            roomType: response.roomType || '',
+            rent: response.rent || 0,
+            deposit: response.deposit || 0,
+            moveInDate: response.moveInDate || '',
+            furnishingLevel: response.furnishingLevel || '',
+            bathroomType: response.bathroomType,
+            flatAmenities: response.flatAmenities || [],
+            societyAmenities: response.societyAmenities || [],
+            preferredGender: response.preferredGender || '',
+            description: response.description,
+            photos: response.photos || [],
+            status: response.status,
+            createdAt: response.createdAt,
+            updatedAt: response.updatedAt,
+            mikoTags: response.mikoTags,
+          }
+          setListing(mappedListing)
+          setIsLoading(false)
+          return
+        }
+
+        // If we get here, listing was not found
+        setListing(null)
+      } catch (error) {
+        console.error('Error loading listing detail:', error)
+        setListing(null)
       } finally {
         setIsLoading(false)
       }
     }
 
     loadListing()
-  }, [listingId, foundListing])
+  }, [listingId, foundListing, user])
 
   useEffect(() => {
     if (listingId) {
@@ -175,7 +179,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
     )
   }
 
-  // Fetch request status on mount and when listingId/user changes
+  // Fetch request status on mount and when listingId/user changes (only for logged in users)
   useEffect(() => {
     const fetchRequestStatus = async () => {
       if (!user || !listingId) {
@@ -201,7 +205,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
           setRequestStatus({ status: null })
         }
       } catch (error) {
-        console.error('Error fetching request status:', error)
+        // Silently fail - user might not have made a request yet
         setRequestStatus({ status: null })
       } finally {
         setLoadingRequestStatus(false)

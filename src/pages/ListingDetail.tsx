@@ -36,7 +36,7 @@ import {
 const ListingDetail = () => {
   const { listingId } = useParams()
   const navigate = useNavigate()
-  const { allListings, user, toggleSavedListing, isListingSaved, savedListings, setSavedListings, setAllListings } = useStore()
+  const { allListings, user, toggleSavedListing, isListingSaved, savedListings, setSavedListings } = useStore()
   const [isSaved, setIsSaved] = useState(false)
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -51,92 +51,111 @@ const ListingDetail = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  // If user is logged in, show the authenticated view inside dashboard
-  useEffect(() => {
-    if (user && listingId) {
-      navigate(`/dashboard?listing=${listingId}`)
-      return
-    }
-  }, [user, listingId, navigate])
+  // Don't auto-redirect - let users access /listings/:id directly
+  // If they want dashboard view, they can navigate there manually
 
-  // Fetch listing if not found in allListings
+  // Fetch listing - try public listings first (works for both logged in and not logged in)
   useEffect(() => {
     const fetchListing = async () => {
       if (!listingId) {
         setLoading(false)
+        setIsListingLoading(false)
         return
       }
 
-      // First check if it's in allListings
+      // First check if it's in allListings (user's own listings)
       const foundInStore = allListings.find(l => l.id === listingId)
       if (foundInStore) {
         setListing(foundInStore)
-        // Try to get ownerId from API
-        // If getById succeeds, user is the owner
-        // If it fails, fetch from public listings to get ownerId
-        try {
-          const listingDetail = await listingsApi.getById(listingId)
-          setListingOwnerId(listingDetail.ownerId)
-        } catch (error) {
-          // getById failed - user is not the owner, fetch from public to get ownerId
+        setLoading(false)
+        setIsListingLoading(false)
+        
+        // Try to get ownerId from API for ownership check
+        if (user) {
           try {
-            const publicListings = await listingsApi.getAllPublic('live')
-            const found = publicListings.find(l => (l._id || l.id) === listingId)
-            if (found) {
-              setListingOwnerId((found as any).ownerId || null)
+            const listingDetail = await listingsApi.getById(listingId)
+            setListingOwnerId(listingDetail.ownerId)
+          } catch (error) {
+            // getById failed - user is not the owner, fetch from public to get ownerId
+            try {
+              const publicListings = await listingsApi.getAllPublic('live')
+              const found = publicListings.find(l => (l._id || l.id) === listingId)
+              if (found) {
+                setListingOwnerId((found as any).ownerId || null)
+              }
+            } catch (publicError) {
+              console.error('Error fetching public listing:', publicError)
             }
-          } catch (publicError) {
-            console.error('Error fetching public listing:', publicError)
           }
         }
-        setLoading(false)
         return
       }
 
-      // If not found, try to fetch from public listings
+      // Try to get listing directly by ID (works for both logged in and not logged in)
       try {
         setLoading(true)
-        const publicListings = await listingsApi.getAllPublic('live')
-        const found = publicListings.find(l => (l._id || l.id) === listingId)
+        setIsListingLoading(true)
         
-        if (found) {
+        let response: any
+        try {
+          // Try public endpoint first (works without auth)
+          response = await listingsApi.getByIdPublic(listingId)
+        } catch (publicError: any) {
+          // If public fails and user is logged in, try authenticated endpoint
+          if (user) {
+            try {
+              response = await listingsApi.getById(listingId)
+            } catch (authError) {
+              console.error('Error fetching listing:', authError)
+              throw publicError // Use the original error
+            }
+          } else {
+            throw publicError
+          }
+        }
+
+        if (response) {
           // Map API response to frontend format
           const mappedListing: Listing = {
-            id: found._id || found.id,
-            title: found.title,
-            city: found.city,
-            locality: found.locality,
-            societyName: found.societyName,
-            bhkType: found.bhkType,
-            roomType: found.roomType,
-            rent: found.rent,
-            deposit: found.deposit,
-            moveInDate: found.moveInDate,
-            furnishingLevel: found.furnishingLevel,
-            bathroomType: found.bathroomType,
-            flatAmenities: found.flatAmenities || [],
-            societyAmenities: found.societyAmenities || [],
-            preferredGender: found.preferredGender,
-            description: found.description,
-            photos: found.photos || [],
-            status: found.status,
-            createdAt: found.createdAt,
-            updatedAt: found.updatedAt,
+            id: response._id || response.id,
+            title: response.title,
+            city: response.city || '',
+            locality: response.locality || '',
+            societyName: response.societyName,
+            bhkType: response.bhkType || '',
+            roomType: response.roomType || '',
+            rent: response.rent || 0,
+            deposit: response.deposit || 0,
+            moveInDate: response.moveInDate || '',
+            furnishingLevel: response.furnishingLevel || '',
+            bathroomType: response.bathroomType,
+            flatAmenities: response.flatAmenities || [],
+            societyAmenities: response.societyAmenities || [],
+            preferredGender: response.preferredGender || '',
+            description: response.description,
+            photos: response.photos || [],
+            status: response.status,
+            createdAt: response.createdAt,
+            updatedAt: response.updatedAt,
+            mikoTags: response.mikoTags,
           }
           setListing(mappedListing)
           // Store ownerId to check ownership
-          setListingOwnerId((found as any).ownerId || null)
-          // Don't add public listings to allListings - keep them separate
+          setListingOwnerId(response.ownerId || null)
+        } else {
+          setListing(null)
         }
       } catch (error) {
         console.error('Error fetching listing:', error)
+        setListing(null)
       } finally {
         setLoading(false)
+        setIsListingLoading(false)
       }
     }
 
     fetchListing()
-  }, [listingId, allListings, setAllListings])
+  }, [listingId, allListings, user])
 
   // Check if listing is saved when component loads, listingId changes, or savedListings changes
   useEffect(() => {

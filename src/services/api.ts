@@ -268,6 +268,12 @@ export const listingsApi = {
     return response.data
   },
 
+  getByIdPublic: async (id: string): Promise<ListingResponse> => {
+    // Use axios directly for public endpoint (no auth token needed)
+    const response = await axios.get<ListingResponse>(`${API_BASE_URL}/listings/${id}`)
+    return response.data
+  },
+
   update: async (id: string, data: UpdateListingRequest): Promise<ListingResponse> => {
     const response = await api.patch<ListingResponse>(`/listings/${id}`, data)
     return response.data

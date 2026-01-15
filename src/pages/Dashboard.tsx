@@ -214,8 +214,10 @@ const Dashboard = () => {
     if (listingParam) {
       setViewingListingId(listingParam)
       setActiveView('listing-detail')
+      setListingReturnView('overview')
       // Scroll to top when viewing a listing
       window.scrollTo({ top: 0, behavior: 'smooth' })
+      // Don't clean up listing param - keep it in URL while viewing
     } else if (viewParam && ['overview', 'listings', 'requests', 'messages', 'profile', 'explore', 'saved'].includes(viewParam)) {
       // Redirect to overview if user tries to access requests without listings or sent requests
       if (viewParam === 'requests' && !(allListings.length > 0 || requests.filter(r => r.seekerId === user?.id).length > 0)) {
@@ -240,16 +242,15 @@ const Dashboard = () => {
         }
       }
       
-      // Clean up URL by removing the view/tab (and any stale listing) params
+      // Clean up URL by removing the view/tab params (but keep listing if present)
       const newParams = new URLSearchParams(urlParams)
       newParams.delete('view')
       newParams.delete('tab')
-      newParams.delete('listing')
       const newSearch = newParams.toString()
       const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname
       navigate(newUrl, { replace: true })
     }
-  }, [allListings.length, requests, user?.id, location.search])
+  }, [allListings.length, requests, user?.id, location.search, navigate])
 
   // Scroll to top when activeView changes to listing-detail
   useEffect(() => {
