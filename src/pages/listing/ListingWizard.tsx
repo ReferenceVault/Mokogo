@@ -6,6 +6,7 @@ import Logo from '@/components/Logo'
 import UserAvatar from '@/components/UserAvatar'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
+import { parseListingFromText, ListingParseResult } from '@/utils/listingParser'
 
 import { listingsApi, CreateListingRequest, authApi, messagesApi, requestsApi } from '@/services/api'
 import { Search, Bell, Heart as HeartIcon, LayoutGrid, Home, MessageSquare, Bookmark, Calendar, Plus, MoreHorizontal } from 'lucide-react'
@@ -82,6 +83,7 @@ const ListingWizard = () => {
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([0])) // Only first section expanded by default
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string>('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -89,6 +91,9 @@ const ListingWizard = () => {
   const [validatedSteps, setValidatedSteps] = useState<Set<number>>(new Set())
   const [conversationsCount, setConversationsCount] = useState<number>(0)
   const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0)
+  const [pasteText, setPasteText] = useState('')
+  const [parseResult, setParseResult] = useState<ListingParseResult | null>(null)
+  const [parseError, setParseError] = useState('')
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -159,6 +164,45 @@ const ListingWizard = () => {
       return date.toISOString().split('T')[0]
     }
     return ''
+  }
+
+  const getStartStepFromData = (data: Partial<Listing>) => {
+    let step = 0
+    if (data.photos && data.photos.length >= 3) step = 1
+    if (data.city && data.locality) step = 2
+    if (data.bhkType && data.roomType && data.furnishingLevel) step = 3
+    if (data.rent && data.deposit && data.moveInDate) step = 4
+    if (data.preferredGender) step = 5
+    if (data.mikoTags && data.mikoTags.length > 0) step = 6
+    return step
+  }
+
+  const handleParseListingText = () => {
+    if (!pasteText.trim()) {
+      setParseError('Paste listing text to extract details.')
+      return
+    }
+    const result = parseListingFromText(pasteText)
+    setParseResult(result)
+    setParseError('')
+  }
+
+  const handleApplyParsed = () => {
+    if (!parseResult) return
+    const updated = {
+      ...listingDataRef.current,
+      ...parseResult.data,
+      rent: parseResult.data.rent || listingDataRef.current.rent || 0,
+      deposit: parseResult.data.deposit || listingDataRef.current.deposit || 0,
+      moveInDate: parseResult.data.moveInDate || listingDataRef.current.moveInDate || '',
+      mikoTags: listingDataRef.current.mikoTags || []
+    }
+    listingDataRef.current = updated
+    setListingData(updated)
+    setErrors({})
+    const step = getStartStepFromData(updated)
+    setCurrentStep(step)
+    setExpandedSections(new Set([step]))
   }
 
   const handleLogout = async () => {
@@ -828,6 +872,8 @@ const ListingWizard = () => {
     }
 
     if (invalidSteps.length > 0) {
+      setToastMessage('Please complete the required fields before publishing.')
+      setShowToast(true)
       // Expand all invalid steps so user can see all errors at once
       setExpandedSections(prev => {
         const newSet = new Set(prev)
@@ -847,38 +893,33 @@ const ListingWizard = () => {
 
     setIsCreating(true)
     try {
-      // Generate title
+      const dataToSave = listingDataRef.current
       const title = generateTitle()
       
       const listingDataToSave: CreateListingRequest = {
         title,
-        city: listingData.city || '',
-        locality: listingData.locality || '',
-        societyName: listingData.societyName,
-        bhkType: listingData.bhkType || '',
-        roomType: listingData.roomType || '',
-        rent: listingData.rent || 0,
-        deposit: listingData.deposit || 0,
-        moveInDate: listingData.moveInDate || '',
-        furnishingLevel: listingData.furnishingLevel || '',
-        bathroomType: listingData.bathroomType,
-        flatAmenities: listingData.flatAmenities || [],
-        societyAmenities: listingData.societyAmenities || [],
-        preferredGender: listingData.preferredGender || '',
-        description: listingData.description,
-        photos: listingData.photos || [],
+        city: dataToSave.city || '',
+        locality: dataToSave.locality || '',
+        societyName: dataToSave.societyName,
+        bhkType: dataToSave.bhkType || '',
+        roomType: dataToSave.roomType || '',
+        rent: dataToSave.rent || 0,
+        deposit: dataToSave.deposit || 0,
+        moveInDate: dataToSave.moveInDate || '',
+        furnishingLevel: dataToSave.furnishingLevel || '',
+        bathroomType: dataToSave.bathroomType,
+        flatAmenities: dataToSave.flatAmenities || [],
+        societyAmenities: dataToSave.societyAmenities || [],
+        preferredGender: dataToSave.preferredGender || '',
+        description: dataToSave.description,
+        photos: dataToSave.photos || [],
         status: 'live',
       }
 
-      // Always use UPDATE API to change status from draft to live
-      // The listing should already exist (created after photo upload)
       const listingId = currentListing?.id || listingDataRef.current.id
-      if (!listingId || listingId.startsWith('listing-')) {
-        throw new Error('Listing not found. Please upload photos first.')
-      }
-      
-      // Update listing with status='live' - backend will validate all required fields
-      const savedListing = await listingsApi.update(listingId, listingDataToSave)
+      const savedListing = listingId && !listingId.startsWith('listing-')
+        ? await listingsApi.update(listingId, listingDataToSave)
+        : await listingsApi.create(listingDataToSave)
 
       // Map API response to frontend format
       const publishedListing: Listing = {
@@ -926,6 +967,9 @@ const ListingWizard = () => {
       const newErrors: Record<string, string> = {}
       
       if (Array.isArray(backendErrors)) {
+        const messageSummary = backendErrors[0] || 'Failed to create listing. Please fix the highlighted fields.'
+        setToastMessage(messageSummary)
+        setShowToast(true)
         backendErrors.forEach((errMsg: string) => {
           // Map backend errors to step IDs
           if (errMsg.includes('photos') || errMsg.includes('At least 3 photos')) {
@@ -954,13 +998,19 @@ const ListingWizard = () => {
           } else if (errMsg.includes('moveInDate')) {
             newErrors.pricing = newErrors.pricing || 'Move-in date is required'
             newErrors.moveInDate = 'Move-in date is required'
+          } else if (errMsg.includes('tomorrow') || errMsg.includes('future')) {
+            newErrors.pricing = newErrors.pricing || 'Move-in date must be tomorrow or later'
+            newErrors.moveInDate = 'Move-in date must be tomorrow or later'
           } else if (errMsg.includes('preferredGender')) {
             newErrors.preferences = 'Gender preference is required'
             newErrors.preferredGender = 'Gender preference is required'
           }
         })
       } else {
-        newErrors.general = typeof backendErrors === 'string' ? backendErrors : 'Failed to create listing. Please try again.'
+        const message = typeof backendErrors === 'string' ? backendErrors : 'Failed to create listing. Please try again.'
+        newErrors.general = message
+        setToastMessage(message)
+        setShowToast(true)
       }
       
       setErrors(newErrors)
@@ -999,7 +1049,22 @@ const ListingWizard = () => {
       try {
         setIsSaving(true)
         const draftData: CreateListingRequest = {
-          title: generateTitle(),
+          title: updated.title || generateTitle(),
+          city: updated.city || undefined,
+          locality: updated.locality || undefined,
+          societyName: updated.societyName || undefined,
+          bhkType: updated.bhkType || undefined,
+          roomType: updated.roomType || undefined,
+          rent: updated.rent || undefined,
+          deposit: updated.deposit || undefined,
+          moveInDate: updated.moveInDate || undefined,
+          furnishingLevel: updated.furnishingLevel || undefined,
+          bathroomType: updated.bathroomType || undefined,
+          flatAmenities: updated.flatAmenities && updated.flatAmenities.length > 0 ? updated.flatAmenities : undefined,
+          societyAmenities: updated.societyAmenities && updated.societyAmenities.length > 0 ? updated.societyAmenities : undefined,
+          preferredGender: updated.preferredGender || undefined,
+          description: updated.description || undefined,
+          mikoTags: updated.mikoTags && updated.mikoTags.length > 0 ? updated.mikoTags : undefined,
           photos: updates.photos,
           status: 'draft',
         }
@@ -1009,22 +1074,22 @@ const ListingWizard = () => {
         // Map API response to frontend format
         const mappedListing: Listing = {
           id: savedListing._id || savedListing.id,
-          title: savedListing.title,
-          city: savedListing.city || '',
-          locality: savedListing.locality || '',
-          societyName: savedListing.societyName,
-          bhkType: savedListing.bhkType || '',
-          roomType: savedListing.roomType || '',
-          rent: savedListing.rent || 0,
-          deposit: savedListing.deposit || 0,
-          moveInDate: formatDateForInput(savedListing.moveInDate) || '',
-          furnishingLevel: savedListing.furnishingLevel || '',
-          bathroomType: savedListing.bathroomType,
-          flatAmenities: savedListing.flatAmenities || [],
-          societyAmenities: savedListing.societyAmenities || [],
-          preferredGender: savedListing.preferredGender || '',
-          description: savedListing.description,
-          photos: savedListing.photos,
+          title: savedListing.title || updated.title || generateTitle(),
+          city: savedListing.city || updated.city || '',
+          locality: savedListing.locality || updated.locality || '',
+          societyName: savedListing.societyName || updated.societyName,
+          bhkType: savedListing.bhkType || updated.bhkType || '',
+          roomType: savedListing.roomType || updated.roomType || '',
+          rent: savedListing.rent || updated.rent || 0,
+          deposit: savedListing.deposit || updated.deposit || 0,
+          moveInDate: formatDateForInput(savedListing.moveInDate) || updated.moveInDate || '',
+          furnishingLevel: savedListing.furnishingLevel || updated.furnishingLevel || '',
+          bathroomType: savedListing.bathroomType || updated.bathroomType,
+          flatAmenities: savedListing.flatAmenities || updated.flatAmenities || [],
+          societyAmenities: savedListing.societyAmenities || updated.societyAmenities || [],
+          preferredGender: savedListing.preferredGender || updated.preferredGender || '',
+          description: savedListing.description || updated.description,
+          photos: savedListing.photos || updates.photos,
           mikoTags: savedListing.mikoTags || updated.mikoTags || [],
           status: savedListing.status,
           createdAt: savedListing.createdAt,
@@ -1281,6 +1346,73 @@ const ListingWizard = () => {
             </div>
           )}
 
+          {!isEditing && (
+            <div className="bg-white/80 backdrop-blur-md rounded-lg border border-orange-200/60 shadow-sm p-4 mb-3">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900">Paste listing text (optional)</h2>
+                  <p className="text-xs text-gray-600">We’ll extract details and prefill the form.</p>
+                </div>
+              </div>
+              <textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                placeholder="Paste your listing content here..."
+                rows={4}
+                className="w-full rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+              {parseError && (
+                <p className="text-xs text-red-600 mt-2">{parseError}</p>
+              )}
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button
+                  onClick={handleParseListingText}
+                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-orange-400 text-white hover:bg-orange-500 transition-colors"
+                >
+                  Extract Details
+                </button>
+                {parseResult && (
+                  <button
+                    onClick={handleApplyParsed}
+                    className="px-4 py-2 text-xs font-semibold rounded-lg border border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors"
+                  >
+                    Apply to Listing
+                  </button>
+                )}
+              </div>
+              {parseResult && (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50/60 p-3">
+                  <div className="text-xs font-semibold text-gray-700 mb-2">Detected fields</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {[
+                      { label: 'Title', key: 'title', value: parseResult.data.title },
+                      { label: 'City', key: 'city', value: parseResult.data.city },
+                      { label: 'Locality', key: 'locality', value: parseResult.data.locality },
+                      { label: 'Society', key: 'societyName', value: parseResult.data.societyName },
+                      { label: 'BHK', key: 'bhkType', value: parseResult.data.bhkType },
+                      { label: 'Room Type', key: 'roomType', value: parseResult.data.roomType },
+                      { label: 'Rent', key: 'rent', value: parseResult.data.rent ? `₹${parseResult.data.rent}` : '' },
+                      { label: 'Furnishing', key: 'furnishingLevel', value: parseResult.data.furnishingLevel },
+                      { label: 'Move-in', key: 'moveInDate', value: parseResult.data.moveInDate },
+                    ].map(field => (
+                      <div key={field.key} className="flex items-center justify-between rounded border border-gray-200 bg-white px-2 py-1">
+                        <span className="text-gray-600">{field.label}</span>
+                        <span className="font-medium text-gray-900">
+                          {field.value || '—'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {parseResult.missing.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      Missing: {parseResult.missing.join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Accordion Sections */}
           <div className="space-y-2">
             {STEPS.map((step, index) => {
@@ -1389,7 +1521,7 @@ const ListingWizard = () => {
       </div>
 
       <Footer />
-      {showToast && <Toast message="Draft saved" onClose={() => setShowToast(false)} />}
+      {showToast && <Toast message={toastMessage || 'Draft saved'} onClose={() => setShowToast(false)} />}
     </div>
   )
 }

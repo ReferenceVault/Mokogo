@@ -24,6 +24,8 @@ const AuthEmail = () => {
   const redirectPath = searchParams.get('redirect') || parsedRedirect?.path || '/dashboard'
   const redirectView = searchParams.get('view') || parsedRedirect?.view || null
   const redirectTab = searchParams.get('tab') || parsedRedirect?.tab || null
+  const redirectListing = searchParams.get('listing') || parsedRedirect?.listingId || null
+  const redirectFocus = searchParams.get('focus') || parsedRedirect?.focus || null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,6 +66,8 @@ const AuthEmail = () => {
     const params = new URLSearchParams()
     if (redirectView) params.set('view', redirectView)
     if (redirectTab) params.set('tab', redirectTab)
+    if (redirectListing) params.set('listing', redirectListing)
+    if (redirectFocus) params.set('focus', redirectFocus)
     const queryString = params.toString()
     const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
     sessionStorage.removeItem('mokogo-auth-redirect')

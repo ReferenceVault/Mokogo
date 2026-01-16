@@ -82,9 +82,13 @@ const GoogleCallback = () => {
         const redirectPath = urlParams.get('redirect') || parsedRedirect?.path || '/dashboard'
         const redirectView = urlParams.get('view') || parsedRedirect?.view || null
         const redirectTab = urlParams.get('tab') || parsedRedirect?.tab || null
+        const redirectListing = urlParams.get('listing') || parsedRedirect?.listingId || null
+        const redirectFocus = urlParams.get('focus') || parsedRedirect?.focus || null
         const params = new URLSearchParams()
         if (redirectView) params.set('view', redirectView)
         if (redirectTab) params.set('tab', redirectTab)
+        if (redirectListing) params.set('listing', redirectListing)
+        if (redirectFocus) params.set('focus', redirectFocus)
         const queryString = params.toString()
         const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
 

@@ -16,7 +16,7 @@ import { Quote, Star, ChevronLeft, ChevronRight, Home, Users, MapPin, Clock } fr
 
 const LandingPage = () => {
   const navigate = useNavigate()
-  const { allListings, setAllListings } = useStore()
+  const { allListings, setAllListings, user } = useStore()
   const [searchFilters, setSearchFilters] = useState({
     city: '',
     moveInDate: '',
@@ -104,7 +104,11 @@ const LandingPage = () => {
     if (searchFilters.genderPreference) params.set('genderPreference', searchFilters.genderPreference)
 
     setIsMikoOpen(false)
-    navigate(`/explore?${params.toString()}`)
+    if (user) {
+      navigate(`/dashboard?view=miko&${params.toString()}`)
+    } else {
+      navigate(`/miko-results?${params.toString()}`)
+    }
   }
 
 
@@ -446,18 +450,6 @@ const LandingPage = () => {
                     ) : (
                       <div className="w-full h-full bg-mokogo-gray" />
                     )}
-                    <button 
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        // Handle save/favorite
-                      }}
-                      className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
-                    >
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                    </button>
                     <span className="absolute top-3 left-3 px-3 py-1 bg-mokogo-primary text-white rounded-full text-xs font-medium shadow-md">
                       {listing.roomType === 'Private Room' ? 'Private' : listing.roomType === 'Master Room' ? 'Master' : 'Shared'}
                     </span>

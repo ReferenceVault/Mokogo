@@ -1,18 +1,171 @@
-import { Link } from 'react-router-dom'
-import { useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
 import { useStore } from '@/store/useStore'
 import { MapPin, TrendingUp, Users, Clock } from 'lucide-react'
+import { listingsApi, ListingResponse } from '@/services/api'
+import { Listing, VibeTagId } from '@/types'
+import { formatRent } from '@/utils/formatters'
+import { getListingMikoTags } from '@/utils/miko'
+import MikoTagPills from '@/components/MikoTagPills'
 
 const ExploreProperties = () => {
+  const location = useLocation()
   const { allListings } = useStore()
+  const [exploreListings, setExploreListings] = useState<Listing[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [])
+
+  useEffect(() => {
+    const fetchListings = async () => {
+      setIsLoading(true)
+      try {
+        const listings = await listingsApi.getAllPublic('live')
+        const mappedListings: Listing[] = listings.map((listing: ListingResponse) => ({
+          id: listing._id || listing.id,
+          title: listing.title,
+          city: listing.city || '',
+          locality: listing.locality || '',
+          societyName: listing.societyName,
+          bhkType: listing.bhkType || '',
+          roomType: listing.roomType || '',
+          rent: listing.rent || 0,
+          deposit: listing.deposit || 0,
+          moveInDate: listing.moveInDate || '',
+          furnishingLevel: listing.furnishingLevel || '',
+          bathroomType: listing.bathroomType,
+          flatAmenities: listing.flatAmenities || [],
+          societyAmenities: listing.societyAmenities || [],
+          preferredGender: listing.preferredGender || '',
+          description: listing.description,
+          photos: listing.photos || [],
+          status: listing.status,
+          createdAt: listing.createdAt,
+          updatedAt: listing.updatedAt,
+          mikoTags: listing.mikoTags,
+        }))
+        setExploreListings(mappedListings)
+      } catch (error) {
+        console.error('Error fetching public listings:', error)
+        setExploreListings([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchListings()
+  }, [])
+
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const isMikoMode = searchParams.get('miko') === '1'
+  const mikoTags = useMemo(() => {
+    const tags = searchParams.get('tags') || ''
+    return tags
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean) as VibeTagId[]
+  }, [searchParams])
+  const roomTypePreference = useMemo(() => {
+    const value = searchParams.get('roomType')
+    if (value === 'private' || value === 'shared' || value === 'either') {
+      return value
+    }
+    return null
+  }, [searchParams])
+  const filters = useMemo(() => ({
+    city: searchParams.get('city') || '',
+    area: searchParams.get('area') || '',
+    maxRent: searchParams.get('maxRent') || '',
+    moveInDate: searchParams.get('moveInDate') || '',
+    genderPreference: searchParams.get('genderPreference') || '',
+  }), [searchParams])
+
+  const filteredListings = useMemo(() => {
+    const liveListings = exploreListings.filter(listing => listing.status === 'live')
+    return liveListings.filter(listing => {
+      const hasMikoFilters =
+        Boolean(filters.city || filters.area || filters.maxRent || filters.moveInDate || filters.genderPreference) ||
+        Boolean(roomTypePreference) ||
+        mikoTags.length > 0
+
+      const cityMatch = filters.city ? listing.city === filters.city : false
+      const areaMatch = filters.area ? listing.locality === filters.area : false
+      const maxRentMatch = filters.maxRent
+        ? listing.rent <= parseInt(filters.maxRent)
+        : false
+      const moveInDateMatch = filters.moveInDate
+        ? (() => {
+            const filterDate = new Date(filters.moveInDate)
+            filterDate.setHours(0, 0, 0, 0)
+            const listingDate = new Date(listing.moveInDate)
+            listingDate.setHours(0, 0, 0, 0)
+            return listingDate >= filterDate
+          })()
+        : false
+      const genderMatch = filters.genderPreference
+        ? listing.preferredGender
+          ? listing.preferredGender === 'Any' || listing.preferredGender === filters.genderPreference
+          : false
+        : false
+
+      const roomTypeMatch = roomTypePreference
+        ? (() => {
+            const roomType = listing.roomType.toLowerCase()
+            if (roomTypePreference === 'private') {
+              return roomType.includes('private') || roomType.includes('master')
+            }
+            if (roomTypePreference === 'shared') {
+              return roomType.includes('shared')
+            }
+            return true
+          })()
+        : false
+
+      const mikoTagsMatch = mikoTags.length > 0
+        ? (() => {
+            const listingTags = getListingMikoTags(listing)
+            return listingTags.some(tag => mikoTags.includes(tag))
+          })()
+        : false
+
+      if (isMikoMode) {
+        if (filters.city && !cityMatch) return false
+
+        const hasOtherFilters =
+          Boolean(filters.area || filters.maxRent || filters.moveInDate || filters.genderPreference) ||
+          Boolean(roomTypePreference) ||
+          mikoTags.length > 0
+
+        if (!hasMikoFilters || !hasOtherFilters) {
+          return true
+        }
+
+        return (
+          areaMatch ||
+          maxRentMatch ||
+          moveInDateMatch ||
+          genderMatch ||
+          roomTypeMatch ||
+          mikoTagsMatch
+        )
+      }
+
+      if (filters.city && !cityMatch) return false
+      if (filters.area && !areaMatch) return false
+      if (filters.maxRent && !maxRentMatch) return false
+      if (filters.moveInDate && !moveInDateMatch) return false
+      if (filters.genderPreference && !genderMatch) return false
+      if (roomTypePreference && !roomTypeMatch) return false
+
+      return true
+    })
+  }, [exploreListings, filters, isMikoMode, mikoTags, roomTypePreference])
 
   // Calculate listings count per city from actual listings
   const getCityListingsCount = (cityName: string) => {
@@ -179,6 +332,85 @@ const ExploreProperties = () => {
                   </Link>
                 ))}
               </div>
+            </div>
+
+            {/* Listings Grid */}
+            <div className="mb-16">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+                  {isLoading ? 'Loading...' : `${filteredListings.length}+ Available Properties`}
+                </h2>
+              </div>
+
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                    <p className="mt-4 text-gray-600">Loading listings...</p>
+                  </div>
+                </div>
+              ) : filteredListings.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">No listings available at the moment. Check back soon!</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {filteredListings.map((listing) => {
+                    const listingTags = getListingMikoTags(listing)
+                    return (
+                      <Link
+                        key={listing.id}
+                        to={`/listings/${listing.id}`}
+                        className="bg-white/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all group border border-white/60 block"
+                      >
+                        {/* Image */}
+                        <div className="relative h-48 overflow-hidden">
+                          {listing.photos && listing.photos.length > 0 ? (
+                            <img
+                              src={listing.photos[0]}
+                              alt={listing.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-mokogo-gray" />
+                          )}
+                          <span className="absolute top-3 left-3 px-3 py-1 bg-mokogo-primary text-white rounded-full text-xs font-medium shadow-md">
+                            {listing.roomType === 'Private Room' ? 'Private' : listing.roomType === 'Master Room' ? 'Master' : 'Shared'}
+                          </span>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-4 space-y-3">
+                          <MikoTagPills tags={listingTags} className="mb-1" />
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
+                              {listing.title}
+                            </h3>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-gray-600 text-sm">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="line-clamp-1">{listing.locality}, {listing.city}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                            <div>
+                              <p className="text-xl font-bold text-gray-900">{formatRent(listing.rent)}</p>
+                              <p className="text-xs text-gray-600">per month</p>
+                            </div>
+                            <span className="btn-primary text-sm px-4 py-2 inline-block text-center">
+                              View Details
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Stats Section */}

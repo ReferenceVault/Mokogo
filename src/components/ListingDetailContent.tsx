@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import { MoveInDateField } from '@/components/MoveInDateField'
@@ -45,12 +45,14 @@ interface ListingDetailContentProps {
 
 const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailContentProps) => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { allListings, user, currentListing, setAllListings, toggleSavedListing, isListingSaved, savedListings, setSavedListings } = useStore()
   const [isSaved, setIsSaved] = useState(false)
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [moveInDate, setMoveInDate] = useState('')
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [requestMessage, setRequestMessage] = useState<string | null>(null)
   const [listing, setListing] = useState<Listing | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   // Request status state - fetched from API
@@ -61,6 +63,8 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
   const [loadingRequestStatus, setLoadingRequestStatus] = useState(true)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [listingOwner, setListingOwner] = useState<any>(null)
+  const contactCardRef = useRef<HTMLDivElement | null>(null)
+  const contactButtonRef = useRef<HTMLButtonElement | null>(null)
   
   // Check if current user is the owner of this listing
   // If listing is in allListings, it means it's the user's own listing
@@ -170,6 +174,55 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
           return
         }
 
+        try {
+          const publicListings = await listingsApi.getAllPublic('live')
+          const found = publicListings.find(l => (l._id || l.id) === listingId)
+          if (found) {
+            const mappedListing: Listing = {
+              id: found._id || found.id,
+              title: found.title,
+              city: found.city || '',
+              locality: found.locality || '',
+              societyName: found.societyName,
+              bhkType: found.bhkType || '',
+              roomType: found.roomType || '',
+              rent: found.rent || 0,
+              deposit: found.deposit || 0,
+              moveInDate: found.moveInDate || '',
+              furnishingLevel: found.furnishingLevel || '',
+              bathroomType: found.bathroomType,
+              flatAmenities: found.flatAmenities || [],
+              societyAmenities: found.societyAmenities || [],
+              preferredGender: found.preferredGender || '',
+              description: found.description,
+              photos: found.photos || [],
+              status: found.status,
+              createdAt: found.createdAt,
+              updatedAt: found.updatedAt,
+              mikoTags: found.mikoTags,
+            }
+            setListing(mappedListing)
+
+            const ownerId = (found as any).ownerId
+            if (ownerId && (!user || ownerId !== user.id)) {
+              try {
+                const ownerProfile = await usersApi.getUserById(ownerId)
+                setListingOwner(ownerProfile)
+              } catch (error) {
+                console.error('Error fetching listing owner profile:', error)
+                setListingOwner(null)
+              }
+            } else if (ownerId && user && ownerId === user.id) {
+              setListingOwner(user as any)
+            }
+
+            setIsLoading(false)
+            return
+          }
+        } catch (fallbackError) {
+          console.error('Error fetching listing from public listings:', fallbackError)
+        }
+
         // If we get here, listing was not found
         console.warn('Listing not found:', listingId)
         setListing(null)
@@ -189,6 +242,16 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
       setIsSaved(isListingSaved(listingId))
     }
   }, [listingId, savedListings, isListingSaved])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('focus') === 'contact') {
+      setTimeout(() => {
+        contactCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        contactButtonRef.current?.focus()
+      }, 100)
+    }
+  }, [location.search, listing?.id])
 
   // Check if conversation exists for this listing (only if request is approved)
   // Use a ref to prevent duplicate calls and cache results
@@ -386,6 +449,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
     if (!user || !listing) return
     
     setIsSubmitting(true)
+    setRequestMessage(null)
     try {
       const newRequest = await requestsApi.create({
         listingId: listing.id,
@@ -399,8 +463,8 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
         requestId: newRequest._id || newRequest.id
       })
       
-      // Show success message
-      alert('Request sent successfully! The host will review your request.')
+      // Show success message inline
+      setRequestMessage('Request sent successfully! The host will review your request.')
       
       // Clear form
       setMessage('')
@@ -413,7 +477,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
   } catch (error: any) {
     console.error('Error sending request:', error)
     const errorMessage = error.response?.data?.message || 'Failed to send request. Please try again.'
-    alert(errorMessage)
+    setRequestMessage(errorMessage)
     
     // If error is about existing request, refresh status
     if (errorMessage.includes('already') || errorMessage.includes('pending') || errorMessage.includes('approved')) {
@@ -752,7 +816,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
               <div className="sticky top-24 space-y-4">
                 
                 {/* Contact Card */}
-                <div className="bg-white/70 backdrop-blur-md rounded-xl shadow-lg border border-white/35 p-4">
+                <div ref={contactCardRef} className="bg-white/70 backdrop-blur-md rounded-xl shadow-lg border border-white/35 p-4">
                   {listing.status === 'fulfilled' ? (
                     <div className="text-center py-6">
                       <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
@@ -828,6 +892,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
                       ) : (
                         <>
                           <button 
+                            ref={contactButtonRef}
                             onClick={handleContactHost}
                             disabled={isSubmitting || listing.status === ('fulfilled' as Listing['status'])}
                             className="w-full bg-orange-400 text-white font-semibold py-2.5 rounded-lg hover:bg-orange-500 hover:shadow-lg transition-all transform hover:scale-105 mb-3 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
@@ -845,6 +910,18 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
                             )}
                           </button>
                           
+                          {requestMessage && (
+                            <div
+                              className={`mb-3 rounded-lg px-3 py-2 text-xs font-medium ${
+                                requestMessage.toLowerCase().includes('failed')
+                                  ? 'bg-red-50 text-red-700 border border-red-200'
+                                  : 'bg-green-50 text-green-700 border border-green-200'
+                              }`}
+                            >
+                              {requestMessage}
+                            </div>
+                          )}
+
                           <div className="text-center text-xs text-gray-600 mb-3">
                             You won't be charged yet
                           </div>

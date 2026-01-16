@@ -3,6 +3,7 @@ export interface User {
   phone: string
   email: string
   name?: string
+  roles?: string[]
   profileImageUrl?: string
   phoneNumber?: string
   dateOfBirth?: string

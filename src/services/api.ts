@@ -10,6 +10,26 @@ const api = axios.create({
   },
 })
 
+const retryOnThrottle = async <T>(fn: () => Promise<T>, retries = 2, delayMs = 800): Promise<T> => {
+  try {
+    return await fn()
+  } catch (error: any) {
+    if (error?.response?.status === 429 && retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+      return retryOnThrottle(fn, retries - 1, delayMs * 2)
+    }
+    throw error
+  }
+}
+
+let profileCache: UserProfile | null = null
+let profileCacheAt = 0
+let profileInFlight: Promise<UserProfile> | null = null
+const PROFILE_CACHE_TTL = 30000
+const REQUESTS_CACHE_TTL = 5000
+const requestsCache = new Map<string, { data: any; at: number }>()
+const requestsInFlight = new Map<string, Promise<any>>()
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('mokogo-access-token')
@@ -30,7 +50,19 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const requestUrl = (error.config?.url as string) || ''
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/signup') ||
+      requestUrl.includes('/auth/forgot-password') ||
+      requestUrl.includes('/auth/reset-password') ||
+      requestUrl.includes('/auth/google') ||
+      requestUrl.includes('/auth/refresh')
+
     if (error.response?.status === 401) {
+      if (isAuthEndpoint) {
+        return Promise.reject(error)
+      }
       const refreshToken = localStorage.getItem('mokogo-refresh-token')
       if (refreshToken) {
         try {
@@ -162,17 +194,47 @@ export const usersApi = {
     return response.data || []
   },
   getMyProfile: async (): Promise<UserProfile> => {
-    const response = await api.get<UserProfile>('/users/profile/me')
-    return response.data
+    const now = Date.now()
+    if (profileCache && now - profileCacheAt < PROFILE_CACHE_TTL) {
+      return profileCache
+    }
+    if (profileInFlight) {
+      return profileInFlight
+    }
+
+    profileInFlight = retryOnThrottle(async () => {
+      const response = await api.get<UserProfile>('/users/profile/me')
+      return response.data
+    })
+
+    try {
+      const data = await profileInFlight
+      profileCache = data
+      profileCacheAt = Date.now()
+      return data
+    } finally {
+      profileInFlight = null
+    }
   },
   updateMyProfile: async (data: UpdateProfileRequest): Promise<UserProfile> => {
-    const response = await api.patch<UserProfile>('/users/profile/me', data)
+    const response = await retryOnThrottle(async () => {
+      const res = await api.patch<UserProfile>('/users/profile/me', data)
+      return res
+    })
+    profileCache = response.data
+    profileCacheAt = Date.now()
     return response.data
   },
 
   getUserById: async (userId: string): Promise<UserProfile> => {
     const response = await api.get<UserProfile>(`/users/${userId}`)
     return response.data
+  },
+  createUser: async (data: CreateUserRequest): Promise<UserProfile> => {
+    return retryOnThrottle(async () => {
+      const response = await api.post<UserProfile>('/users', data)
+      return response.data
+    })
   },
 }
 
@@ -227,9 +289,24 @@ export interface ListingResponse {
 }
 
 export const listingsApi = {
+  // Retry helper for 429 throttling
+  retryOnThrottle: async <T>(fn: () => Promise<T>, retries = 2, delayMs = 800): Promise<T> => {
+    try {
+      return await fn()
+    } catch (error: any) {
+      if (error?.response?.status === 429 && retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        return listingsApi.retryOnThrottle(fn, retries - 1, delayMs * 2)
+      }
+      throw error
+    }
+  },
+
   create: async (data: CreateListingRequest): Promise<ListingResponse> => {
-    const response = await api.post<ListingResponse>('/listings', data)
-    return response.data
+    return listingsApi.retryOnThrottle(async () => {
+      const response = await api.post<ListingResponse>('/listings', data)
+      return response.data
+    })
   },
 
   getAll: async (status?: string): Promise<ListingResponse[]> => {
@@ -259,6 +336,7 @@ export const listingsApi = {
       // Use axios directly for public endpoint (no auth token needed)
       const response = await axios.get<ListingResponse[]>(`${API_BASE_URL}/listings/public`, { 
         params,
+        timeout: 10000,
       })
       return response.data || []
     } catch (error: any) {
@@ -280,8 +358,10 @@ export const listingsApi = {
   },
 
   update: async (id: string, data: UpdateListingRequest): Promise<ListingResponse> => {
-    const response = await api.patch<ListingResponse>(`/listings/${id}`, data)
-    return response.data
+    return listingsApi.retryOnThrottle(async () => {
+      const response = await api.patch<ListingResponse>(`/listings/${id}`, data)
+      return response.data
+    })
   },
 
   delete: async (id: string): Promise<void> => {
@@ -351,6 +431,13 @@ export interface UpdateProfileRequest {
   foodPreference?: string
 }
 
+export interface CreateUserRequest {
+  name: string
+  email: string
+  phoneNumber: string
+  password: string
+}
+
 // Request API interfaces
 export interface CreateRequestRequest {
   listingId: string
@@ -383,14 +470,52 @@ export const requestsApi = {
 
   getAllForOwner: async (status?: string): Promise<RequestResponse[]> => {
     const params = status ? { status } : {}
-    const response = await api.get<RequestResponse[]>('/requests/owner', { params })
-    return response.data || []
+    const cacheKey = `owner:${status || 'all'}`
+    const now = Date.now()
+    const cached = requestsCache.get(cacheKey)
+    if (cached && now - cached.at < REQUESTS_CACHE_TTL) {
+      return cached.data
+    }
+    if (requestsInFlight.has(cacheKey)) {
+      return requestsInFlight.get(cacheKey)!
+    }
+    const requestPromise = retryOnThrottle(async () => {
+      const response = await api.get<RequestResponse[]>('/requests/owner', { params })
+      return response.data || []
+    })
+    requestsInFlight.set(cacheKey, requestPromise)
+    try {
+      const data = await requestPromise
+      requestsCache.set(cacheKey, { data, at: Date.now() })
+      return data
+    } finally {
+      requestsInFlight.delete(cacheKey)
+    }
   },
 
   getAllForRequester: async (status?: string): Promise<RequestResponse[]> => {
     const params = status ? { status } : {}
-    const response = await api.get<RequestResponse[]>('/requests/requester', { params })
-    return response.data || []
+    const cacheKey = `requester:${status || 'all'}`
+    const now = Date.now()
+    const cached = requestsCache.get(cacheKey)
+    if (cached && now - cached.at < REQUESTS_CACHE_TTL) {
+      return cached.data
+    }
+    if (requestsInFlight.has(cacheKey)) {
+      return requestsInFlight.get(cacheKey)!
+    }
+    const requestPromise = retryOnThrottle(async () => {
+      const response = await api.get<RequestResponse[]>('/requests/requester', { params })
+      return response.data || []
+    })
+    requestsInFlight.set(cacheKey, requestPromise)
+    try {
+      const data = await requestPromise
+      requestsCache.set(cacheKey, { data, at: Date.now() })
+      return data
+    } finally {
+      requestsInFlight.delete(cacheKey)
+    }
   },
 
   getById: async (id: string): Promise<RequestResponse> => {

@@ -26,6 +26,8 @@ const Auth = () => {
   const redirectPath = searchParams.get('redirect') || parsedRedirect?.path || '/dashboard'
   const redirectView = searchParams.get('view') || parsedRedirect?.view || null
   const redirectTab = searchParams.get('tab') || parsedRedirect?.tab || null
+  const redirectListing = searchParams.get('listing') || parsedRedirect?.listingId || null
+  const redirectFocus = searchParams.get('focus') || parsedRedirect?.focus || null
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -55,6 +57,8 @@ const Auth = () => {
         const params = new URLSearchParams()
         if (redirectView) params.set('view', redirectView)
         if (redirectTab) params.set('tab', redirectTab)
+        if (redirectListing) params.set('listing', redirectListing)
+        if (redirectFocus) params.set('focus', redirectFocus)
         const queryString = params.toString()
         const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
         navigate(redirectUrl, { replace: true })
@@ -62,7 +66,7 @@ const Auth = () => {
     }
     
     checkAuth()
-  }, [user, navigate, redirectPath, redirectView, redirectTab])
+  }, [user, navigate, redirectPath, redirectView, redirectTab, redirectListing, redirectFocus])
 
   const syncSavedListings = async (serverIds?: string[]) => {
     const localRaw = localStorage.getItem('mokogo-saved-listings')
@@ -187,6 +191,8 @@ const Auth = () => {
       const params = new URLSearchParams()
       if (redirectView) params.set('view', redirectView)
       if (redirectTab) params.set('tab', redirectTab)
+      if (redirectListing) params.set('listing', redirectListing)
+      if (redirectFocus) params.set('focus', redirectFocus)
       const queryString = params.toString()
       const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
       sessionStorage.removeItem('mokogo-auth-redirect')
@@ -285,6 +291,8 @@ const Auth = () => {
       const params = new URLSearchParams()
       if (redirectView) params.set('view', redirectView)
       if (redirectTab) params.set('tab', redirectTab)
+      if (redirectListing) params.set('listing', redirectListing)
+      if (redirectFocus) params.set('focus', redirectFocus)
       const queryString = params.toString()
       const redirectUrl = queryString ? `${redirectPath}?${queryString}` : redirectPath
       sessionStorage.removeItem('mokogo-auth-redirect')

@@ -70,12 +70,14 @@ const ListingDetail = () => {
         
         // Try to get ownerId from API for ownership check and fetch owner profile
         try {
-          const listingDetail = await listingsApi.getById(listingId).catch(() => null)
+          const listingDetail = user
+            ? await listingsApi.getById(listingId).catch(() => null)
+            : await listingsApi.getByIdPublic(listingId).catch(() => null)
           if (listingDetail) {
             const ownerId = listingDetail.ownerId
             setListingOwnerId(ownerId)
             // Fetch owner profile
-            if (ownerId && (!user || ownerId !== user.id)) {
+            if (ownerId && user && ownerId !== user.id) {
               try {
                 const ownerProfile = await usersApi.getUserById(ownerId)
                 setListingOwner(ownerProfile)
@@ -94,7 +96,7 @@ const ListingDetail = () => {
                 const ownerId = (found as any).ownerId || null
                 setListingOwnerId(ownerId)
                 // Fetch owner profile if we have ownerId
-                if (ownerId && (!user || ownerId !== user.id)) {
+                if (ownerId && user && ownerId !== user.id) {
                   try {
                     const ownerProfile = await usersApi.getUserById(ownerId)
                     setListingOwner(ownerProfile)
@@ -118,7 +120,7 @@ const ListingDetail = () => {
               const ownerId = (found as any).ownerId || null
               setListingOwnerId(ownerId)
               // Fetch owner profile if we have ownerId
-              if (ownerId && (!user || ownerId !== user.id)) {
+              if (ownerId && user && ownerId !== user.id) {
                 try {
                   const ownerProfile = await usersApi.getUserById(ownerId)
                   setListingOwner(ownerProfile)
@@ -190,7 +192,7 @@ const ListingDetail = () => {
           setListingOwnerId(ownerId)
           
           // Fetch owner profile if we have ownerId and it's not the current user
-          if (ownerId && (!user || ownerId !== user.id)) {
+          if (ownerId && user && ownerId !== user.id) {
             try {
               const ownerProfile = await usersApi.getUserById(ownerId)
               setListingOwner(ownerProfile)
@@ -574,8 +576,13 @@ const ListingDetail = () => {
   const handleContactHost = async () => {
   // Check if user is logged in
   if (!user) {
-    // Redirect to login with redirect params to come back to this listing
-    navigate(`/auth?redirect=/listings/${listingId}`)
+    if (listingId) {
+      sessionStorage.setItem(
+        'mokogo-auth-redirect',
+        JSON.stringify({ path: '/dashboard', listingId, focus: 'contact' })
+      )
+    }
+    navigate(`/auth?redirect=/dashboard&listing=${listingId}&focus=contact`)
     return
   }
 

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '@/components/Logo'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { authApi } from '@/services/api'
+import { useStore } from '@/store/useStore'
 
 const AdminLogin = () => {
   const navigate = useNavigate()
@@ -9,6 +11,7 @@ const AdminLogin = () => {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const setUser = useStore((state) => state.setUser)
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -35,12 +38,31 @@ const AdminLogin = () => {
 
     setIsLoading(true)
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500))
+    try {
+      const response = await authApi.login({ email: email.trim(), password })
+      if (!response.user.roles?.includes('admin')) {
+        setError('You do not have admin access.')
+        return
+      }
 
-    // TODO: Implement actual admin authentication logic
-    // For now, navigate to admin dashboard
-    navigate('/admin/dashboard')
+      localStorage.setItem('mokogo-access-token', response.accessToken)
+      if (response.refreshToken) {
+        localStorage.setItem('mokogo-refresh-token', response.refreshToken)
+      }
+
+      setUser({
+        id: response.user.id,
+        email: response.user.email,
+        name: response.user.name || response.user.email.split('@')[0],
+        phone: '',
+        roles: response.user.roles
+      } as any)
+
+      navigate('/admin/dashboard')
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Login failed. Please try again.'
+      setError(message)
+    }
   }
 
   return (

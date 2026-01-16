@@ -10,9 +10,21 @@ import { listingsApi, ListingResponse } from '@/services/api'
 
 interface ExploreContentProps {
   onListingClick: (listingId: string) => void
+  hideFilters?: boolean
+  headerTitle?: string
+  headerSubtitle?: string
+  showMikoTags?: boolean
+  showClearMiko?: boolean
 }
 
-const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
+const ExploreContent = ({
+  onListingClick,
+  hideFilters = false,
+  headerTitle,
+  headerSubtitle,
+  showMikoTags = true,
+  showClearMiko = true
+}: ExploreContentProps) => {
   const location = useLocation()
   const [exploreListings, setExploreListings] = useState<Listing[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -135,61 +147,84 @@ const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
   // Apply filters to listings
   const filteredListings = useMemo(() => {
     return allLiveListings.filter(listing => {
-      // City filter
-      if (filters.city && listing.city !== filters.city) {
-        return false
-      }
-      
-      // Area filter
-      if (filters.area && listing.locality !== filters.area) {
-        return false
-      }
-      
-      // Max Rent filter
-      if (filters.maxRent) {
-        const maxRent = parseInt(filters.maxRent)
-        if (listing.rent > maxRent) {
-          return false
+      const hasMikoFilters =
+        Boolean(filters.city || filters.area || filters.maxRent || filters.moveInDate || filters.genderPreference) ||
+        Boolean(roomTypePreference) ||
+        mikoTags.length > 0
+
+      const cityMatch = filters.city ? listing.city === filters.city : false
+      const areaMatch = filters.area ? listing.locality === filters.area : false
+      const maxRentMatch = filters.maxRent
+        ? listing.rent <= parseInt(filters.maxRent)
+        : false
+      const moveInDateMatch = filters.moveInDate
+        ? (() => {
+            const filterDate = new Date(filters.moveInDate)
+            filterDate.setHours(0, 0, 0, 0)
+            const listingDate = new Date(listing.moveInDate)
+            listingDate.setHours(0, 0, 0, 0)
+            return listingDate >= filterDate
+          })()
+        : false
+      const genderMatch = filters.genderPreference
+        ? listing.preferredGender
+          ? listing.preferredGender === 'Any' || listing.preferredGender === filters.genderPreference
+          : false
+        : false
+
+      const roomTypeMatch = roomTypePreference
+        ? (() => {
+            const roomType = listing.roomType.toLowerCase()
+            if (roomTypePreference === 'private') {
+              return roomType.includes('private') || roomType.includes('master')
+            }
+            if (roomTypePreference === 'shared') {
+              return roomType.includes('shared')
+            }
+            return true
+          })()
+        : false
+
+      const mikoTagsMatch = mikoTags.length > 0
+        ? (() => {
+            const listingTags = getListingMikoTags(listing)
+            return listingTags.some(tag => mikoTags.includes(tag))
+          })()
+        : false
+
+      if (isMikoMode) {
+        if (filters.city && !cityMatch) return false
+
+        const hasOtherFilters =
+          Boolean(filters.area || filters.maxRent || filters.moveInDate || filters.genderPreference) ||
+          Boolean(roomTypePreference) ||
+          mikoTags.length > 0
+
+        if (!hasMikoFilters || !hasOtherFilters) {
+          return true
         }
-      }
-      
-      // Move-in Date filter
-      if (filters.moveInDate) {
-        const filterDate = new Date(filters.moveInDate)
-        filterDate.setHours(0, 0, 0, 0)
-        const listingDate = new Date(listing.moveInDate)
-        listingDate.setHours(0, 0, 0, 0)
-        if (listingDate < filterDate) {
-          return false
-        }
-      }
-      
-      // Gender Preference filter
-      if (filters.genderPreference) {
-        if (listing.preferredGender && listing.preferredGender !== 'Any') {
-          if (listing.preferredGender !== filters.genderPreference) {
-            return false
-          }
-        }
+
+        return (
+          areaMatch ||
+          maxRentMatch ||
+          moveInDateMatch ||
+          genderMatch ||
+          roomTypeMatch ||
+          mikoTagsMatch
+        )
       }
 
-      if (isMikoMode && roomTypePreference) {
-        const roomType = listing.roomType.toLowerCase()
-        if (roomTypePreference === 'private') {
-          if (!roomType.includes('private') && !roomType.includes('master')) {
-            return false
-          }
-        }
-        if (roomTypePreference === 'shared') {
-          if (!roomType.includes('shared')) {
-            return false
-          }
-        }
-      }
-      
+      // Standard search: all selected filters must match
+      if (filters.city && !cityMatch) return false
+      if (filters.area && !areaMatch) return false
+      if (filters.maxRent && !maxRentMatch) return false
+      if (filters.moveInDate && !moveInDateMatch) return false
+      if (filters.genderPreference && !genderMatch) return false
+      if (roomTypePreference && !roomTypeMatch) return false
+
       return true
     })
-  }, [allLiveListings, filters, isMikoMode, roomTypePreference])
+  }, [allLiveListings, filters, isMikoMode, roomTypePreference, mikoTags])
 
   const rankedListings = useMemo(() => {
     if (!isMikoMode || mikoTags.length === 0) {
@@ -239,12 +274,36 @@ const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
     }).format(amount)
   }
 
+  const renderMikoTags = () => {
+    if (!showMikoTags || !isMikoMode || mikoTags.length === 0) return null
+    return (
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+        <span className="px-2 py-1 rounded-full bg-orange-50 text-orange-600 font-semibold border border-orange-200">
+          Miko Vibe Active
+        </span>
+        <MikoTagPills tags={mikoTags} max={4} />
+        {showClearMiko && (
+          <button
+            onClick={() => {
+              setIsMikoMode(false)
+              setMikoTags([])
+              setRoomTypePreference(null)
+            }}
+            className="text-orange-600 font-semibold hover:text-orange-700"
+          >
+            Clear Miko
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-orange-50/20">
-      {/* Filters Section */}
-      <section className="relative z-10 w-full bg-white/50 backdrop-blur-sm border-b border-gray-200 py-6">
-        <div className="max-w-7xl mx-auto px-6 md:px-12">
-          <div className="flex flex-col md:flex-row md:items-end gap-4">
+      {!hideFilters ? (
+        <section className="relative z-10 w-full bg-white/50 backdrop-blur-sm border-b border-gray-200 py-6">
+          <div className="max-w-7xl mx-auto px-6 md:px-12">
+            <div className="flex flex-col md:flex-row md:items-end gap-4">
             <div className="flex-1 relative z-20">
               <CustomSelect
                 label="City"
@@ -321,27 +380,24 @@ const ExploreContent = ({ onListingClick }: ExploreContentProps) => {
               </div>
             )}
           </div>
-
-          {isMikoMode && mikoTags.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-600">
-              <span className="px-2 py-1 rounded-full bg-orange-50 text-orange-600 font-semibold border border-orange-200">
-                Miko Vibe Active
-              </span>
-              <MikoTagPills tags={mikoTags} max={4} />
-              <button
-                onClick={() => {
-                  setIsMikoMode(false)
-                  setMikoTags([])
-                  setRoomTypePreference(null)
-                }}
-                className="text-orange-600 font-semibold hover:text-orange-700"
-              >
-                Clear Miko
-              </button>
+            {renderMikoTags()}
+          </div>
+        </section>
+      ) : (
+        <section className="relative z-10 w-full bg-white/50 backdrop-blur-sm border-b border-gray-200 py-6">
+          <div className="max-w-7xl mx-auto px-6 md:px-12">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {headerTitle || 'MIKO Vibe Search Results'}
+              </h2>
+              {headerSubtitle && (
+                <p className="text-sm text-gray-600">{headerSubtitle}</p>
+              )}
             </div>
-          )}
-        </div>
-      </section>
+            {renderMikoTags()}
+          </div>
+        </section>
+      )}
 
       {/* Listings Grid */}
       <section className="py-8 px-6 md:px-12">

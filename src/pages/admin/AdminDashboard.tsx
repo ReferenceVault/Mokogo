@@ -4,6 +4,7 @@ import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
 import DashboardHeader from '@/components/DashboardHeader'
 import DashboardSidebar from '@/components/DashboardSidebar'
+import { usersApi } from '@/services/api'
 import { 
   LayoutGrid, 
   Home, 
@@ -37,6 +38,16 @@ const AdminDashboard = () => {
   const [timePeriod, setTimePeriod] = useState<string>('Last 7 Days')
   const [showTimePeriodDropdown, setShowTimePeriodDropdown] = useState(false)
   const timePeriodDropdownRef = useRef<HTMLDivElement>(null)
+  const [showAddUserModal, setShowAddUserModal] = useState(false)
+  const [addUserLoading, setAddUserLoading] = useState(false)
+  const [addUserError, setAddUserError] = useState('')
+  const [addUserSuccess, setAddUserSuccess] = useState('')
+  const [addUserForm, setAddUserForm] = useState({
+    name: '',
+    email: '',
+    phoneNumber: '',
+    password: '',
+  })
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -68,6 +79,41 @@ const AdminDashboard = () => {
   const handleLogout = () => {
     // TODO: Implement logout logic
     navigate('/admin/login')
+  }
+
+  const handleAddUserChange = (field: keyof typeof addUserForm, value: string) => {
+    setAddUserForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleAddUserSubmit = async () => {
+    setAddUserError('')
+    setAddUserSuccess('')
+
+    if (!addUserForm.name.trim() || !addUserForm.email.trim() || !addUserForm.phoneNumber.trim() || !addUserForm.password.trim()) {
+      setAddUserError('All fields are required.')
+      return
+    }
+
+    setAddUserLoading(true)
+    try {
+      await usersApi.createUser({
+        name: addUserForm.name.trim(),
+        email: addUserForm.email.trim(),
+        phoneNumber: addUserForm.phoneNumber.trim(),
+        password: addUserForm.password,
+      })
+      setAddUserSuccess('User created successfully.')
+      setAddUserForm({ name: '', email: '', phoneNumber: '', password: '' })
+      setTimeout(() => {
+        setShowAddUserModal(false)
+        setAddUserSuccess('')
+      }, 1200)
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message || 'Failed to create user.'
+      setAddUserError(message)
+    } finally {
+      setAddUserLoading(false)
+    }
   }
 
   const userName = 'Admin'
@@ -649,7 +695,10 @@ const AdminDashboard = () => {
                         className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent w-64"
                       />
                     </div>
-                    <button className="flex items-center gap-2 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-md shadow-orange-500/30">
+                    <button
+                      onClick={() => setShowAddUserModal(true)}
+                      className="flex items-center gap-2 bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-md shadow-orange-500/30"
+                    >
                       <User className="w-4 h-4" />
                       Add User
                     </button>
@@ -1565,6 +1614,89 @@ const AdminDashboard = () => {
           </div>
         </main>
       </div>
+
+      {showAddUserModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 relative">
+            <button
+              onClick={() => setShowAddUserModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Add User</h2>
+            <p className="text-sm text-gray-600 mb-4">Create a new user account.</p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input
+                  value={addUserForm.name}
+                  onChange={(e) => handleAddUserChange('name', e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  placeholder="Full name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={addUserForm.email}
+                  onChange={(e) => handleAddUserChange('email', e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  placeholder="user@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  value={addUserForm.phoneNumber}
+                  onChange={(e) => handleAddUserChange('phoneNumber', e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  placeholder="+91XXXXXXXXXX"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={addUserForm.password}
+                  onChange={(e) => handleAddUserChange('password', e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  placeholder="Minimum 8 characters"
+                />
+              </div>
+
+              {addUserError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {addUserError}
+                </div>
+              )}
+              {addUserSuccess && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                  {addUserSuccess}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAddUserModal(false)}
+                className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddUserSubmit}
+                disabled={addUserLoading}
+                className="px-4 py-2 text-sm rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 disabled:opacity-50"
+              >
+                {addUserLoading ? 'Creating...' : 'Create User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <Footer />

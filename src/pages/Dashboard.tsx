@@ -34,7 +34,7 @@ import {
   Sparkles
 } from 'lucide-react'
 
-type ViewType = 'overview' | 'listings' | 'requests' | 'listing-detail' | 'messages' | 'profile' | 'explore' | 'saved'
+type ViewType = 'overview' | 'listings' | 'requests' | 'listing-detail' | 'messages' | 'profile' | 'explore' | 'saved' | 'miko'
 
 const Dashboard = () => {
   const navigate = useNavigate()
@@ -218,27 +218,22 @@ const Dashboard = () => {
       // Scroll to top when viewing a listing
       window.scrollTo({ top: 0, behavior: 'smooth' })
       // Don't clean up listing param - keep it in URL while viewing
-    } else if (viewParam && ['overview', 'listings', 'requests', 'messages', 'profile', 'explore', 'saved'].includes(viewParam)) {
-      // Redirect to overview if user tries to access requests without listings or sent requests
-      if (viewParam === 'requests' && !(allListings.length > 0 || requests.filter(r => r.seekerId === user?.id).length > 0)) {
-        setActiveView('overview')
-      } else {
-        // Set active view from URL param
-        setActiveView(viewParam as ViewType)
-        
-        // Handle requests tab param
-        if (viewParam === 'requests' && tabParam === 'sent') {
-          setRequestsInitialTab('sent')
-        } else if (viewParam === 'requests' && tabParam === 'received') {
-          setRequestsInitialTab('received')
-        }
-        
-        // Handle conversation param for messages view
-        if (viewParam === 'messages') {
-          const conversationParam = urlParams.get('conversation')
-          if (conversationParam) {
-            setSelectedConversationId(conversationParam)
-          }
+    } else if (viewParam && ['overview', 'listings', 'requests', 'messages', 'profile', 'explore', 'saved', 'miko'].includes(viewParam)) {
+      // Set active view from URL param
+      setActiveView(viewParam as ViewType)
+      
+      // Handle requests tab param
+      if (viewParam === 'requests' && tabParam === 'sent') {
+        setRequestsInitialTab('sent')
+      } else if (viewParam === 'requests' && tabParam === 'received') {
+        setRequestsInitialTab('received')
+      }
+      
+      // Handle conversation param for messages view
+      if (viewParam === 'messages') {
+        const conversationParam = urlParams.get('conversation')
+        if (conversationParam) {
+          setSelectedConversationId(conversationParam)
         }
       }
       
@@ -288,8 +283,8 @@ const Dashboard = () => {
     }
 
     setIsMikoOpen(false)
-    setActiveView('explore')
-    navigate(`/explore?${params.toString()}`)
+    setActiveView('miko')
+    navigate(`/dashboard?view=miko&${params.toString()}`)
   }
 
   const handleContinueDraft = () => {
@@ -355,9 +350,6 @@ const Dashboard = () => {
   const activeListings = allListings.filter(l => l.status === 'live')
   const savedListingItems = savedPublicListings.filter(l => savedListings.includes(l.id))
   const hasListings = allListings.length > 0 // Check if user has any listings
-  const sentRequests = requests.filter(r => r.seekerId === user?.id)
-  const hasSentRequests = sentRequests.length > 0 // Check if user has sent any requests
-  const showRequestsTab = hasListings || hasSentRequests // Show Requests tab if user has listings OR sent requests
 
   // Fetch pending received requests count
   useEffect(() => {
@@ -386,11 +378,7 @@ const Dashboard = () => {
   const userImageUrl = (user as any)?.profileImageUrl
 
   // Redirect to overview if user tries to access requests without listings or sent requests
-  useEffect(() => {
-    if (activeView === 'requests' && !showRequestsTab) {
-      setActiveView('overview')
-    }
-  }, [activeView, showRequestsTab])
+
 
   useEffect(() => {
     const fetchSavedListings = async () => {
@@ -509,14 +497,13 @@ const Dashboard = () => {
               badge: savedListings.length > 0 ? savedListings.length : undefined,
               onClick: () => setActiveView('saved')
             },
-            // Only show Requests tab if user has listings OR sent requests
-            ...(showRequestsTab ? [{
+            {
               id: 'requests',
               label: 'Requests',
               icon: Calendar,
               badge: pendingRequestsCount > 0 ? pendingRequestsCount : undefined,
               onClick: () => setActiveView('requests')
-            }] : [])
+            }
           ]}
           quickFilters={[]}
           ctaSection={
@@ -563,6 +550,16 @@ const Dashboard = () => {
                 setViewingListingId(null)
                 navigate('/dashboard?view=explore')
               }}
+            />
+          ) : activeView === 'miko' ? (
+            <ExploreContent 
+              onListingClick={(listingId) => {
+                openListingDetail(listingId, 'miko')
+              }}
+              hideFilters
+              headerTitle="MIKO Vibe Search"
+              headerSubtitle="Matched properties based on your answers"
+              showClearMiko={false}
             />
           ) : activeView === 'explore' ? (
             <ExploreContent 

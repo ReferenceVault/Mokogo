@@ -12,6 +12,7 @@ import RequestsList from './pages/requests/RequestsList'
 import RequestDetail from './pages/requests/RequestDetail'
 import ListingDetail from './pages/ListingDetail'
 import ExploreProperties from './pages/ExploreProperties'
+import MikoResults from './pages/MikoResults'
 import CityListings from './pages/CityListings'
 import SafetyTips from './pages/SafetyTips'
 import HowItWorks from './pages/HowItWorks'
@@ -57,6 +58,7 @@ function App() {
         <Route path="/auth/reset-password" element={<ResetPassword />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
         <Route path="/explore" element={<ExploreProperties />} />
+        <Route path="/miko-results" element={<MikoResults />} />
         <Route path="/city/:cityName" element={<CityListings />} />
         <Route path="/safety-tips" element={<SafetyTips />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
