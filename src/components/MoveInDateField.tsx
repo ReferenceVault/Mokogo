@@ -14,8 +14,30 @@ interface MoveInDateFieldProps {
 
 export function MoveInDateField({ value, onChange, min, hideLabel = false, className = "", numberOfMonths = 2 }: MoveInDateFieldProps) {
   const [open, setOpen] = useState(false);
+  const [positionReady, setPositionReady] = useState(false);
+  
+  // Helper to parse date string as local date (not UTC)
+  const parseLocalDate = (dateString: string): Date => {
+    const parts = dateString.split("-");
+    if (parts.length === 3) {
+      const [year, month, day] = parts.map(Number);
+      if (!Number.isNaN(year) && !Number.isNaN(month) && !Number.isNaN(day)) {
+        return new Date(year, month - 1, day);
+      }
+    }
+    return new Date(dateString);
+  };
+
+  // Helper to format date as local YYYY-MM-DD (not UTC)
+  const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [date, setDate] = useState<Date | undefined>(
-    value ? new Date(value) : undefined
+    value ? parseLocalDate(value) : undefined
   );
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
@@ -23,24 +45,43 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const calendarRef = useRef<HTMLDivElement | null>(null);
 
+  // Calculate position before opening
+  const calculatePosition = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      return {
+        top: rect.bottom + 8,
+        left: rect.left
+      };
+    }
+    return { top: 0, left: 0 };
+  };
+
   // sync with controlled value
   useEffect(() => {
-    if (value) setDate(new Date(value));
+    if (value) setDate(parseLocalDate(value));
     else setDate(undefined);
   }, [value]);
 
-  // position calendar below the button
+  // Update position on scroll/resize to keep it aligned
   useEffect(() => {
-    if (open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + 8, // 8px gap
-        left: rect.left // Align with button's left edge
-      });
+    if (open && positionReady) {
+      const updatePosition = () => {
+        const newPosition = calculatePosition();
+        setPosition(newPosition);
+      };
+      
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
     }
-  }, [open]);
+  }, [open, positionReady]);
 
-  // Close on click outside
+  // Close on click outside (but allow scrolling)
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
@@ -53,32 +94,26 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
       setOpen(false);
     }
 
-    function handleScroll() {
-      setOpen(false);
-    }
-
-    function handleResize() {
-      setOpen(false);
-    }
-
     if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      window.addEventListener("scroll", handleScroll, true);
-      window.addEventListener("resize", handleResize);
+      // Use a small delay to prevent immediate close on open
+      const timeoutId = setTimeout(() => {
+        document.addEventListener("mousedown", handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
     }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("resize", handleResize);
-    };
   }, [open]);
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     if (!selectedDate) return;
     setDate(selectedDate);
-    const dateString = selectedDate.toISOString().split("T")[0];
+    const dateString = formatLocalDate(selectedDate);
     onChange?.(dateString);
     setOpen(false);
+    setPositionReady(false);
   };
 
   const label = date
@@ -92,18 +127,7 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
   // minimum date: today by default (parse min as local date)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const parseLocalDate = (value: string) => {
-    const parts = value.split("-");
-    if (parts.length === 3) {
-      const [year, month, day] = parts.map(Number);
-      if (!Number.isNaN(year) && !Number.isNaN(month) && !Number.isNaN(day)) {
-        return new Date(year, month - 1, day);
-      }
-    }
-    return new Date(value);
-  };
   const minDate = min ? parseLocalDate(min) : today;
-
   return (
     <>
       <div ref={wrapperRef} className="relative">
@@ -111,7 +135,25 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
         <button
           ref={buttonRef}
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (!open) {
+              // Calculate position BEFORE opening to prevent flicker
+              const newPosition = calculatePosition();
+              setPosition(newPosition);
+              setPositionReady(false);
+              setOpen(true);
+              // Use requestAnimationFrame to ensure position is set before showing
+              requestAnimationFrame(() => {
+                setPositionReady(true);
+              });
+            } else {
+              setOpen(false);
+              setPositionReady(false);
+            }
+          }}
           className={`flex ${hideLabel ? 'items-center px-3.5' : 'flex-col justify-center px-4'} py-2 
                      ${hideLabel 
                        ? 'bg-white w-full border border-mokogo-gray hover:border-mokogo-primary focus:outline-none focus:ring-2 focus:ring-mokogo-primary' 
@@ -142,10 +184,12 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
         createPortal(
           <div
             ref={calendarRef}
-            className="fixed z-[9999]"
+            className="fixed z-[9999] transition-opacity duration-200"
             style={{ 
               top: `${position.top}px`,
-              left: `${position.left}px`
+              left: `${position.left}px`,
+              opacity: positionReady ? 1 : 0,
+              pointerEvents: positionReady ? 'auto' : 'none'
             }}
           >
             <div
