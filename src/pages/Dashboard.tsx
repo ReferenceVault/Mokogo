@@ -70,6 +70,24 @@ const Dashboard = () => {
   const [conversationsCount, setConversationsCount] = useState<number>(0)
   const [pendingRequestsCount, setPendingRequestsCount] = useState<number>(0)
 
+  const userData = user as any
+  const isProfileComplete = Boolean(
+    user?.name &&
+    user?.email &&
+    userData?.phoneNumber &&
+    userData?.dateOfBirth &&
+    userData?.gender &&
+    userData?.occupation &&
+    userData?.companyName &&
+    userData?.currentCity &&
+    userData?.area &&
+    userData?.about &&
+    userData?.smoking &&
+    userData?.drinking &&
+    userData?.foodPreference &&
+    userData?.profileImageUrl
+  )
+
   // Track if fetch is in progress to prevent duplicate calls
   const fetchInProgressRef = useRef(false)
 
@@ -683,6 +701,37 @@ const Dashboard = () => {
                     </h1>
                     <p className="text-gray-600">Here's what's happening with your listings today</p>
                   </div>
+
+                  {!isProfileComplete && (
+                    <div className="mb-8 rounded-2xl border border-orange-200/60 bg-orange-50/60 p-5 shadow-sm">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                          <h3 className="text-base font-semibold text-gray-900">
+                            Finish your profile to build trust with owners and flatmates.
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            You can continue exploring now and complete it anytime.
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setActiveView('profile')}
+                            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-orange-500 text-white text-sm font-semibold hover:shadow-lg hover:shadow-orange-500/30 transition-all"
+                          >
+                            Complete profile
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveView('explore')}
+                            className="px-5 py-2.5 rounded-xl border border-orange-200 text-orange-600 text-sm font-semibold hover:bg-orange-50 transition-all"
+                          >
+                            Continue exploring
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     {[

@@ -41,6 +41,7 @@ const ProfileContent = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -99,6 +100,12 @@ const ProfileContent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
+  useEffect(() => {
+    if (!notice) return
+    const timer = window.setTimeout(() => setNotice(null), 3500)
+    return () => window.clearTimeout(timer)
+  }, [notice])
+
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
@@ -113,14 +120,14 @@ const ProfileContent = () => {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
+      setNotice({ type: 'error', message: 'Please select an image file.' })
       return
     }
 
     // Validate file size (2MB max)
     const maxSize = 2 * 1024 * 1024 // 2MB
     if (file.size > maxSize) {
-      alert('Image size must be less than 2MB')
+      setNotice({ type: 'error', message: 'Image size must be less than 2MB.' })
       return
     }
 
@@ -136,7 +143,7 @@ const ProfileContent = () => {
       setUser({ ...user, profileImageUrl: url } as any)
     } catch (error: any) {
       console.error('Error uploading image:', error)
-      alert(error.response?.data?.message || 'Failed to upload image. Please try again.')
+      setNotice({ type: 'error', message: error.response?.data?.message || 'Failed to upload image. Please try again.' })
     } finally {
       setUploadingImage(false)
       if (fileInputRef.current) {
@@ -193,10 +200,10 @@ const ProfileContent = () => {
       // Update user in store
       setUser({ ...user, ...updatedProfile } as any)
       
-      alert('Profile saved successfully!')
+      setNotice({ type: 'success', message: 'Profile saved successfully!' })
     } catch (error: any) {
       console.error('Error saving profile:', error)
-      alert(error.response?.data?.message || 'Failed to save profile. Please try again.')
+      setNotice({ type: 'error', message: error.response?.data?.message || 'Failed to save profile. Please try again.' })
     } finally {
       setSaving(false)
     }
@@ -320,7 +327,6 @@ const ProfileContent = () => {
   return (
     <div className="max-w-3xl mx-auto px-6 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Profile</h1>
-
       {/* Profile Photo */}
       <div className="mb-8">
         <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
@@ -700,6 +706,20 @@ const ProfileContent = () => {
           </div>
         </div>
       </section>
+
+      {notice && (
+        <div
+          className={`mt-6 rounded-xl border px-4 py-3 text-sm ${
+            notice.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : notice.type === 'error'
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : 'border-orange-200 bg-orange-50 text-orange-700'
+          }`}
+        >
+          {notice.message}
+        </div>
+      )}
 
       {/* Template Modal */}
       {showTemplateModal && (

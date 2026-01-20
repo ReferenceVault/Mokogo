@@ -349,7 +349,7 @@ const ExploreContent = ({
               <MoveInDateField
                 value={filters.moveInDate}
                 onChange={(date) => handleFilterChange('moveInDate', date)}
-                min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                min={new Date().toISOString().split('T')[0]}
                 hideLabel={true}
                 numberOfMonths={2}
                 className="!h-[52px] !rounded-xl !border !border-mokogo-gray"
@@ -460,7 +460,6 @@ const ExploreContent = ({
 
                   {/* Content */}
                   <div className="p-4 space-y-3 flex-1 flex flex-col">
-                    <MikoTagPills tags={listingTags} className="mb-1" />
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
                         {listing.title}

@@ -9,7 +9,6 @@ import { listingsApi, ListingResponse } from '@/services/api'
 import { Listing, VibeTagId } from '@/types'
 import { formatRent } from '@/utils/formatters'
 import { getListingMikoTags } from '@/utils/miko'
-import MikoTagPills from '@/components/MikoTagPills'
 
 const ExploreProperties = () => {
   const location = useLocation()
@@ -178,25 +177,25 @@ const ExploreProperties = () => {
       name: 'Pune', 
       image: '/pune-city.png', 
       listings: getCityListingsCount('Pune') || 156,
-      description: 'Calm cultural & IT hub surrounded by hills'
+      active: true
     },
     { 
       name: 'Mumbai', 
       image: '/mumbai-city.png', 
       listings: getCityListingsCount('Mumbai') || 245,
-      description: 'Financial capital of India'
+      active: false
     },
     { 
       name: 'Hyderabad', 
       image: '/hyderabad-city.png', 
       listings: getCityListingsCount('Hyderabad') || 98,
-      description: 'City of Pearls'
+      active: false
     },
     { 
       name: 'Bangalore', 
       image: '/bangalore-city.png', 
       listings: getCityListingsCount('Bangalore') || 189,
-      description: 'Silicon Valley of India'
+      active: false
     }
   ]
 
@@ -238,10 +237,10 @@ const ExploreProperties = () => {
               Discover • Top Cities
             </span>
             <h1 className="mt-6 text-3xl sm:text-4xl lg:text-[2.9rem] font-bold leading-tight text-gray-900">
-              Explore Properties Across{' '}
+              Find rooms, without{' '}
               <span className="relative inline-block">
                 <span className="relative z-10 bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
-                  India
+                  brokers
                 </span>
                 <span className="absolute bottom-2 left-0 right-0 h-3 bg-orange-200/40 -z-0 transform -skew-x-12" />
               </span>
@@ -253,7 +252,7 @@ const ExploreProperties = () => {
         </section>
 
         {/* Main Content */}
-        <section className="relative px-6 md:px-[10%] py-16 sm:py-20">
+        <section className="relative px-6 md:px-[10%] pt-10 pb-16 sm:pt-12 sm:pb-20">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#fef4f1] via-transparent to-transparent" />
           
           <div className="relative mx-auto max-w-7xl">
@@ -264,73 +263,107 @@ const ExploreProperties = () => {
                   Browse by City
                 </span>
                 <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  Explore Properties by{' '}
-                  <span className="relative inline-block">
-                    <span className="relative z-10 bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
-                      City
-                    </span>
-                    <span className="absolute bottom-1.5 left-0 right-0 h-2.5 bg-orange-200/40 -z-0 transform -skew-x-12" />
-                  </span>
+                  Browse properties in active cities
                 </h2>
                 <p className="text-gray-700 text-base max-w-2xl mx-auto">
-                  Browse through thousands of verified listings across India's most popular cities
+                  Starting with Pune. More cities coming soon.
                 </p>
               </div>
 
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
-                {cities.map((city, index) => (
-                  <Link
-                    key={city.name}
-                    to={`/city/${encodeURIComponent(city.name)}`}
-                    className="group relative h-52 md:h-56 rounded-xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 border border-orange-200/30 hover:border-orange-400 block transform hover:scale-105"
-                    style={{
-                      animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
-                    }}
-                  >
-                    {/* Image */}
-                    <img
-                      src={city.image}
-                      alt={city.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:from-black/90 group-hover:via-black/40 transition-all duration-300" />
-                    
-                    {/* Content */}
-                    <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xl md:text-2xl font-bold group-hover:text-orange-300 transition-colors duration-300">
-                          {city.name}
-                        </h3>
-                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                          <div className="bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg">
-                            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                            </svg>
+                {cities.map((city, index) => {
+                  const wrapperClasses = [
+                    'group relative h-52 md:h-56 rounded-xl overflow-hidden shadow-lg border border-orange-200/30 block transform transition-all duration-300',
+                    city.active
+                      ? 'cursor-pointer hover:shadow-2xl hover:shadow-orange-500/20 hover:border-orange-400 hover:scale-105'
+                      : 'cursor-not-allowed opacity-70 grayscale'
+                  ].join(' ')
+
+                  const cardContent = (
+                    <>
+                      {/* Image */}
+                      <img
+                        src={city.image}
+                        alt={city.name}
+                        className={`w-full h-full object-cover ${city.active ? 'group-hover:scale-110 transition-transform duration-700' : ''}`}
+                      />
+                      
+                      {/* Gradient Overlay */}
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent ${
+                          city.active ? 'group-hover:from-black/90 group-hover:via-black/40 transition-all duration-300' : ''
+                        }`}
+                      />
+                      
+                      {/* Content */}
+                      <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className={`text-xl md:text-2xl font-bold ${city.active ? 'group-hover:text-orange-300 transition-colors duration-300' : ''}`}>
+                            {city.name}
+                          </h3>
+                          {city.active && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
+                              <div className="bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg">
+                                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {city.active ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-orange-400 group-hover:bg-orange-300 transition-colors duration-300" />
+                            <p className="text-sm text-white/90 font-medium">
+                              {city.listings}+ Properties
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-white/90 font-medium">Coming soon</p>
+                        )}
+                      </div>
+
+                      {/* Top Badge */}
+                      {city.active ? (
+                        <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform -translate-y-2 group-hover:translate-y-0">
+                          <div className="bg-orange-500/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
+                            Explore
                           </div>
                         </div>
-                      </div>
-                      <p className="text-xs text-white/80 mb-2">{city.description}</p>
-                      <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-orange-400 group-hover:bg-orange-300 transition-colors duration-300" />
-                        <p className="text-sm text-white/90 font-medium">
-                          {city.listings}+ Properties
-                        </p>
-                      </div>
-                    </div>
+                      ) : (
+                        <div className="absolute top-4 left-4">
+                          <div className="bg-gray-800/80 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
+                            Coming soon
+                          </div>
+                        </div>
+                      )}
 
-                    {/* Top Badge */}
-                    <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform -translate-y-2 group-hover:translate-y-0">
-                      <div className="bg-orange-500/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
-                        Explore
-                      </div>
-                    </div>
+                      {/* Shine Effect */}
+                      {city.active && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                      )}
+                    </>
+                  )
 
-                    {/* Shine Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                  </Link>
-                ))}
+                  return city.active ? (
+                    <Link
+                      key={city.name}
+                      to={`/city/${encodeURIComponent(city.name)}`}
+                      className={wrapperClasses}
+                      style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
+                    >
+                      {cardContent}
+                    </Link>
+                  ) : (
+                    <div
+                      key={city.name}
+                      className={wrapperClasses}
+                      style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
+                    >
+                      {cardContent}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
@@ -355,9 +388,7 @@ const ExploreProperties = () => {
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {filteredListings.map((listing) => {
-                    const listingTags = getListingMikoTags(listing)
-                    return (
+                  {filteredListings.map((listing) => (
                       <Link
                         key={listing.id}
                         to={`/listings/${listing.id}`}
@@ -381,7 +412,6 @@ const ExploreProperties = () => {
 
                         {/* Content */}
                         <div className="p-4 space-y-3">
-                          <MikoTagPills tags={listingTags} className="mb-1" />
                           <div className="flex items-start justify-between gap-2">
                             <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
                               {listing.title}
@@ -407,8 +437,7 @@ const ExploreProperties = () => {
                           </div>
                         </div>
                       </Link>
-                    )
-                  })}
+                    ))}
                 </div>
               )}
             </div>

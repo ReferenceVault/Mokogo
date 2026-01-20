@@ -89,8 +89,20 @@ export function MoveInDateField({ value, onChange, min, hideLabel = false, class
       })
     : "Add date";
 
-  // minimum date: tomorrow by default
-  const minDate = min ? new Date(min) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+  // minimum date: today by default (parse min as local date)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const parseLocalDate = (value: string) => {
+    const parts = value.split("-");
+    if (parts.length === 3) {
+      const [year, month, day] = parts.map(Number);
+      if (!Number.isNaN(year) && !Number.isNaN(month) && !Number.isNaN(day)) {
+        return new Date(year, month - 1, day);
+      }
+    }
+    return new Date(value);
+  };
+  const minDate = min ? parseLocalDate(min) : today;
 
   return (
     <>

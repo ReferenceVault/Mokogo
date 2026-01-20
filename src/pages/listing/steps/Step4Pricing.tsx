@@ -12,7 +12,7 @@ const Step4Pricing = ({ data, onChange, error }: Step4PricingProps) => {
     onChange({ [field]: value })
   }
 
-  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const today = new Date().toISOString().split('T')[0]
 
   return (
     <div>
@@ -75,7 +75,7 @@ const Step4Pricing = ({ data, onChange, error }: Step4PricingProps) => {
             <MoveInDateField
               value={data.moveInDate || ''}
               onChange={(date) => handleChange('moveInDate', date)}
-              min={tomorrow}
+              min={today}
               hideLabel={true}
               numberOfMonths={1}
             />

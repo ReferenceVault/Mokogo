@@ -1074,7 +1074,7 @@ const ListingDetail = () => {
                           type="date" 
                           value={moveInDate}
                           onChange={(e) => setMoveInDate(e.target.value)}
-                          min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                          min={new Date().toISOString().split('T')[0]}
                           className="w-full border-0 p-0 text-sm focus:ring-0 bg-transparent" 
                         />
                       </div>

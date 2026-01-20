@@ -26,7 +26,7 @@ const Footer = () => {
               <Logo />
             </div>
             <p className="text-sm text-gray-700 mt-4 leading-relaxed max-w-sm">
-              India's safest flatmate platform. Find your perfect match without brokers.
+              A better way to find your place. Trusted listings. Real people. No middlemen.
             </p>
             
             {/* Social Media Icons */}

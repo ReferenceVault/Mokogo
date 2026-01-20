@@ -8,7 +8,6 @@ import SocialSidebar from '@/components/SocialSidebar'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
-import { parseListingFromText, ListingParseResult } from '@/utils/listingParser'
 
 import { listingsApi, CreateListingRequest } from '@/services/api'
 import { Search, LayoutGrid, Home, MessageSquare, Bookmark, Calendar, Plus, Sparkles } from 'lucide-react'
@@ -91,9 +90,6 @@ const ListingWizard = () => {
   const [isCreating, setIsCreating] = useState(false)
   const [validatedSteps, setValidatedSteps] = useState<Set<number>>(new Set())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [pasteText, setPasteText] = useState('')
-  const [parseResult, setParseResult] = useState<ListingParseResult | null>(null)
-  const [parseError, setParseError] = useState('')
   
   // Get cached counts from store
   const { 
@@ -1029,44 +1025,6 @@ const ListingWizard = () => {
     return `Saved at ${lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
   }
 
-  const getStartStepFromData = (data: Partial<Listing>) => {
-    let step = 0
-    if (data.photos && data.photos.length >= 3) step = 1
-    if (data.city && data.locality) step = 2
-    if (data.bhkType && data.roomType && data.furnishingLevel) step = 3
-    if (data.rent && data.deposit && data.moveInDate) step = 4
-    if (data.preferredGender) step = 5
-    if (data.mikoTags && data.mikoTags.length > 0) step = 6
-    return step
-  }
-
-  const handleParseListingText = () => {
-    if (!pasteText.trim()) {
-      setParseError('Paste listing text to extract details.')
-      return
-    }
-    const result = parseListingFromText(pasteText)
-    setParseResult(result)
-    setParseError('')
-  }
-
-  const handleApplyParsed = () => {
-    if (!parseResult) return
-    const updated = {
-      ...listingDataRef.current,
-      ...parseResult.data,
-      rent: parseResult.data.rent || listingDataRef.current.rent || 0,
-      deposit: parseResult.data.deposit || listingDataRef.current.deposit || 0,
-      moveInDate: parseResult.data.moveInDate || listingDataRef.current.moveInDate || '',
-      mikoTags: listingDataRef.current.mikoTags || []
-    }
-    listingDataRef.current = updated
-    setListingData(updated)
-    setErrors({})
-    const step = getStartStepFromData(updated)
-    setCurrentStep(step)
-    setExpandedSections(new Set([step]))
-  }
 
   const renderStepContent = (stepIndex: number) => {
     const stepError = errors[STEPS[stepIndex].id]
@@ -1240,72 +1198,6 @@ const ListingWizard = () => {
             </div>
           )}
 
-          {!isEditing && (
-            <div className="bg-white/80 backdrop-blur-md rounded-lg border border-orange-200/60 shadow-sm p-4 mb-3">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900">Paste listing text (optional)</h2>
-                  <p className="text-xs text-gray-600">We’ll extract details and prefill the form.</p>
-                </div>
-              </div>
-              <textarea
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                placeholder="Paste your listing content here..."
-                rows={4}
-                className="w-full rounded-lg border border-gray-200 bg-white/90 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
-              {parseError && (
-                <p className="text-xs text-red-600 mt-2">{parseError}</p>
-              )}
-              <div className="flex flex-wrap gap-2 mt-3">
-                <button
-                  onClick={handleParseListingText}
-                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-orange-400 text-white hover:bg-orange-500 transition-colors"
-                >
-                  Extract Details
-                </button>
-                {parseResult && (
-                  <button
-                    onClick={handleApplyParsed}
-                    className="px-4 py-2 text-xs font-semibold rounded-lg border border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors"
-                  >
-                    Apply to Listing
-                  </button>
-                )}
-              </div>
-              {parseResult && (
-                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50/60 p-3">
-                  <div className="text-xs font-semibold text-gray-700 mb-2">Detected fields</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    {[
-                      { label: 'Title', key: 'title', value: parseResult.data.title },
-                      { label: 'City', key: 'city', value: parseResult.data.city },
-                      { label: 'Locality', key: 'locality', value: parseResult.data.locality },
-                      { label: 'Society', key: 'societyName', value: parseResult.data.societyName },
-                      { label: 'BHK', key: 'bhkType', value: parseResult.data.bhkType },
-                      { label: 'Room Type', key: 'roomType', value: parseResult.data.roomType },
-                      { label: 'Rent', key: 'rent', value: parseResult.data.rent ? `₹${parseResult.data.rent}` : '' },
-                      { label: 'Furnishing', key: 'furnishingLevel', value: parseResult.data.furnishingLevel },
-                      { label: 'Move-in', key: 'moveInDate', value: parseResult.data.moveInDate },
-                    ].map(field => (
-                      <div key={field.key} className="flex items-center justify-between rounded border border-gray-200 bg-white px-2 py-1">
-                        <span className="text-gray-600">{field.label}</span>
-                        <span className="font-medium text-gray-900">
-                          {field.value || '—'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {parseResult.missing.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-600">
-                      Missing: {parseResult.missing.join(', ')}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Accordion Sections */}
           <div className="space-y-2">
