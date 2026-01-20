@@ -3,8 +3,6 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { useStore } from '@/store/useStore'
-import MikoTagPills from '@/components/MikoTagPills'
-import { getListingMikoTags } from '@/utils/miko'
 import CustomSelect from '@/components/CustomSelect'
 import { MoveInDateField } from '@/components/MoveInDateField'
 import { formatRent } from '@/utils/formatters'
@@ -171,7 +169,7 @@ const CityListings = () => {
                 <MoveInDateField
                   value={filters.moveInDate}
                   onChange={(date) => handleFilterChange('moveInDate', date)}
-                  min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  min={new Date().toISOString().split('T')[0]}
                   hideLabel={true}
                   className="!h-[52px] !rounded-xl !border !border-mokogo-gray"
                 />
@@ -212,9 +210,7 @@ const CityListings = () => {
               <>
                 {/* Listings Grid */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {cityListings.map((listing) => {
-                    const listingTags = getListingMikoTags(listing)
-                    return (
+                  {cityListings.map((listing) => (
                     <Link
                       key={listing.id}
                       to={`/listings/${listing.id}`}
@@ -250,7 +246,6 @@ const CityListings = () => {
 
                       {/* Content */}
                       <div className="p-4 space-y-3">
-                        <MikoTagPills tags={listingTags} className="mb-1" />
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
                             {listing.title}
@@ -282,7 +277,7 @@ const CityListings = () => {
                         </div>
                       </div>
                     </Link>
-                  )})}
+                  ))}
                 </div>
               </>
             ) : (

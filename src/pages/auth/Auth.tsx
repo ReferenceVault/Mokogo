@@ -7,7 +7,7 @@ import TermsModal from '@/components/TermsModal'
 import { authApi, usersApi } from '@/services/api'
 import { useStore } from '@/store/useStore'
 import SocialSidebar from '@/components/SocialSidebar'
-import { Shield, Zap, Users, CheckCircle, Lock, Eye, EyeOff, ChevronDown } from 'lucide-react'
+import { Shield, Zap, Users, Lock, Eye, EyeOff } from 'lucide-react'
 
 const Auth = () => {
   const navigate = useNavigate()
@@ -42,7 +42,6 @@ const Auth = () => {
   const [modalType, setModalType] = useState<'terms' | 'privacy'>('terms')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
   const user = useStore((state) => state.user)
 
   // Redirect if user is already logged in
@@ -339,7 +338,7 @@ const Auth = () => {
                 </div>
 
                 {/* Main Heading */}
-                <div>
+                <div className="text-center">
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 leading-tight">
                     Welcome to{' '}
                     <span className="bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
@@ -347,7 +346,11 @@ const Auth = () => {
                     </span>
                   </h1>
                   <p className="text-base md:text-lg text-gray-700 leading-relaxed">
-                    Create your account in seconds and start listing your property to thousands of verified flatmate seekers.
+                    Real rooms. Real flatmates. No brokers.
+                  </p>
+                  <p className="text-sm md:text-base">
+                    <span className="text-orange-600">Currently live in Pune.</span>{' '}
+                    <span className="text-gray-600">Expanding soon.</span>
                   </p>
                 </div>
 
@@ -358,8 +361,8 @@ const Auth = () => {
                       <Zap className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-1 text-base">Quick Setup</h3>
-                      <p className="text-gray-600 text-sm">Get verified in under 2 minutes with phone OTP authentication</p>
+                      <h3 className="font-semibold text-gray-900 mb-1 text-base">Your privacy comes first</h3>
+                      <p className="text-gray-600 text-sm">Your contact details are not shown publicly. You decide when to share.</p>
                     </div>
                   </div>
 
@@ -368,8 +371,8 @@ const Auth = () => {
                       <Lock className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-1 text-base">Bank-Level Security</h3>
-                      <p className="text-gray-600 text-sm">Your phone number is encrypted and never shared publicly</p>
+                      <h3 className="font-semibold text-gray-900 mb-1 text-base">No brokers. No spam. No pressure</h3>
+                      <p className="text-gray-600 text-sm">Connect directly with owners and flatmates. We actively remove fake and outdated listings.</p>
                     </div>
                   </div>
 
@@ -378,36 +381,12 @@ const Auth = () => {
                       <Users className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-1 text-base">Trusted Community</h3>
-                      <p className="text-gray-600 text-sm">Join 50,000+ verified users on India's safest flatmate platform</p>
+                      <h3 className="font-semibold text-gray-900 mb-1 text-base">Early-access community 💛</h3>
+                      <p className="text-gray-600 text-sm">You're joining Mokogo at an early stage as we build it city by city. We'd love your feedback.</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Testimonial Card */}
-                <div className="relative overflow-hidden rounded-xl border border-orange-200 bg-gradient-to-br from-white to-orange-50/50 p-5 shadow-xl shadow-orange-100/40">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.08),transparent_55%)]" />
-                  <div className="relative flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <span className="text-white font-bold text-base">PS</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <h4 className="font-semibold text-gray-900 text-sm">Priya Sharma</h4>
-                        <div className="flex gap-0.5">
-                          {[...Array(5)].map((_, i) => (
-                            <svg key={i} className="w-3.5 h-3.5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                              <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                            </svg>
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-700 italic leading-relaxed">
-                        "Found my perfect flatmate in 5 days! The verification process made me feel completely safe."
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Right Section - Auth Form */}
@@ -604,7 +583,7 @@ const Auth = () => {
                       <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
-                      <span className="text-xs text-gray-600">Your information is protected with 256-bit SSL encryption</span>
+                      <span className="text-xs text-gray-600">Your contact details are never shared without your permission</span>
                     </div>
 
                   </>
@@ -866,17 +845,29 @@ const Auth = () => {
                     {/* Security Badges */}
                     <div className="mt-6 pt-6 border-t border-orange-200 flex justify-center gap-6">
                       <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-orange-500" />
+                        <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
                         <span className="text-xs text-gray-600 font-medium">Secure</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-orange-500" />
+                        <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
                         <span className="text-xs text-gray-600 font-medium">Encrypted</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-orange-500" />
-                        <span className="text-xs text-gray-600 font-medium">256-bit SSL</span>
+                        <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span className="text-xs text-gray-600 font-medium">Private</span>
                       </div>
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-mokogo-gray flex items-center justify-center gap-2">
+                      <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                      <span className="text-xs text-gray-600">Your contact details are never shared without your permission</span>
                     </div>
                   </>
                 )}
@@ -885,248 +876,6 @@ const Auth = () => {
           </div>
         </section>
 
-        {/* Statistics Section */}
-        <section className="relative bg-gradient-to-br from-orange-50/50 to-white py-12 px-6 md:px-[10%]">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white via-transparent to-transparent" />
-          <div className="relative max-w-7xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              {[
-                { value: '50K+', label: 'Verified Users', icon: Users },
-                { value: '15K+', label: 'Active Listings', icon: CheckCircle },
-                { value: '4.8', label: 'User Rating', icon: Shield, isRating: true },
-                { value: '₹2Cr+', label: 'Brokerage Saved', icon: Zap }
-              ].map((stat, index) => (
-                <div 
-                  key={index}
-                  className="relative bg-white/80 backdrop-blur-sm rounded-xl border border-orange-200/50 p-5 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 text-center group"
-                  style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-transparent to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="relative">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center mx-auto mb-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      {stat.isRating ? (
-                        <svg className="w-5 h-5 text-yellow-300 fill-current" viewBox="0 0 20 20">
-                          <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                        </svg>
-                      ) : (
-                        <stat.icon className="w-5 h-5 text-white" />
-                      )}
-                    </div>
-                    <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent mb-1.5">
-                      {stat.isRating ? (
-                        <span className="flex items-center justify-center gap-1">
-                          <span>{stat.value}</span>
-                          <svg className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                            <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                          </svg>
-                        </span>
-                      ) : (
-                        stat.value
-                      )}
-                    </div>
-                    <div className="text-xs md:text-sm text-gray-600 font-medium">{stat.label}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Why Verify Section */}
-        <section className="relative bg-white py-16 px-6 md:px-[10%]">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-orange-50/50 via-transparent to-transparent" />
-          <div className="relative max-w-7xl mx-auto">
-            {/* Heading */}
-            <div className="text-center mb-12">
-              <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-100/50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-orange-700 mb-4">
-                Why Verify?
-              </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                Your safety and privacy come first
-              </h2>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                We've built multiple layers of security to keep you and your information safe
-              </p>
-            </div>
-
-            {/* Feature Cards */}
-            <div className="grid md:grid-cols-3 gap-6">
-              {[
-                {
-                  icon: CheckCircle,
-                  title: 'Verified Community',
-                  description: 'All users are verified with phone OTP and government ID for maximum safety',
-                  color: 'from-green-400 to-green-500'
-                },
-                {
-                  icon: Lock,
-                  title: 'Number Privacy',
-                  description: 'Your phone number stays private and is never shared with other users',
-                  color: 'from-orange-400 to-orange-500'
-                },
-                {
-                  icon: Shield,
-                  title: 'Data Protection',
-                  description: 'Bank-level encryption ensures your personal information stays secure',
-                  color: 'from-purple-400 to-purple-500'
-                }
-              ].map((feature, index) => (
-                <div
-                  key={index}
-                  className="relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-white to-orange-50/30 p-8 shadow-xl shadow-orange-100/40 hover:shadow-2xl hover:scale-105 transition-all duration-300 group"
-                  style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
-                >
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.08),transparent_55%)]" />
-                  <div className="relative">
-                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                      <feature.icon className="w-7 h-7 text-white" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials Section */}
-        <section className="relative bg-gradient-to-br from-orange-50/50 to-white py-16 px-6 md:px-[10%]">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white via-transparent to-transparent" />
-          <div className="relative max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="text-center mb-12">
-              <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-100/50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-orange-700 mb-4">
-                Testimonials
-              </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                What our users say
-              </h2>
-              <p className="text-lg text-gray-600">
-                Trusted by thousands of property owners
-              </p>
-            </div>
-
-            {/* Testimonial Cards */}
-            <div className="grid md:grid-cols-2 gap-6">
-              {[
-                {
-                  name: 'Rahul Verma',
-                  location: 'Bangalore',
-                  quote: '"The verification process was so quick and easy! I felt safe knowing everyone on the platform is verified. Found my flatmate in just 3 days."',
-                  initials: 'RV',
-                  gradient: 'from-blue-400 to-blue-600'
-                },
-                {
-                  name: 'Anjali Desai',
-                  location: 'Pune',
-                  quote: '"Love that my phone number stays private! The OTP verification gave me confidence that I\'m dealing with real, verified people."',
-                  initials: 'AD',
-                  gradient: 'from-purple-400 to-purple-600'
-                }
-              ].map((testimonial, index) => (
-                <div
-                  key={index}
-                  className="relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-white to-orange-50/30 p-8 shadow-xl shadow-orange-100/40 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group"
-                  style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
-                >
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.08),transparent_55%)]" />
-                  <div className="relative">
-                    <div className="flex gap-1 mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                          <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                        </svg>
-                      ))}
-                    </div>
-                    <p className="text-gray-700 mb-6 italic leading-relaxed">
-                      {testimonial.quote}
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${testimonial.gradient} flex items-center justify-center flex-shrink-0 shadow-lg`}>
-                        <span className="text-white font-semibold text-lg">{testimonial.initials}</span>
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900">{testimonial.name}</div>
-                        <div className="text-sm text-gray-600">{testimonial.location}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* FAQ Section */}
-        <section className="relative bg-white py-16 px-6 md:px-[10%]">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-orange-50/50 via-transparent to-transparent" />
-          <div className="relative max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="text-center mb-12">
-              <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-100/50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-orange-700 mb-4">
-                FAQ
-              </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-                Common questions
-              </h2>
-              <p className="text-lg text-gray-600">
-                Everything about phone verification
-              </p>
-            </div>
-
-            {/* FAQ Items */}
-            <div className="space-y-4">
-              {[
-                {
-                  question: 'Why do I need to verify my phone number?',
-                  answer: 'Phone verification ensures all users are real people, creating a safe and trusted community. It also helps us prevent spam and protect your account.'
-                },
-                {
-                  question: 'Will my phone number be shared publicly?',
-                  answer: 'Never! Your phone number is kept completely private and encrypted. Other users cannot see it. All communication happens through secure in-app messaging.'
-                },
-                {
-                  question: 'What if I don\'t receive the OTP?',
-                  answer: 'You can request a new OTP after 90 seconds. If you still don\'t receive it, check your phone\'s SMS settings or try again after a few minutes. Contact support if the issue persists.'
-                },
-                {
-                  question: 'Is my data secure?',
-                  answer: 'Yes! We use bank-level 256-bit SSL encryption to protect your information. Your data is stored on secure servers and never shared with third parties.'
-                }
-              ].map((faq, index) => {
-                const isExpanded = expandedFaq === index
-                return (
-                  <div
-                    key={index}
-                    className="relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50/50 to-white shadow-lg hover:shadow-xl transition-all duration-300 group cursor-pointer"
-                    style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
-                    onClick={() => setExpandedFaq(isExpanded ? null : index)}
-                  >
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.05),transparent_55%)]" />
-                    <div className="relative p-6">
-                      <div className="flex items-center justify-between gap-4">
-                        <h3 className={`font-semibold text-gray-900 text-lg group-hover:text-orange-600 transition-colors flex-1 ${isExpanded ? 'text-orange-600' : ''}`}>
-                          {faq.question}
-                        </h3>
-                        <ChevronDown 
-                          className={`w-5 h-5 text-orange-500 flex-shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
-                        />
-                      </div>
-                      <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96 mt-4' : 'max-h-0 mt-0'}`}>
-                        <p className="text-gray-600 leading-relaxed">
-                          {faq.answer}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </section>
       </main>
 
       <Footer />

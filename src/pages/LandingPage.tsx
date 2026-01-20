@@ -10,9 +10,7 @@ import CustomSelect from '@/components/CustomSelect'
 import { formatRent } from '@/utils/formatters'
 import { MoveInDateField } from '@/components/MoveInDateField'
 import MikoVibeQuiz from '@/components/MikoVibeQuiz'
-import MikoTagPills from '@/components/MikoTagPills'
-import { getListingMikoTags } from '@/utils/miko'
-import { Quote, Star, ChevronLeft, ChevronRight, Home, Users, MapPin, Clock } from 'lucide-react'
+import { Quote, Star, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const LandingPage = () => {
   const navigate = useNavigate()
@@ -28,7 +26,7 @@ const LandingPage = () => {
   const [isLoadingListings, setIsLoadingListings] = useState(true)
 
   const searchCities = [
-    'Pune', 'Mumbai', 'Hyderabad', 'Bangalore'
+    'Pune'
   ]
 
   // Fetch all live listings from API
@@ -112,13 +110,6 @@ const LandingPage = () => {
   }
 
 
-  const stats = [
-    { value: '2,500+', label: 'Live Listings', icon: Home },
-    { value: '10,000+', label: 'Happy Users', icon: Users },
-    { value: '100+', label: 'Cities', icon: MapPin },
-    { value: '24hrs', label: 'Avg Response', icon: Clock }
-  ]
-
   // Get city listings count from actual listings
   const getCityListingsCount = (cityName: string) => {
     return allListings.filter(l => l.city === cityName && l.status === 'live').length
@@ -129,25 +120,31 @@ const LandingPage = () => {
       name: 'Pune', 
       image: '/pune-city.png', 
       listings: getCityListingsCount('Pune') || 156,
-      description: 'Calm cultural & IT hub surrounded by hills'
+      active: true
     },
     { 
       name: 'Mumbai', 
       image: '/mumbai-city.png', 
       listings: getCityListingsCount('Mumbai') || 245,
-      description: 'Financial capital of India'
-    },
-    { 
-      name: 'Hyderabad', 
-      image: '/hyderabad-city.png', 
-      listings: getCityListingsCount('Hyderabad') || 98,
-      description: 'City of Pearls'
+      active: false
     },
     { 
       name: 'Bangalore', 
       image: '/bangalore-city.png', 
       listings: getCityListingsCount('Bangalore') || 189,
-      description: 'Silicon Valley of India'
+      active: false
+    },
+    { 
+      name: 'Hyderabad', 
+      image: '/hyderabad-city.png', 
+      listings: getCityListingsCount('Hyderabad') || 98,
+      active: false
+    },
+    {
+      name: 'Delhi NCR',
+      image: '/delhi-city.png',
+      listings: getCityListingsCount('Delhi NCR') || 0,
+      active: false
     }
   ]
 
@@ -155,48 +152,30 @@ const LandingPage = () => {
   const testimonials = [
     {
       id: 1,
-      name: 'Priya Sharma',
-      role: 'Software Engineer',
-      location: 'Mumbai, India',
-      image: 'https://i.pravatar.cc/150?img=1',
-      rating: 5,
-      text: 'Found my perfect flatmate within 3 days! The platform is so easy to use and everyone is verified.'
-    },
-    {
-      id: 2,
-      name: 'Rahul Verma',
-      role: 'Marketing Manager',
-      location: 'Bangalore, India',
-      image: 'https://i.pravatar.cc/150?img=12',
+      name: 'Aarohi Kulkarni',
+      role: 'Product Analyst',
+      location: 'Pune, India',
+      image: 'https://i.pravatar.cc/150?img=44',
       rating: 5,
       text: 'No brokers, no hassle. Direct contact with the owner saved me so much time and money!'
     },
     {
+      id: 2,
+      name: 'Sahil Mehta',
+      role: 'Startup Founder',
+      location: 'Pune, India',
+      image: 'https://i.pravatar.cc/150?img=12',
+      rating: 5,
+      text: 'Real listings and real people. I found a great place without any middlemen.'
+    },
+    {
       id: 3,
-      name: 'Ananya Das',
-      role: 'Designer',
+      name: 'Neha Joshi',
+      role: 'UX Designer',
       location: 'Pune, India',
       image: 'https://i.pravatar.cc/150?img=5',
       rating: 5,
-      text: 'The best roommate finding platform in India. Loved the safety features and verification process.'
-    },
-    {
-      id: 4,
-      name: 'Arjun Patel',
-      role: 'Data Analyst',
-      location: 'Delhi, India',
-      image: 'https://i.pravatar.cc/150?img=33',
-      rating: 5,
-      text: 'Mokogo made finding a room so simple. The search filters are perfect and I found exactly what I needed!'
-    },
-    {
-      id: 5,
-      name: 'Sneha Reddy',
-      role: 'Product Manager',
-      location: 'Hyderabad, India',
-      image: 'https://i.pravatar.cc/150?img=47',
-      rating: 5,
-      text: 'Amazing experience! Connected with my flatmate directly, no middlemen. Highly recommend Mokogo!'
+      text: 'Direct owner contact made the process fast and transparent. Highly recommend!'
     }
   ]
 
@@ -242,7 +221,7 @@ const LandingPage = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 via-transparent to-orange-100/30 pointer-events-none rounded-3xl" />
               
               <div className="relative space-y-10">
-                <div className="text-center space-y-5">
+                <div className="text-center space-y-2">
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
                     Find Your Perfect{' '}
                     <span className="relative inline-block">
@@ -253,7 +232,13 @@ const LandingPage = () => {
                     </span>
                   </h1>
                   <p className="text-gray-700 text-lg md:text-xl max-w-[773px] mx-auto leading-relaxed">
-                    Search from <span className="font-semibold text-orange-600">1000+ verified listings</span> across India. Direct contact with owners. <span className="font-semibold text-orange-600">Zero brokerage.</span>
+                    Start your home search in Pune.
+                  </p>
+                  <p className="text-orange-600 text-sm md:text-base max-w-[773px] mx-auto font-semibold">
+                    ⚡ Verified listings &nbsp; • &nbsp; 🤝 Direct owner contact &nbsp; • &nbsp; 💸 Zero brokerage
+                  </p>
+                  <p className="text-gray-600 text-sm md:text-base max-w-[773px] mx-auto">
+                    Launching in Pune. Expanding across India soon.
                   </p>
                 </div>
 
@@ -307,7 +292,7 @@ const LandingPage = () => {
                         <MoveInDateField
                           value={searchFilters.moveInDate}
                           onChange={(date) => setSearchFilters({ ...searchFilters, moveInDate: date })}
-                          min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                          min={new Date().toISOString().split('T')[0]}
                           hideLabel={true}
                           className="!h-[50px] !rounded-lg !border-2 !border-gray-200 hover:!border-orange-300 focus:!ring-2 focus:!ring-orange-400 focus:!border-orange-400"
                         />
@@ -373,28 +358,6 @@ const LandingPage = () => {
                   )}
                 </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
-                  {stats.map((stat, index) => (
-                    <div 
-                      key={index} 
-                      className="group relative bg-white/60 backdrop-blur-sm rounded-xl p-5 border border-orange-200/50 hover:border-orange-300 hover:bg-white/80 transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-default"
-                      style={{
-                        animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
-                      }}
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-lg transform transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12">
-                          <stat.icon className="w-6 h-6 text-white" />
-                        </div>
-                        <p className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
-                          {stat.value}
-                        </p>
-                        <p className="text-xs font-medium text-gray-700">{stat.label}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -431,9 +394,7 @@ const LandingPage = () => {
               </div>
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {displayedListings.map((listing) => {
-                  const listingTags = getListingMikoTags(listing)
-                  return (
+                {displayedListings.map((listing) => (
                 <Link
                   key={listing.id}
                   to={`/listings/${listing.id}`}
@@ -457,7 +418,6 @@ const LandingPage = () => {
 
                   {/* Content */}
                   <div className="p-4 space-y-3">
-                    <MikoTagPills tags={listingTags} className="mb-1" />
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
                         {listing.title}
@@ -483,7 +443,7 @@ const LandingPage = () => {
                     </div>
                   </div>
                 </Link>
-              )})}
+              ))}
               </div>
             )}
 
@@ -513,73 +473,103 @@ const LandingPage = () => {
                   Discover • Top Locations
                 </span>
                 <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  Explore{' '}
-                  <span className="relative inline-block">
-                    <span className="relative z-10 bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
-                      Properties
-                    </span>
-                    <span className="absolute bottom-1.5 left-0 right-0 h-2.5 bg-orange-200/40 -z-0 transform -skew-x-12" />
-                  </span>
+                  Cities We’re Launching In
                 </h2>
                 <p className="text-gray-700 text-base max-w-2xl mx-auto leading-relaxed">
-                  Explore the most sought-after locations for finding your perfect room now
+                  We’re starting with Pune and rolling out city by city across India.
                 </p>
               </div>
 
               {/* Cities Grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
-                {cities.map((city, index) => (
-                  <Link
-                    key={city.name}
-                    to={`/city/${encodeURIComponent(city.name)}`}
-                    className="group relative h-52 md:h-56 rounded-xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl hover:shadow-orange-500/20 transition-all duration-300 border border-orange-200/30 hover:border-orange-400 block transform hover:scale-105"
-                    style={{
-                      animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
-                    }}
-                  >
-                    {/* Image */}
-                    <img
-                      src={city.image}
-                      alt={city.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:from-black/90 group-hover:via-black/40 transition-all duration-300" />
-                    
-                    {/* Content */}
-                    <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xl md:text-2xl font-bold group-hover:text-orange-300 transition-colors duration-300">
-                          {city.name}
-                        </h3>
-                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                          <div className="bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg">
-                            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                            </svg>
+              <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-5 lg:gap-6">
+                {cities.map((city, index) => {
+                  const wrapperClasses = [
+                    'group relative h-52 md:h-56 rounded-xl overflow-hidden shadow-lg border border-orange-200/30 block transform transition-all duration-300',
+                    city.active
+                      ? 'cursor-pointer hover:shadow-2xl hover:shadow-orange-500/20 hover:border-orange-400 hover:scale-105'
+                      : 'cursor-not-allowed opacity-70 grayscale'
+                  ].join(' ')
+
+                  const cardContent = (
+                    <>
+                      {/* Image */}
+                      <img
+                        src={city.image}
+                        alt={city.name}
+                        className={`w-full h-full object-cover ${city.active ? 'group-hover:scale-110 transition-transform duration-700' : ''}`}
+                      />
+                      
+                      {/* Gradient Overlay */}
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent ${
+                          city.active ? 'group-hover:from-black/90 group-hover:via-black/40 transition-all duration-300' : ''
+                        }`}
+                      />
+                      
+                      {/* Content */}
+                      <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 text-white">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className={`text-xl md:text-2xl font-bold ${city.active ? 'group-hover:text-orange-300 transition-colors duration-300' : ''}`}>
+                            {city.name}
+                          </h3>
+                          {city.active && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
+                              <div className="bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg">
+                                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {city.active ? (
+                          <p className="text-sm text-white/90 font-medium">Live</p>
+                        ) : (
+                          <p className="text-sm text-white/90 font-medium">Coming soon</p>
+                        )}
+                      </div>
+
+                      {/* Top Badge */}
+                      {city.active ? (
+                        <div className="absolute top-4 left-4">
+                          <div className="bg-green-500/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
+                            Live
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-orange-400 group-hover:bg-orange-300 transition-colors duration-300" />
-                        <p className="text-sm text-white/90 font-medium">
-                          {city.listings}+ Properties
-                        </p>
-                      </div>
-                    </div>
+                      ) : (
+                        <div className="absolute top-4 left-4">
+                          <div className="bg-gray-800/80 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
+                            Coming soon
+                          </div>
+                        </div>
+                      )}
 
-                    {/* Top Badge */}
-                    <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform -translate-y-2 group-hover:translate-y-0">
-                      <div className="bg-orange-500/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg">
-                        Explore
-                      </div>
-                    </div>
+                      {/* Shine Effect */}
+                      {city.active && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                      )}
+                    </>
+                  )
 
-                    {/* Shine Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                  </Link>
-                ))}
+                  return city.active ? (
+                    <Link
+                      key={city.name}
+                      to={`/city/${encodeURIComponent(city.name)}`}
+                      className={wrapperClasses}
+                      style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
+                    >
+                      {cardContent}
+                    </Link>
+                  ) : (
+                    <div
+                      key={city.name}
+                      className={wrapperClasses}
+                      style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both` }}
+                    >
+                      {cardContent}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </section>
@@ -805,21 +795,6 @@ const LandingPage = () => {
                 />
               </div>
 
-              {/* Bottom Stats */}
-              <div className="mt-5 flex flex-wrap justify-center gap-5">
-                {[
-                  { value: "6,789+", label: "Active Listings" },
-                  { value: "4.8★", label: "Average Rating" },
-                  { value: "95%", label: "Satisfaction" }
-                ].map((stat, index) => (
-                  <div key={index} className="text-center">
-                    <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">
-                      {stat.value}
-                    </p>
-                    <p className="text-xs text-gray-500">{stat.label}</p>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <style>{`

@@ -837,7 +837,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
                             <MoveInDateField
                               value={moveInDate}
                               onChange={(date) => setMoveInDate(date)}
-                              min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                              min={new Date().toISOString().split('T')[0]}
                               hideLabel={true}
                               numberOfMonths={1}
                             />
