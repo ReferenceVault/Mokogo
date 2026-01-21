@@ -6,6 +6,7 @@ interface Step6MikoProps {
   data: Partial<Listing>
   onChange: (updates: Partial<Listing>) => void
   error?: string
+  onClearError?: () => void
 }
 
 const TAG_GROUPS: { title: string; tags: VibeTagId[] }[] = [

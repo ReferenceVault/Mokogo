@@ -141,9 +141,69 @@ const ProfileContent = () => {
       
       // Update user in store
       setUser({ ...user, profileImageUrl: url } as any)
+      setNotice({ type: 'success', message: 'Profile image updated successfully!' })
     } catch (error: any) {
       console.error('Error uploading image:', error)
-      setNotice({ type: 'error', message: error.response?.data?.message || 'Failed to upload image. Please try again.' })
+      
+      // Extract user-friendly error message
+      let errorMessage = 'Failed to upload image. Please try again.'
+      
+      // Handle network errors or nginx-level errors (no response)
+      if (!error.response) {
+        if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+          errorMessage = 'Upload timed out. The image might be too large. Please try a smaller file or check your internet connection.'
+        } else if (error.message?.includes('Network Error') || error.message?.includes('Failed to fetch')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.'
+        } else {
+          errorMessage = 'Unable to upload image. Please check your internet connection and try again.'
+        }
+      } else if (error.response) {
+        const status = error.response.status
+        const responseData = error.response.data
+        
+        // Handle 413 Payload Too Large (from nginx or backend)
+        if (status === 413) {
+          errorMessage = 'Image size is too large. Please upload an image smaller than 5MB. If the problem persists, the server may have size restrictions.'
+        } 
+        // Handle 400 Bad Request
+        else if (status === 400) {
+          if (responseData) {
+            if (typeof responseData === 'string') {
+              errorMessage = responseData
+            } else if (responseData?.message) {
+              errorMessage = Array.isArray(responseData.message) 
+                ? responseData.message.join(', ')
+                : responseData.message
+            } else if (responseData?.error) {
+              errorMessage = responseData.error
+            } else {
+              errorMessage = 'Invalid image file. Please check file size and format.'
+            }
+          } else {
+            errorMessage = 'Invalid image file. Please check file size and format.'
+          }
+        }
+        // Handle 500+ server errors
+        else if (status >= 500) {
+          errorMessage = 'Server error occurred. Please try again in a moment.'
+        }
+        // Handle other errors with response data
+        else {
+          if (typeof responseData === 'string') {
+            errorMessage = responseData
+          } else if (responseData?.message) {
+            errorMessage = Array.isArray(responseData.message) 
+              ? responseData.message.join(', ')
+              : responseData.message
+          } else if (responseData?.error) {
+            errorMessage = responseData.error
+          }
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      setNotice({ type: 'error', message: errorMessage })
     } finally {
       setUploadingImage(false)
       if (fileInputRef.current) {

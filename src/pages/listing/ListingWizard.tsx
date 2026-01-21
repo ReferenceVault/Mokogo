@@ -598,6 +598,25 @@ const ListingWizard = () => {
   const handleSectionContinue = async (stepIndex: number) => {
     // Validate ONLY this step (not future steps)
     if (validateStep(stepIndex)) {
+      // If user tries to continue from any step after Photos before a listing is created,
+      // guide them to complete Photos first in a clear, professional way.
+      const listingId = currentListing?.id || listingDataRef.current.id
+      if (stepIndex > 0 && (!listingId || listingId.startsWith('listing-'))) {
+        // Ensure photos step shows proper error and is expanded
+        validateStep(0)
+        setToastMessage('To move forward, please complete the Photos step by adding at least 3 photos.')
+        setShowToast(true)
+        setExpandedSections(prev => {
+          const newSet = new Set(prev)
+          newSet.add(0)
+          return newSet
+        })
+        setTimeout(() => {
+          document.getElementById('section-0')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 100)
+        return
+      }
+
       // Create updated validatedSteps set that includes current step (since setState is async)
       const updatedValidatedSteps = new Set(validatedSteps)
       updatedValidatedSteps.add(stepIndex)
@@ -607,7 +626,6 @@ const ListingWizard = () => {
       
       // Update listing with current step's data via UPDATE API
       // Only proceed if we have a listing ID (created after photo upload)
-      const listingId = currentListing?.id || listingDataRef.current.id
       if (!listingId || listingId.startsWith('listing-')) {
         // No listing created yet, wait for photo upload
         return
@@ -778,7 +796,21 @@ const ListingWizard = () => {
     }
 
     if (invalidSteps.length > 0) {
-      setToastMessage('Please complete the required fields before publishing.')
+      // Build a clear, user-friendly summary of what needs attention
+      const invalidSectionTitles = invalidSteps.map(index => STEPS[index].title)
+      let message: string
+
+      if (invalidSectionTitles.length === STEPS.length) {
+        message = 'To create your listing, please complete all sections: Photos, Location, Details, Pricing, Preferences, and MIKO Vibe (optional).'
+      } else if (invalidSectionTitles.length === 1) {
+        message = `To move forward, please complete the "${invalidSectionTitles[0]}" section.`
+      } else {
+        const last = invalidSectionTitles[invalidSectionTitles.length - 1]
+        const initial = invalidSectionTitles.slice(0, -1)
+        message = `To move forward, please complete these sections: ${initial.join(', ')} and ${last}.`
+      }
+
+      setToastMessage(message)
       setShowToast(true)
       // Expand all invalid steps so user can see all errors at once
       setExpandedSections(prev => {
@@ -1026,22 +1058,37 @@ const ListingWizard = () => {
   }
 
 
+  // Function to clear errors for a specific step
+  const clearStepError = (stepId: string, fieldKey?: string) => {
+    setErrors(prev => {
+      const updated = { ...prev }
+      if (fieldKey) {
+        // Clear specific field error
+        delete updated[fieldKey]
+      }
+      // Clear step-level error
+      delete updated[stepId]
+      return updated
+    })
+  }
+
   const renderStepContent = (stepIndex: number) => {
     const stepError = errors[STEPS[stepIndex].id]
+    const stepId = STEPS[stepIndex].id
     
-    switch (STEPS[stepIndex].id) {
+    switch (stepId) {
       case 'photos':
-        return <Step1Photos data={listingData} onChange={handleDataChange} />
+        return <Step1Photos data={listingData} onChange={handleDataChange} error={stepError} onClearError={() => clearStepError(stepId)} />
       case 'location':
-        return <Step2Location data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step2Location data={listingData} onChange={handleDataChange} error={stepError} onClearError={(field) => clearStepError(stepId, field)} />
       case 'details':
-        return <Step3Details data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step3Details data={listingData} onChange={handleDataChange} error={stepError} onClearError={(field) => clearStepError(stepId, field)} />
       case 'pricing':
-        return <Step4Pricing data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step4Pricing data={listingData} onChange={handleDataChange} error={stepError} onClearError={(field) => clearStepError(stepId, field)} />
       case 'preferences':
-        return <Step5Preferences data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step5Preferences data={listingData} onChange={handleDataChange} error={stepError} onClearError={(field) => clearStepError(stepId, field)} />
       case 'miko':
-        return <Step6Miko data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step6Miko data={listingData} onChange={handleDataChange} error={stepError} onClearError={() => clearStepError(stepId)} />
       default:
         return null
     }

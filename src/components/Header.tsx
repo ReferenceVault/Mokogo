@@ -125,6 +125,10 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
 
   const currentPath = location.pathname
   const redirectTarget = encodeURIComponent(location.pathname + location.search)
+  const showDashboardCta =
+    currentPath === '/' ||
+    currentPath.startsWith('/explore') ||
+    currentPath.startsWith('/how-it-works')
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -237,29 +241,29 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
 
         </nav>
 
-        {/* Right section with Log in button or Dashboard/User menu */}
-        <div className="flex items-center">
+        {/* Right section with Log in button, Dashboard button, and/or User menu */}
+        <div className="flex items-center gap-4">
           {isAuthenticated ? (
-            // On landing page, explore, and how-it-works pages, show Dashboard button. On other pages, show user avatar with menu
-            currentPath === '/' || currentPath.startsWith('/explore') || currentPath.startsWith('/how-it-works') ? (
-              <Link 
-                to="/dashboard" 
-                className="group relative bg-gradient-to-r from-orange-400 to-orange-500 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  Dashboard
-                  <svg 
-                    className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </span>
-                <span className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </Link>
-            ) : (
+            <>
+              {showDashboardCta && (
+                <Link 
+                  to="/dashboard" 
+                  className="group relative bg-gradient-to-r from-orange-400 to-orange-500 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    Dashboard
+                    <svg 
+                      className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </span>
+                  <span className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </Link>
+              )}
               <div className="relative" ref={userMenuRef}>
                 <div 
                   className="flex items-center gap-3 cursor-pointer group"
@@ -331,7 +335,7 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
                   )
                 })()}
               </div>
-            )
+            </>
           ) : (
             <Link 
               to={`/auth?redirect=${redirectTarget}`} 

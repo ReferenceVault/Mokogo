@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Listing } from '@/types'
 import { MoveInDateField } from '@/components/MoveInDateField'
 
@@ -5,9 +6,39 @@ interface Step4PricingProps {
   data: Partial<Listing>
   onChange: (updates: Partial<Listing>) => void
   error?: string
+  onClearError?: (field?: string) => void
 }
 
-const Step4Pricing = ({ data, onChange, error }: Step4PricingProps) => {
+const Step4Pricing = ({ data, onChange, error, onClearError }: Step4PricingProps) => {
+  // Clear errors when fields become valid
+  useEffect(() => {
+    if (data.rent && data.rent > 0 && error && onClearError) {
+      onClearError('rent')
+    }
+  }, [data.rent, error, onClearError])
+
+  useEffect(() => {
+    if (data.deposit && data.deposit > 0 && error && onClearError) {
+      onClearError('deposit')
+    }
+  }, [data.deposit, error, onClearError])
+
+  useEffect(() => {
+    if (data.moveInDate && data.moveInDate.trim() && error && onClearError) {
+      onClearError('moveInDate')
+    }
+  }, [data.moveInDate, error, onClearError])
+
+  // Clear step error when all required fields are filled
+  useEffect(() => {
+    if (data.rent && data.rent > 0 && 
+        data.deposit && data.deposit > 0 && 
+        data.moveInDate && data.moveInDate.trim() && 
+        error && onClearError) {
+      onClearError()
+    }
+  }, [data.rent, data.deposit, data.moveInDate, error, onClearError])
+
   const handleChange = (field: keyof Listing, value: any) => {
     onChange({ [field]: value })
   }

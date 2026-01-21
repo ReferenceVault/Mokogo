@@ -59,6 +59,7 @@ api.interceptors.response.use(
       requestUrl.includes('/auth/google') ||
       requestUrl.includes('/auth/refresh')
 
+    // Handle 401 Unauthorized - try to refresh token
     if (error.response?.status === 401) {
       if (isAuthEndpoint) {
         return Promise.reject(error)
@@ -87,6 +88,21 @@ api.interceptors.response.use(
         window.location.href = '/auth'
       }
     }
+    
+    // Handle 413 Payload Too Large (from nginx or backend)
+    // Nginx might return 413 without a proper JSON body, so normalize it
+    if (error.response?.status === 413) {
+      // If response data is empty or HTML (nginx default error page), provide user-friendly message
+      if (!error.response.data || 
+          (typeof error.response.data === 'string' && error.response.data.includes('<!DOCTYPE')) ||
+          (typeof error.response.data === 'string' && error.response.data.includes('<html>'))) {
+        error.response.data = {
+          message: 'File size is too large. Please upload files smaller than 5MB each. If the problem persists, the server may have size restrictions.',
+          error: 'Payload Too Large'
+        }
+      }
+    }
+    
     return Promise.reject(error)
   }
 )
@@ -616,6 +632,21 @@ export const messagesApi = {
   getOnlineUsers: async (): Promise<string[]> => {
     const response = await api.get<{ onlineUsers: string[] }>('/messages/online-users')
     return response.data.onlineUsers || []
+  },
+}
+
+export interface SubscribeRequest {
+  email: string
+}
+
+export interface SubscribeResponse {
+  message: string
+}
+
+export const subscriptionsApi = {
+  subscribe: async (data: SubscribeRequest): Promise<SubscribeResponse> => {
+    const response = await api.post<SubscribeResponse>('/subscriptions', data)
+    return response.data
   },
 }
 

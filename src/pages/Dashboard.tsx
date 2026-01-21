@@ -29,7 +29,6 @@ import {
   Search,
   Pen,
   Settings,
-  Users,
   CheckCircle,
   Sparkles
 } from 'lucide-react'
@@ -55,6 +54,8 @@ const Dashboard = () => {
     setCachedRequestsForOwner,
     setCachedRequestsForRequester,
     setDataFetchedAt,
+    toggleSavedListing,
+    isListingSaved,
   } = useStore()
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
@@ -649,42 +650,86 @@ const Dashboard = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {savedListingItems.map((listing) => (
-                      <button
-                        key={listing.id}
-                        type="button"
-                        onClick={() => openListingDetail(listing.id, 'saved')}
-                        className="relative bg-white/80 backdrop-blur-sm rounded-2xl border border-orange-200/50 overflow-hidden shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 block cursor-pointer group"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        <div className="h-44 overflow-hidden relative">
-                          {listing.photos && listing.photos.length > 0 ? (
-                            <img
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                              src={listing.photos[0]}
-                              alt={listing.title}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50" />
-                          )}
-                        </div>
-                        <div className="p-5 relative">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-orange-600 transition-colors">
-                            {listing.title || 'Untitled Listing'}
-                          </h3>
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                            <MapPin className="w-4 h-4 text-orange-400" />
-                            <span>{listing.locality || listing.city || 'Location'}</span>
-                          </div>
-                          {listing.rent && (
-                            <span className="text-base font-bold text-gray-900">
-                              ₹{listing.rent.toLocaleString()}/month
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+                    {savedListingItems.map((listing) => {
+                      const saved = isListingSaved(listing.id)
+                      return (
+                        <button
+                          key={listing.id}
+                          type="button"
+                          onClick={() => openListingDetail(listing.id, 'saved')}
+                          className="bg-white/50 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all group border border-white/60 text-left flex flex-col h-full"
+                        >
+                          {/* Image */}
+                          <div className="relative h-44 overflow-hidden rounded-t-2xl">
+                            {listing.photos && listing.photos.length > 0 ? (
+                              <img
+                                src={listing.photos[0]}
+                                alt={listing.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-2xl"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-mokogo-gray flex items-center justify-center rounded-t-2xl">
+                                <Home className="w-12 h-12 text-gray-400" />
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                toggleSavedListing(listing.id)
+                              }}
+                              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
+                              aria-label={saved ? 'Unsave property' : 'Save property'}
+                            >
+                              <Heart className={`w-5 h-5 ${saved ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} />
+                            </button>
+                            <span className="absolute top-3 left-3 px-3 py-1 bg-mokogo-primary text-white rounded-full text-xs font-medium shadow-md">
+                              {listing.roomType === 'Private Room' ? 'Private' : listing.roomType === 'Master Room' ? 'Master' : 'Shared'}
                             </span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                          </div>
+
+                          {/* Content */}
+                          <div className="p-4 space-y-3 flex-1 flex flex-col">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm">
+                                {listing.title || 'Untitled Listing'}
+                              </h3>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-gray-600 text-sm">
+                              <MapPin className="w-4 h-4 text-orange-400" />
+                              <span className="line-clamp-1">{listing.locality || listing.city || 'Location'}</span>
+                            </div>
+
+                            {listing.bhkType && listing.furnishingLevel && (
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span>{listing.bhkType}</span>
+                                <span>•</span>
+                                <span>{listing.furnishingLevel}</span>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between pt-2 border-t border-gray-200 mt-auto">
+                              <div>
+                                {listing.rent && (
+                                  <>
+                                    <p className="text-xl font-bold text-gray-900">
+                                      ₹{listing.rent.toLocaleString()}
+                                    </p>
+                                    <p className="text-xs text-gray-600">per month</p>
+                                  </>
+                                )}
+                              </div>
+                              <span className="btn-primary text-sm px-4 py-2 inline-block text-center">
+                                View Details
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -888,12 +933,11 @@ const Dashboard = () => {
                     <p className="text-sm text-gray-600">Manage your MOKOGO account efficiently</p>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[
                       { icon: Plus, title: 'Post New Listing', description: 'Add a new property to attract roommates', onClick: handleCreateListing },
                       { icon: Search, title: 'Browse Listings', description: 'Discover available properties nearby', to: '/explore' },
-                      { icon: Users, title: 'Find Roommates', description: 'Connect with potential roommates', onClick: () => {} },
-                      { icon: Settings, title: 'Account Settings', description: 'Manage your profile and preferences', onClick: () => {} }
+                       { icon: Settings, title: 'Account Settings', description: 'Manage your profile and preferences', onClick: () => setActiveView('profile') }
                     ].map((action, index) => {
                       const content = (
                         <div className="relative bg-white/80 backdrop-blur-sm rounded-xl p-5 border border-orange-200/50 text-left hover:shadow-xl hover:scale-105 transition-all duration-300 group shadow-lg cursor-pointer h-full flex flex-col">

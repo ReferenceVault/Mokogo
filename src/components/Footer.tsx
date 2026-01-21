@@ -26,7 +26,9 @@ const Footer = () => {
               <Logo />
             </div>
             <p className="text-sm text-gray-700 mt-4 leading-relaxed max-w-sm">
-              A better way to find your place. Trusted listings. Real people. No middlemen.
+              A better way to find your place.
+              <br />
+              Trusted listings. Real people. No middlemen.
             </p>
             
             {/* Social Media Icons */}

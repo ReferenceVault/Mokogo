@@ -7,6 +7,7 @@ import { Listing, VibeTagId } from '@/types'
 import { getListingMikoTags, getMikoMatchPercent, getMikoMatchScore } from '@/utils/miko'
 import MikoTagPills from '@/components/MikoTagPills'
 import { listingsApi, ListingResponse } from '@/services/api'
+import { useStore } from '@/store/useStore'
 
 interface ExploreContentProps {
   onListingClick: (listingId: string) => void
@@ -28,6 +29,7 @@ const ExploreContent = ({
   const location = useLocation()
   const [exploreListings, setExploreListings] = useState<Listing[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const { toggleSavedListing, isListingSaved } = useStore()
 
   // Filter state
   const [filters, setFilters] = useState(() => {
@@ -129,12 +131,6 @@ const ExploreContent = ({
       setRoomTypePreference(null)
     }
   }, [location.search])
-
-  // Get unique cities from all listings
-  const availableCities = useMemo(() => {
-    const cities = new Set(allLiveListings.map(listing => listing.city))
-    return Array.from(cities).sort().map(city => ({ value: city, label: city }))
-  }, [allLiveListings])
 
   // Get unique areas based on selected city
   const availableAreas = useMemo(() => {
@@ -309,10 +305,9 @@ const ExploreContent = ({
                 label="City"
                 value={filters.city}
                 onValueChange={(value) => handleFilterChange('city', value)}
-                placeholder="All Cities"
+                placeholder="Select your city"
                 options={[
-                  { value: '', label: 'All Cities' },
-                  ...availableCities
+                  { value: 'Pune', label: 'Pune' },
                 ]}
               />
             </div>
@@ -411,6 +406,7 @@ const ExploreContent = ({
               {rankedListings.map((listing) => {
                 const listingTags = getListingMikoTags(listing)
                 const matchPercent = isMikoMode ? getMikoMatchPercent(mikoTags, listingTags) : 0
+                const saved = isListingSaved(listing.id)
                 return (
                 <button
                   key={listing.id}
@@ -430,24 +426,18 @@ const ExploreContent = ({
                         <Home className="w-12 h-12 text-gray-400" />
                       </div>
                     )}
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    <button
+                      type="button"
                       onClick={(e) => {
+                        e.preventDefault()
                         e.stopPropagation()
-                        // Handle save/favorite
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          // Handle save/favorite
-                        }
+                        toggleSavedListing(listing.id)
                       }}
                       className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
+                      aria-label={saved ? 'Unsave property' : 'Save property'}
                     >
-                      <Heart className="w-5 h-5 text-gray-600" />
-                    </span>
+                      <Heart className={`w-5 h-5 ${saved ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} />
+                    </button>
                     <span className="absolute top-3 left-3 px-3 py-1 bg-mokogo-primary text-white rounded-full text-xs font-medium shadow-md">
                       {listing.roomType === 'Private Room' ? 'Private' : listing.roomType === 'Master Room' ? 'Master' : 'Shared'}
                     </span>

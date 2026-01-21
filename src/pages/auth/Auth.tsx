@@ -330,7 +330,7 @@ const Auth = () => {
             <div className="grid lg:grid-cols-2 gap-10 items-start">
               
               {/* Left Section - Informational Panel */}
-              <div className="space-y-6">
+              <div className="space-y-10 mt-[3.5rem]">
                 {/* Badge */}
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-200/50 border border-orange-300/50 rounded-full backdrop-blur-sm">
                   <Shield className="w-3.5 h-3.5 text-orange-600" />
@@ -355,7 +355,7 @@ const Auth = () => {
                 </div>
 
                 {/* Features List */}
-                <div className="space-y-3">
+                <div className="space-y-6">
                   <div className="flex items-start gap-3 group">
                     <div className="flex-shrink-0 w-11 h-11 rounded-lg bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                       <Zap className="w-5 h-5 text-white" />

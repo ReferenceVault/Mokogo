@@ -171,7 +171,6 @@ const ExploreProperties = () => {
     return allListings.filter(l => l.city === cityName && l.status === 'live').length
   }
 
-  // Only 4 cities: Pune, Mumbai, Hyderabad, Bangalore
   const cities = [
     { 
       name: 'Pune', 
@@ -195,6 +194,12 @@ const ExploreProperties = () => {
       name: 'Bangalore', 
       image: '/bangalore-city.png', 
       listings: getCityListingsCount('Bangalore') || 189,
+      active: false
+    },
+    {
+      name: 'Delhi NCR',
+      image: '/delhi-city.png',
+      listings: getCityListingsCount('Delhi NCR') || 0,
       active: false
     }
   ]
@@ -270,7 +275,7 @@ const ExploreProperties = () => {
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-5 lg:gap-6">
                 {cities.map((city, index) => {
                   const wrapperClasses = [
                     'group relative h-52 md:h-56 rounded-xl overflow-hidden shadow-lg border border-orange-200/30 block transform transition-all duration-300',
