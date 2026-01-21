@@ -1,18 +1,27 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Listing } from '@/types'
 import { uploadApi } from '@/services/api'
 
 interface Step1PhotosProps {
   data: Partial<Listing>
   onChange: (updates: Partial<Listing>) => void
+  error?: string
+  onClearError?: () => void
 }
 
-const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
+const Step1Photos = ({ data, onChange, error: stepError, onClearError }: Step1PhotosProps) => {
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const photos = data.photos || []
+
+  // Clear step error when photos are valid (>= 3)
+  useEffect(() => {
+    if (photos.length >= 3 && stepError && onClearError) {
+      onClearError()
+    }
+  }, [photos.length, stepError, onClearError])
 
   const handleFiles = async (files: FileList | null) => {
     if (!files) return
@@ -192,7 +201,13 @@ const Step1Photos = ({ data, onChange }: Step1PhotosProps) => {
         </div>
       )}
 
-      {photos.length < 3 && (
+      {stepError && photos.length < 3 && (
+        <div className="mb-3 p-2 bg-red-50 border-l-4 border-red-500 rounded-lg text-red-700 text-[0.825rem]">
+          {stepError}
+        </div>
+      )}
+      
+      {!stepError && photos.length < 3 && (
         <div className="mb-3 p-2 bg-mokogo-info-bg border border-mokogo-info-border rounded-lg text-mokogo-info-text text-[0.825rem]">
           Please add at least 3 photos to continue ({photos.length}/3)
         </div>

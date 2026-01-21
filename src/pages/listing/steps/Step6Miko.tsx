@@ -6,6 +6,7 @@ interface Step6MikoProps {
   data: Partial<Listing>
   onChange: (updates: Partial<Listing>) => void
   error?: string
+  onClearError?: () => void
 }
 
 const TAG_GROUPS: { title: string; tags: VibeTagId[] }[] = [
@@ -35,7 +36,7 @@ const TAG_GROUPS: { title: string; tags: VibeTagId[] }[] = [
   },
 ]
 
-const Step6Miko = ({ data, onChange, error }: Step6MikoProps) => {
+const Step6Miko = ({ data, onChange, error, onClearError }: Step6MikoProps) => {
   const selectedTags = useMemo(() => new Set(data.mikoTags || []), [data.mikoTags])
 
   const toggleTag = (tag: VibeTagId) => {

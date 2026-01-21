@@ -1,12 +1,21 @@
+import { useEffect } from 'react'
 import { Listing } from '@/types'
 
 interface Step5PreferencesProps {
   data: Partial<Listing>
   onChange: (updates: Partial<Listing>) => void
   error?: string
+  onClearError?: (field?: string) => void
 }
 
-const Step5Preferences = ({ data, onChange, error }: Step5PreferencesProps) => {
+const Step5Preferences = ({ data, onChange, error, onClearError }: Step5PreferencesProps) => {
+  // Clear error when preferredGender is selected
+  useEffect(() => {
+    if (data.preferredGender && data.preferredGender.trim() && error && onClearError) {
+      onClearError()
+    }
+  }, [data.preferredGender, error, onClearError])
+
   const handleChange = (field: keyof Listing, value: any) => {
     onChange({ [field]: value })
   }

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Listing } from '@/types'
 import CustomSelect from '@/components/CustomSelect'
 import AmenitiesSelector from '@/components/AmenitiesSelector'
@@ -6,9 +7,39 @@ interface Step3DetailsProps {
   data: Partial<Listing>
   onChange: (updates: Partial<Listing>) => void
   error?: string
+  onClearError?: (field?: string) => void
 }
 
-const Step3Details = ({ data, onChange, error }: Step3DetailsProps) => {
+const Step3Details = ({ data, onChange, error, onClearError }: Step3DetailsProps) => {
+  // Clear errors when fields become valid
+  useEffect(() => {
+    if (data.bhkType && data.bhkType.trim() && error && onClearError) {
+      onClearError('bhkType')
+    }
+  }, [data.bhkType, error, onClearError])
+
+  useEffect(() => {
+    if (data.roomType && data.roomType.trim() && error && onClearError) {
+      onClearError('roomType')
+    }
+  }, [data.roomType, error, onClearError])
+
+  useEffect(() => {
+    if (data.furnishingLevel && data.furnishingLevel.trim() && error && onClearError) {
+      onClearError('furnishingLevel')
+    }
+  }, [data.furnishingLevel, error, onClearError])
+
+  // Clear step error when all required fields are filled
+  useEffect(() => {
+    if (data.bhkType && data.bhkType.trim() && 
+        data.roomType && data.roomType.trim() && 
+        data.furnishingLevel && data.furnishingLevel.trim() && 
+        error && onClearError) {
+      onClearError()
+    }
+  }, [data.bhkType, data.roomType, data.furnishingLevel, error, onClearError])
+
   const handleChange = (field: keyof Listing, value: any) => {
     onChange({ [field]: value })
   }

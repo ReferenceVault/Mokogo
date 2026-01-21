@@ -1026,22 +1026,37 @@ const ListingWizard = () => {
   }
 
 
+  // Function to clear errors for a specific step
+  const clearStepError = (stepId: string, fieldKey?: string) => {
+    setErrors(prev => {
+      const updated = { ...prev }
+      if (fieldKey) {
+        // Clear specific field error
+        delete updated[fieldKey]
+      }
+      // Clear step-level error
+      delete updated[stepId]
+      return updated
+    })
+  }
+
   const renderStepContent = (stepIndex: number) => {
     const stepError = errors[STEPS[stepIndex].id]
+    const stepId = STEPS[stepIndex].id
     
-    switch (STEPS[stepIndex].id) {
+    switch (stepId) {
       case 'photos':
-        return <Step1Photos data={listingData} onChange={handleDataChange} />
+        return <Step1Photos data={listingData} onChange={handleDataChange} error={stepError} onClearError={() => clearStepError(stepId)} />
       case 'location':
-        return <Step2Location data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step2Location data={listingData} onChange={handleDataChange} error={stepError} onClearError={(field) => clearStepError(stepId, field)} />
       case 'details':
-        return <Step3Details data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step3Details data={listingData} onChange={handleDataChange} error={stepError} onClearError={(field) => clearStepError(stepId, field)} />
       case 'pricing':
-        return <Step4Pricing data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step4Pricing data={listingData} onChange={handleDataChange} error={stepError} onClearError={(field) => clearStepError(stepId, field)} />
       case 'preferences':
-        return <Step5Preferences data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step5Preferences data={listingData} onChange={handleDataChange} error={stepError} onClearError={(field) => clearStepError(stepId, field)} />
       case 'miko':
-        return <Step6Miko data={listingData} onChange={handleDataChange} error={stepError} />
+        return <Step6Miko data={listingData} onChange={handleDataChange} error={stepError} onClearError={() => clearStepError(stepId)} />
       default:
         return null
     }

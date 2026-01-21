@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Listing } from '@/types'
 import CustomSelect from '@/components/CustomSelect'
 
@@ -5,6 +6,7 @@ interface Step2LocationProps {
   data: Partial<Listing>
   onChange: (updates: Partial<Listing>) => void
   error?: string
+  onClearError?: (field?: string) => void
 }
 
 const cities = [
@@ -13,7 +15,27 @@ const cities = [
   'Nagpur', 'Coimbatore', 'Kochi'
 ]
 
-const Step2Location = ({ data, onChange, error }: Step2LocationProps) => {
+const Step2Location = ({ data, onChange, error, onClearError }: Step2LocationProps) => {
+  // Clear errors when fields become valid
+  useEffect(() => {
+    if (data.city && data.city.trim() && error && onClearError) {
+      onClearError('city')
+    }
+  }, [data.city, error, onClearError])
+
+  useEffect(() => {
+    if (data.locality && data.locality.trim() && error && onClearError) {
+      onClearError('locality')
+    }
+  }, [data.locality, error, onClearError])
+
+  // Clear step error when both fields are filled
+  useEffect(() => {
+    if (data.city && data.city.trim() && data.locality && data.locality.trim() && error && onClearError) {
+      onClearError()
+    }
+  }, [data.city, data.locality, error, onClearError])
+
   const handleChange = (field: keyof Listing, value: any) => {
     onChange({ [field]: value })
   }
