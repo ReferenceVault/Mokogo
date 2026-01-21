@@ -635,5 +635,20 @@ export const messagesApi = {
   },
 }
 
+export interface SubscribeRequest {
+  email: string
+}
+
+export interface SubscribeResponse {
+  message: string
+}
+
+export const subscriptionsApi = {
+  subscribe: async (data: SubscribeRequest): Promise<SubscribeResponse> => {
+    const response = await api.post<SubscribeResponse>('/subscriptions', data)
+    return response.data
+  },
+}
+
 export default api
 

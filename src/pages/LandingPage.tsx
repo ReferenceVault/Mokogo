@@ -5,7 +5,7 @@ import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
 import { useStore } from '@/store/useStore'
 import { Listing, VibeTagId } from '@/types'
-import { listingsApi, ListingResponse } from '@/services/api'
+import { listingsApi, ListingResponse, subscriptionsApi } from '@/services/api'
 import CustomSelect from '@/components/CustomSelect'
 import { formatRent } from '@/utils/formatters'
 import { MoveInDateField } from '@/components/MoveInDateField'
@@ -24,6 +24,10 @@ const LandingPage = () => {
   const [searchMode, setSearchMode] = useState<'standard' | 'miko'>('standard')
   const [isMikoOpen, setIsMikoOpen] = useState(false)
   const [isLoadingListings, setIsLoadingListings] = useState(true)
+  const [subscribeEmail, setSubscribeEmail] = useState('')
+  const [subscribeError, setSubscribeError] = useState<string | null>(null)
+  const [subscribeSuccess, setSubscribeSuccess] = useState<string | null>(null)
+  const [isSubscribing, setIsSubscribing] = useState(false)
 
   const searchCities = [
     'Pune'
@@ -200,6 +204,66 @@ const LandingPage = () => {
 
   const displayedListings = allListings.filter(l => l.status === 'live').slice(0, 8)
 
+  const validateSubscribeEmail = (email: string) => {
+    const trimmed = email.trim()
+    if (!trimmed) {
+      return 'Please enter a valid email address'
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(trimmed)) {
+      return 'Please enter a valid email address'
+    }
+    return null
+  }
+
+  const handleSubscribe = async () => {
+    setSubscribeSuccess(null)
+    const error = validateSubscribeEmail(subscribeEmail)
+    if (error) {
+      setSubscribeError(error)
+      return
+    }
+
+    setSubscribeError(null)
+    setIsSubscribing(true)
+    try {
+      const response = await subscriptionsApi.subscribe({
+        email: subscribeEmail.trim(),
+      })
+      setSubscribeSuccess(
+        "You’re on the list ✅\nWe’ll email you when there’s something worth knowing.",
+      )
+      // Prefer backend message if it changes in future
+      if (response?.message) {
+        setSubscribeSuccess(response.message)
+      }
+      setSubscribeEmail('')
+    } catch (error: any) {
+      const status = error?.response?.status
+      const message = error?.response?.data?.message
+
+      if (status === 409) {
+        setSubscribeError("You’re already on the list 😊")
+      } else if (typeof message === 'string') {
+        if (message.toLowerCase().includes('already on the list')) {
+          setSubscribeError("You’re already on the list 😊")
+        } else if (message.toLowerCase().includes('email')) {
+          setSubscribeError('Please enter a valid email address')
+        } else {
+          setSubscribeError(
+            'Something went wrong while subscribing. Please try again in a moment.',
+          )
+        }
+      } else {
+        setSubscribeError(
+          'Something went wrong while subscribing. Please try again in a moment.',
+        )
+      }
+    } finally {
+      setIsSubscribing(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-mokogo-off-white flex flex-col">
       <Header />
@@ -231,14 +295,11 @@ const LandingPage = () => {
                       <span className="absolute bottom-2 left-0 right-0 h-3 bg-orange-200/40 -z-0 transform -skew-x-12" />
                     </span>
                   </h1>
-                  <p className="text-gray-700 text-lg md:text-xl max-w-[773px] mx-auto leading-relaxed">
-                    Start your home search in Pune.
-                  </p>
                   <p className="text-orange-600 text-sm md:text-base max-w-[773px] mx-auto font-semibold">
                     ⚡ Verified listings &nbsp; • &nbsp; 🤝 Direct owner contact &nbsp; • &nbsp; 💸 Zero brokerage
                   </p>
                   <p className="text-gray-600 text-sm md:text-base max-w-[773px] mx-auto">
-                    Launching in Pune. Expanding across India soon.
+                    Live in Pune. Expanding across India soon.
                   </p>
                 </div>
 
@@ -847,14 +908,36 @@ const LandingPage = () => {
                   <p className="text-gray-700">
                     Subscribe to get updates on new listings in your area and exclusive deals
                   </p>
+                  {subscribeSuccess && (
+                    <div className="max-w-lg mx-auto rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 whitespace-pre-line">
+                      {subscribeSuccess}
+                    </div>
+                  )}
+                  {subscribeError && (
+                    <div className="max-w-lg mx-auto rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                      {subscribeError}
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto">
                     <input
                       type="email"
                       placeholder="Enter your email"
+                      value={subscribeEmail}
+                      onChange={(e) => {
+                        setSubscribeEmail(e.target.value)
+                        if (subscribeError) {
+                          setSubscribeError(null)
+                        }
+                      }}
                       className="flex-1 px-6 py-3.5 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-mokogo-primary bg-white/90 backdrop-blur-sm border border-mokogo-gray"
                     />
-                    <button className="px-6 py-3.5 rounded-xl bg-mokogo-primary text-white font-medium hover:bg-mokogo-primary-dark transition-colors shadow-md">
-                      Subscribe
+                    <button
+                      type="button"
+                      onClick={handleSubscribe}
+                      disabled={isSubscribing}
+                      className="px-6 py-3.5 rounded-xl bg-mokogo-primary text-white font-medium hover:bg-mokogo-primary-dark transition-colors shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isSubscribing ? 'Subscribing...' : 'Subscribe'}
                     </button>
                   </div>
                 </div>
