@@ -29,7 +29,7 @@ const ExploreContent = ({
   const location = useLocation()
   const [exploreListings, setExploreListings] = useState<Listing[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const { savedListings, toggleSavedListing, isListingSaved } = useStore()
+  const { toggleSavedListing, isListingSaved } = useStore()
 
   // Filter state
   const [filters, setFilters] = useState(() => {
@@ -131,12 +131,6 @@ const ExploreContent = ({
       setRoomTypePreference(null)
     }
   }, [location.search])
-
-  // Get unique cities from all listings
-  const availableCities = useMemo(() => {
-    const cities = new Set(allLiveListings.map(listing => listing.city))
-    return Array.from(cities).sort().map(city => ({ value: city, label: city }))
-  }, [allLiveListings])
 
   // Get unique areas based on selected city
   const availableAreas = useMemo(() => {
