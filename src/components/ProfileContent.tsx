@@ -229,7 +229,6 @@ const ProfileContent = () => {
     
     if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
     if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required'
     if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required'
     if (!formData.gender) newErrors.gender = 'Gender is required'
     if (!formData.occupation.trim()) newErrors.occupation = 'Occupation is required'

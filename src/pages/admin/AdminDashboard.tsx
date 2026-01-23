@@ -89,19 +89,24 @@ const AdminDashboard = () => {
     setAddUserError('')
     setAddUserSuccess('')
 
-    if (!addUserForm.name.trim() || !addUserForm.email.trim() || !addUserForm.phoneNumber.trim() || !addUserForm.password.trim()) {
-      setAddUserError('All fields are required.')
+    if (!addUserForm.name.trim() || !addUserForm.email.trim() || !addUserForm.password.trim()) {
+      setAddUserError('Name, email, and password are required.')
       return
     }
 
     setAddUserLoading(true)
     try {
-      await usersApi.createUser({
+      const createUserData: any = {
         name: addUserForm.name.trim(),
         email: addUserForm.email.trim(),
-        phoneNumber: addUserForm.phoneNumber.trim(),
         password: addUserForm.password,
-      })
+      }
+      
+      if (addUserForm.phoneNumber.trim()) {
+        createUserData.phoneNumber = addUserForm.phoneNumber.trim()
+      }
+      
+      await usersApi.createUser(createUserData)
       setAddUserSuccess('User created successfully.')
       setAddUserForm({ name: '', email: '', phoneNumber: '', password: '' })
       setTimeout(() => {
@@ -1648,7 +1653,7 @@ const AdminDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone <span className="text-gray-400 font-normal">(Optional)</span></label>
                 <input
                   value={addUserForm.phoneNumber}
                   onChange={(e) => handleAddUserChange('phoneNumber', e.target.value)}

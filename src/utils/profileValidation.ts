@@ -12,7 +12,6 @@ export const isProfileComplete = (user: User | null): boolean => {
   const requiredFields = {
     firstName: firstName.trim(),
     lastName: lastName.trim(),
-    phone: (user.phoneNumber || user.phone || '').trim(),
     dateOfBirth: user.dateOfBirth || '',
     gender: user.gender || '',
     occupation: user.occupation || '',

@@ -232,7 +232,7 @@ const Auth = () => {
       return
     }
 
-    if (!validatePhone(phone)) {
+    if (phone && !validatePhone(phone)) {
       setError('Please enter a valid 10-digit phone number')
       return
     }
@@ -260,14 +260,18 @@ const Auth = () => {
     setIsLoading(true)
     
     try {
-      const phoneNumber = `+91${phone.replace(/\D/g, '')}`
-      await authApi.signup({
+      const signupData: any = {
         name: name.trim(),
         email: email.trim(),
-        phoneNumber,
         password,
         termsAccepted: agreeToTerms,
-      })
+      }
+      
+      if (phone && phone.replace(/\D/g, '').length === 10) {
+        signupData.phoneNumber = `+91${phone.replace(/\D/g, '')}`
+      }
+      
+      await authApi.signup(signupData)
       
       const loginResponse = await authApi.login({ email: email.trim(), password })
       
@@ -645,7 +649,7 @@ const Auth = () => {
 {/* Phone Number */}
 <div>
   <label htmlFor="signup-phone" className="block text-sm font-semibold text-gray-700 mb-2">
-    Phone Number
+    Phone Number <span className="text-gray-400 font-normal">(Optional)</span>
   </label>
   <div className="flex gap-2">
     <div className="flex-shrink-0">
@@ -794,7 +798,7 @@ const Auth = () => {
                           {/* Submit Button */}
                           <button
                             type="submit"
-                            disabled={!name || !email || phone.length !== 10 || !password || !confirmPassword || !agreeToTerms || isLoading}
+                            disabled={!name || !email || !password || !confirmPassword || !agreeToTerms || isLoading}
                             className="w-full bg-gradient-to-r from-orange-400 to-orange-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
                           >
                             {isLoading ? (

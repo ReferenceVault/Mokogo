@@ -110,7 +110,7 @@ api.interceptors.response.use(
 export interface SignupRequest {
   name: string
   email: string
-  phoneNumber: string
+  phoneNumber?: string
   password: string
   termsAccepted: boolean
 }
@@ -450,7 +450,7 @@ export interface UpdateProfileRequest {
 export interface CreateUserRequest {
   name: string
   email: string
-  phoneNumber: string
+  phoneNumber?: string
   password: string
 }
 
