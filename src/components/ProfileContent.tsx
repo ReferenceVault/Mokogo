@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
 import { usersApi, uploadApi } from '@/services/api'
+import DateOfBirthSelector from '@/components/DateOfBirthSelector'
 import { User, Mail, Phone, Calendar, Users, Briefcase, Building, MapPin, FileText, Cigarette, Wine, Utensils, X, Clock, Plus, Copy, Heart } from 'lucide-react'
 
 const ProfileContent = () => {
@@ -62,8 +63,19 @@ const ProfileContent = () => {
         // Format date of birth if exists
         let dateOfBirth = ''
         if (profile.dateOfBirth) {
-          const date = new Date(profile.dateOfBirth)
-          dateOfBirth = date.toISOString().split('T')[0]
+          // If already in YYYY-MM-DD format, use it directly
+          if (/^\d{4}-\d{2}-\d{2}$/.test(profile.dateOfBirth)) {
+            dateOfBirth = profile.dateOfBirth
+          } else {
+            // Otherwise parse it
+            const date = new Date(profile.dateOfBirth)
+            if (!isNaN(date.getTime())) {
+              const year = date.getFullYear()
+              const month = String(date.getMonth() + 1).padStart(2, '0')
+              const day = String(date.getDate()).padStart(2, '0')
+              dateOfBirth = `${year}-${month}-${day}`
+            }
+          }
         }
         
         setFormData({
@@ -269,54 +281,6 @@ const ProfileContent = () => {
     }
   }
 
-  const handleCancel = async () => {
-    // Reset form by fetching profile again
-    if (!user?.id) return
-    
-    setLoading(true)
-    try {
-      const profile = await usersApi.getMyProfile()
-      
-      const nameParts = profile.name ? profile.name.split(' ') : ['', '']
-      const firstName = nameParts[0] || ''
-      const lastName = nameParts.slice(1).join(' ') || ''
-      
-      let dateOfBirth = ''
-      if (profile.dateOfBirth) {
-        const date = new Date(profile.dateOfBirth)
-        dateOfBirth = date.toISOString().split('T')[0]
-      }
-      
-      setFormData({
-        firstName,
-        lastName,
-        email: profile.email || '',
-        phone: profile.phoneNumber || '',
-        dateOfBirth,
-        gender: profile.gender || '',
-        occupation: profile.occupation || '',
-        companyName: profile.companyName || '',
-        currentCity: profile.currentCity || '',
-        area: profile.area || '',
-        about: profile.about || '',
-        smoking: profile.smoking || '',
-        drinking: profile.drinking || '',
-        foodPreference: profile.foodPreference || ''
-      })
-      
-      if (profile.profileImageUrl) {
-        setProfileImageUrl(profile.profileImageUrl)
-      } else {
-        setProfileImageUrl(null)
-      }
-      
-      setErrors({})
-    } catch (error) {
-      console.error('Error fetching profile:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // Close modal when clicking outside
   useEffect(() => {
@@ -498,20 +462,21 @@ const ProfileContent = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
               <Phone className="w-4 h-4 text-gray-400" />
-              Phone Number <span className="text-red-500">*</span>
+              Phone Number
             </label>
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
-                errors.phone ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Enter your phone number"
+              disabled
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
             />
-            {errors.phone && (
-              <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
-            )}
+            <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed</p>
+          </div>
+
+          <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+            <p className="text-xs text-blue-700">
+              We don't share your phone number or email publicly.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -520,14 +485,10 @@ const ProfileContent = () => {
                 <Calendar className="w-4 h-4 text-gray-400" />
                 Date of Birth <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
+              <DateOfBirthSelector
                 value={formData.dateOfBirth}
-                onChange={(e) => handleChange('dateOfBirth', e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-                className={`w-full px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
-                  errors.dateOfBirth ? 'border-red-500' : 'border-gray-300'
-                }`}
+                onChange={(value) => handleChange('dateOfBirth', value)}
+                error={errors.dateOfBirth}
               />
               {errors.dateOfBirth && (
                 <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
@@ -862,12 +823,6 @@ const ProfileContent = () => {
 
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
-        <button
-          onClick={handleCancel}
-          className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          Cancel
-        </button>
         <button
           onClick={handleSave}
           disabled={saving}

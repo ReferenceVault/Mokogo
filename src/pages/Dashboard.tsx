@@ -10,6 +10,10 @@ import MessagesContent from '@/components/MessagesContent'
 import ProfileContent from '@/components/ProfileContent'
 import ExploreContent from '@/components/ExploreContent'
 import MikoVibeQuiz from '@/components/MikoVibeQuiz'
+import ListingLimitModal from '@/components/ListingLimitModal'
+import ProfileCompletionModal from '@/components/ProfileCompletionModal'
+import { isListingLimitError } from '@/utils/errorHandler'
+import { isProfileComplete as checkProfileComplete } from '@/utils/profileValidation'
 import { useStore } from '@/store/useStore'
 import { listingsApi, ListingResponse, usersApi, messagesApi, requestsApi } from '@/services/api'
 import { Listing, VibeTagId } from '@/types'
@@ -60,6 +64,8 @@ const Dashboard = () => {
   const [showBoostModal, setShowBoostModal] = useState(false)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showListingLimitModal, setShowListingLimitModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const [activeView, setActiveView] = useState<ViewType>('overview')
   const [isMikoOpen, setIsMikoOpen] = useState(false)
   const [viewingListingId, setViewingListingId] = useState<string | null>(null)
@@ -305,6 +311,15 @@ const Dashboard = () => {
     navigate('/listing/wizard')
   }
 
+  const handleCreateListingWithProfileCheck = () => {
+    // Check if profile is complete
+    if (!checkProfileComplete(user)) {
+      setShowProfileModal(true)
+      return
+    }
+    handleCreateListing()
+  }
+
   const openListingDetail = (listingId: string, returnView: ViewType) => {
     setListingReturnView(returnView)
     setViewingListingId(listingId)
@@ -548,7 +563,7 @@ const Dashboard = () => {
                   <h4 className="text-sm font-semibold text-gray-900 mb-1">Post Your Listing</h4>
                   <p className="text-xs text-gray-600 mb-3">Find your perfect roommate in minutes</p>
                   <button 
-                    onClick={handleCreateListing}
+                    onClick={handleCreateListingWithProfileCheck}
                     className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors flex items-center gap-1 group-hover:gap-2"
                   >
                     Get Started
@@ -560,7 +575,7 @@ const Dashboard = () => {
           }
           collapsedCtaButton={{
             icon: Plus,
-            onClick: handleCreateListing,
+            onClick: handleCreateListingWithProfileCheck,
             title: 'Post Your Listing'
           }}
         />
@@ -818,7 +833,7 @@ const Dashboard = () => {
                       <p className="text-sm text-gray-600">Manage and track your property listings</p>
                     </div>
                     <button 
-                      onClick={handleCreateListing}
+                      onClick={handleCreateListingWithProfileCheck}
                       className="px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
                     >
                       <Plus className="w-4 h-4" />
@@ -913,7 +928,7 @@ const Dashboard = () => {
                         <h3 className="text-xl font-semibold text-gray-900 mb-2">No active listings</h3>
                         <p className="text-gray-600 mb-6">Create your first listing to get started</p>
                         <button 
-                          onClick={handleCreateListing}
+                          onClick={handleCreateListingWithProfileCheck}
                           className="px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 mx-auto"
                         >
                           <Plus className="w-4 h-4" />
@@ -935,7 +950,7 @@ const Dashboard = () => {
                   
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[
-                      { icon: Plus, title: 'Post New Listing', description: 'Add a new property to attract roommates', onClick: handleCreateListing },
+                      { icon: Plus, title: 'Post New Listing', description: 'Add a new property to attract roommates', onClick: handleCreateListingWithProfileCheck },
                       { icon: Search, title: 'Browse Listings', description: 'Discover available properties nearby', to: '/explore' },
                        { icon: Settings, title: 'Account Settings', description: 'Manage your profile and preferences', onClick: () => setActiveView('profile') }
                     ].map((action, index) => {
@@ -974,7 +989,7 @@ const Dashboard = () => {
                     Your listings
                   </h1>
                   <button 
-                    onClick={handleCreateListing}
+                    onClick={handleCreateListingWithProfileCheck}
                     className="px-6 py-3 bg-gradient-to-r from-orange-300 to-orange-400 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-300/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
@@ -1015,7 +1030,7 @@ const Dashboard = () => {
                       </h2>
                       <p className="text-gray-600 mb-6">It takes less than 4 minutes.</p>
                       <button 
-                        onClick={handleCreateListing} 
+                        onClick={handleCreateListingWithProfileCheck} 
                         className="px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all duration-300 inline-block"
                       >
                         Create your first listing
@@ -1153,6 +1168,14 @@ const Dashboard = () => {
                                   </button>
                                   <button
                                     onClick={async () => {
+                                      // Check if user already has a live listing
+                                      const existingLiveListing = allListings.find(l => l.status === 'live' && l.id !== listing.id)
+                                      if (existingLiveListing) {
+                                        // Keep as draft and show message
+                                        setShowListingLimitModal(true)
+                                        return
+                                      }
+                                      
                                       try {
                                         await listingsApi.update(listing.id, { status: 'live' })
                                         const updated = { ...listing, status: 'live' as const }
@@ -1161,8 +1184,17 @@ const Dashboard = () => {
                                           l.id === listing.id ? updated : l
                                         )
                                         setAllListings(updatedListings)
-                                      } catch (error) {
+                                      } catch (error: any) {
                                         console.error('Error activating listing:', error)
+                                        
+                                        // Check if it's a listing limit error
+                                        if (isListingLimitError(error)) {
+                                          setShowListingLimitModal(true)
+                                        } else {
+                                          const errorData = error.response?.data || {}
+                                          const errorMessage = errorData.message || error.message || 'Failed to activate listing. Please try again.'
+                                          alert(Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage)
+                                        }
                                       }
                                     }}
                                     className="px-5 py-2.5 bg-gradient-to-r from-orange-300 to-orange-400 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-orange-300/30 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2"
@@ -1192,6 +1224,13 @@ const Dashboard = () => {
                                   </button>
                                   <button
                                     onClick={async () => {
+                                      // Check if user already has a live listing
+                                      const existingLiveListing = allListings.find(l => l.status === 'live' && l.id !== listing.id)
+                                      if (existingLiveListing) {
+                                        setShowListingLimitModal(true)
+                                        return
+                                      }
+                                      
                                       try {
                                         await listingsApi.update(listing.id, { status: 'live' })
                                         const updated = { ...listing, status: 'live' as const }
@@ -1200,8 +1239,17 @@ const Dashboard = () => {
                                           l.id === listing.id ? updated : l
                                         )
                                         setAllListings(updatedListings)
-                                      } catch (error) {
+                                      } catch (error: any) {
                                         console.error('Error reactivating listing:', error)
+                                        
+                                        // Check if it's a listing limit error
+                                        if (isListingLimitError(error)) {
+                                          setShowListingLimitModal(true)
+                                        } else {
+                                          const errorData = error.response?.data || {}
+                                          const errorMessage = errorData.message || error.message || 'Failed to reactivate listing. Please try again.'
+                                          alert(Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage)
+                                        }
                                       }
                                     }}
                                     className="px-5 py-2.5 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-orange-500/40 transition-all duration-300"
@@ -1316,6 +1364,16 @@ const Dashboard = () => {
         isOpen={isMikoOpen}
         onClose={() => setIsMikoOpen(false)}
         onComplete={handleMikoComplete}
+      />
+      <ListingLimitModal
+        isOpen={showListingLimitModal}
+        onClose={() => setShowListingLimitModal(false)}
+        savedAsDraft={false}
+      />
+      <ProfileCompletionModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        action="list"
       />
     </div>
   )

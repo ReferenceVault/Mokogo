@@ -30,7 +30,7 @@ const RequestsContent = ({
   initialTab = 'received',
   onApprove
 }: RequestsContentProps) => {
-  const { user, allListings } = useStore()
+  const { user, allListings, cachedRequestsForOwner, setCachedRequestsForOwner } = useStore()
 
   const [allRequests, setAllRequests] = useState<RequestResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -164,6 +164,14 @@ const RequestsContent = ({
         (r._id || r.id) === (request._id || request.id) ? updated : r
       ))
       
+      // Update cached requests for owner in store to update count
+      if (cachedRequestsForOwner) {
+        const updatedCached = cachedRequestsForOwner.map(r => 
+          (r._id || r.id) === (request._id || request.id) ? updated : r
+        )
+        setCachedRequestsForOwner(updatedCached)
+      }
+      
       // If onApprove callback is provided, call it with conversation info
       if (onApprove) {
         // Backend automatically creates conversation on approval
@@ -193,6 +201,14 @@ const RequestsContent = ({
       setAllRequests(prev => prev.map(r => 
         (r._id || r.id) === (request._id || request.id) ? updated : r
       ))
+      
+      // Update cached requests for owner in store to update count
+      if (cachedRequestsForOwner) {
+        const updatedCached = cachedRequestsForOwner.map(r => 
+          (r._id || r.id) === (request._id || request.id) ? updated : r
+        )
+        setCachedRequestsForOwner(updatedCached)
+      }
     } catch (error: any) {
       console.error('Error rejecting request:', error)
       alert(error.response?.data?.message || 'Failed to reject request. Please try again.')

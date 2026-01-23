@@ -183,7 +183,7 @@ const CityListings = () => {
                   options={[
                     { value: 'Male', label: 'Male' },
                     { value: 'Female', label: 'Female' },
-                    { value: 'Other', label: 'Other' }
+                    { value: 'Any', label: 'Any' }
                   ]}
                 />
               </div>

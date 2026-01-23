@@ -5,9 +5,11 @@ import Toast from '@/components/Toast'
 import DashboardHeader from '@/components/DashboardHeader'
 import DashboardSidebar from '@/components/DashboardSidebar'
 import SocialSidebar from '@/components/SocialSidebar'
+import ListingLimitModal from '@/components/ListingLimitModal'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
+import { isListingLimitError } from '@/utils/errorHandler'
 
 import { listingsApi, CreateListingRequest } from '@/services/api'
 import { Search, LayoutGrid, Home, MessageSquare, Bookmark, Calendar, Plus, Sparkles } from 'lucide-react'
@@ -90,6 +92,8 @@ const ListingWizard = () => {
   const [isCreating, setIsCreating] = useState(false)
   const [validatedSteps, setValidatedSteps] = useState<Set<number>>(new Set())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [showListingLimitModal, setShowListingLimitModal] = useState(false)
+  const [listingSavedAsDraft, setListingSavedAsDraft] = useState(false)
   
   // Get cached counts from store
   const { 
@@ -598,22 +602,11 @@ const ListingWizard = () => {
   const handleSectionContinue = async (stepIndex: number) => {
     // Validate ONLY this step (not future steps)
     if (validateStep(stepIndex)) {
-      // If user tries to continue from any step after Photos before a listing is created,
-      // guide them to complete Photos first in a clear, professional way.
+      // Check if listing exists (created after photo upload)
       const listingId = currentListing?.id || listingDataRef.current.id
       if (stepIndex > 0 && (!listingId || listingId.startsWith('listing-'))) {
-        // Ensure photos step shows proper error and is expanded
-        validateStep(0)
-        setToastMessage('To move forward, please complete the Photos step by adding at least 3 photos.')
-        setShowToast(true)
-        setExpandedSections(prev => {
-          const newSet = new Set(prev)
-          newSet.add(0)
-          return newSet
-        })
-        setTimeout(() => {
-          document.getElementById('section-0')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }, 100)
+        // No listing created yet - validation errors will show for photos step
+        // Don't show toast message here, just let validation errors display
         return
       }
 
@@ -715,6 +708,7 @@ const ListingWizard = () => {
         setLastSaved(new Date())
         
         // Show toast notification after successful update
+        setToastMessage('Draft saved')
         setShowToast(true)
       } catch (error) {
         console.error('Error updating listing:', error)
@@ -769,6 +763,18 @@ const ListingWizard = () => {
     }
   }
 
+  // Check if all required fields are filled (for disabling Create & Activate button)
+  const areAllRequiredFieldsFilled = (): boolean => {
+    const hasPhotos = !!(listingData.photos && listingData.photos.length >= 3)
+    const hasLocation = !!(listingData.city && listingData.locality)
+    const hasDetails = !!(listingData.bhkType && listingData.roomType && listingData.furnishingLevel)
+    const hasPricing = !!(listingData.rent && listingData.deposit && listingData.moveInDate)
+    const hasPreferences = !!(listingData.preferredGender && listingData.preferredGender.trim() !== '')
+    
+    // MIKO is optional, so we don't check it
+    return hasPhotos && hasLocation && hasDetails && hasPricing && hasPreferences
+  }
+
   const generateTitle = (): string => {
     const roomType = listingData.roomType === 'Private Room' ? 'Private Room' : listingData.roomType === 'Shared Room' ? 'Shared Room' : 'Room'
     const bhk = listingData.bhkType || ''
@@ -786,6 +792,15 @@ const ListingWizard = () => {
    * 3. If all valid: submits full data and publishes listing
    */
   const handleCreateListing = async () => {
+    // Clear any previous toast messages
+    setShowToast(false)
+
+    // Check if user already has a live listing - if so, save as draft instead
+    const existingLiveListing = storeAllListings.find(l => l.status === 'live')
+    if (existingLiveListing) {
+      // Will save as draft - show modal after saving
+    }
+
     // Validate ALL steps before creating (collect all errors, don't stop at first)
     const invalidSteps: number[] = []
     
@@ -796,22 +811,40 @@ const ListingWizard = () => {
     }
 
     if (invalidSteps.length > 0) {
-      // Build a clear, user-friendly summary of what needs attention
-      const invalidSectionTitles = invalidSteps.map(index => STEPS[index].title)
-      let message: string
+      // Check if any sections have actual data filled (not just validated)
+      const hasPhotos = listingData.photos && listingData.photos.length >= 3
+      const hasLocation = !!(listingData.city && listingData.locality)
+      const hasDetails = !!(listingData.bhkType && listingData.roomType && listingData.furnishingLevel)
+      const hasPricing = !!(listingData.rent && listingData.deposit && listingData.moveInDate)
+      const hasPreferences = !!listingData.preferredGender
+      const hasAnyCompletedSections = hasPhotos || hasLocation || hasDetails || hasPricing || hasPreferences
+      
+      // Only show "To move forward..." message if NO sections are completed
+      // If some sections are completed, just show validation errors (no toast)
+      if (!hasAnyCompletedSections) {
+        // Build a clear, user-friendly summary of what needs attention
+        const invalidSectionTitles = invalidSteps.map(index => STEPS[index].title)
+        let message: string
 
-      if (invalidSectionTitles.length === STEPS.length) {
-        message = 'To create your listing, please complete all sections: Photos, Location, Details, Pricing, Preferences, and MIKO Vibe (optional).'
-      } else if (invalidSectionTitles.length === 1) {
-        message = `To move forward, please complete the "${invalidSectionTitles[0]}" section.`
+        if (invalidSectionTitles.length === STEPS.length) {
+          message = 'To create your listing, please complete all sections: Photos, Location, Details, Pricing, Preferences, and MIKO Vibe (optional).'
+        } else if (invalidSectionTitles.length === 1) {
+          message = `To move forward, please complete the "${invalidSectionTitles[0]}" section.`
+        } else {
+          const last = invalidSectionTitles[invalidSectionTitles.length - 1]
+          const initial = invalidSectionTitles.slice(0, -1)
+          message = `To move forward, please complete these sections: ${initial.join(', ')} and ${last}.`
+        }
+
+        // Clear any previous toast and show new message
+        setShowToast(false)
+        setToastMessage(message)
+        setShowToast(true)
       } else {
-        const last = invalidSectionTitles[invalidSectionTitles.length - 1]
-        const initial = invalidSectionTitles.slice(0, -1)
-        message = `To move forward, please complete these sections: ${initial.join(', ')} and ${last}.`
+        // If some sections are completed, clear any toast messages
+        setShowToast(false)
       }
-
-      setToastMessage(message)
-      setShowToast(true)
+      // If some sections are completed, don't show toast - just show validation errors
       // Expand all invalid steps so user can see all errors at once
       setExpandedSections(prev => {
         const newSet = new Set(prev)
@@ -834,6 +867,17 @@ const ListingWizard = () => {
       const dataToSave = listingDataRef.current
       const title = generateTitle()
       
+      const listingId = currentListing?.id || listingDataRef.current.id
+      const isUpdating = listingId && !listingId.startsWith('listing-')
+      
+      // Check if user already has a live listing (excluding current one if updating)
+      const existingLiveListing = isUpdating 
+        ? storeAllListings.find(l => l.status === 'live' && l.id !== listingId)
+        : storeAllListings.find(l => l.status === 'live')
+      
+      // If user has a live listing, save as draft instead of live
+      const shouldSaveAsDraft = !!existingLiveListing
+      
       const listingDataToSave: CreateListingRequest = {
         title,
         city: dataToSave.city || '',
@@ -851,11 +895,10 @@ const ListingWizard = () => {
         preferredGender: dataToSave.preferredGender || '',
         description: dataToSave.description,
         photos: dataToSave.photos || [],
-        status: 'live',
+        status: shouldSaveAsDraft ? 'draft' : 'live',
       }
-
-      const listingId = currentListing?.id || listingDataRef.current.id
-      const savedListing = listingId && !listingId.startsWith('listing-')
+      
+      const savedListing = isUpdating
         ? await listingsApi.update(listingId, listingDataToSave)
         : await listingsApi.create(listingDataToSave)
 
@@ -896,9 +939,30 @@ const ListingWizard = () => {
         addListing(publishedListing)
       }
       
-      navigate('/dashboard')
+      // If saved as draft due to existing live listing, show modal
+      if (shouldSaveAsDraft) {
+        setIsCreating(false)
+        setListingSavedAsDraft(true)
+        setShowListingLimitModal(true)
+        // Clear any toast messages
+        setShowToast(false)
+      } else {
+        // Clear any toast messages before navigating
+        setShowToast(false)
+        navigate('/dashboard')
+      }
     } catch (error: any) {
       console.error('Error creating listing:', error)
+      
+      // Check if it's a listing limit error
+      if (isListingLimitError(error)) {
+        setListingSavedAsDraft(false)
+        setShowListingLimitModal(true)
+        setIsCreating(false)
+        // Clear any toast messages
+        setShowToast(false)
+        return
+      }
       
       // Parse backend validation errors
       const backendErrors = error.response?.data?.message || []
@@ -906,6 +970,8 @@ const ListingWizard = () => {
       
       if (Array.isArray(backendErrors)) {
         const messageSummary = backendErrors[0] || 'Failed to create listing. Please fix the highlighted fields.'
+        // Clear any previous toast and show error
+        setShowToast(false)
         setToastMessage(messageSummary)
         setShowToast(true)
         backendErrors.forEach((errMsg: string) => {
@@ -947,6 +1013,8 @@ const ListingWizard = () => {
       } else {
         const message = typeof backendErrors === 'string' ? backendErrors : 'Failed to create listing. Please try again.'
         newErrors.general = message
+        // Clear any previous toast and show error
+        setShowToast(false)
         setToastMessage(message)
         setShowToast(true)
       }
@@ -1317,7 +1385,19 @@ const ListingWizard = () => {
                         </button>
                         <button
                           onClick={() => handleSectionContinue(index)}
-                          disabled={isCreating || isSaving}
+                          disabled={
+                            isCreating || 
+                            isSaving || 
+                            (index === STEPS.length - 1 && !areAllRequiredFieldsFilled())
+                          }
+                          title={
+                            index === STEPS.length - 1 && 
+                            !areAllRequiredFieldsFilled() && 
+                            !isCreating && 
+                            !isSaving
+                              ? 'Please complete all required fields'
+                              : undefined
+                          }
                           className="btn-primary text-sm px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <div className="flex items-center gap-1.5">
@@ -1355,6 +1435,15 @@ const ListingWizard = () => {
 
       <Footer />
       {showToast && <Toast message={toastMessage || 'Draft saved'} onClose={() => setShowToast(false)} />}
+      <ListingLimitModal
+        isOpen={showListingLimitModal}
+        onClose={() => {
+          setShowListingLimitModal(false)
+          setListingSavedAsDraft(false)
+          navigate('/dashboard')
+        }}
+        savedAsDraft={listingSavedAsDraft}
+      />
     </div>
   )
 }

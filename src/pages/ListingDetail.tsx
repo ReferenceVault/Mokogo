@@ -4,10 +4,12 @@ import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import Logo from '@/components/Logo'
 import UserAvatar from '@/components/UserAvatar'
+import ProfileCompletionModal from '@/components/ProfileCompletionModal'
 import { useStore } from '@/store/useStore'
 
 import { formatPrice, formatDate } from '@/utils/formatters'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
+import { isProfileComplete } from '@/utils/profileValidation'
 import { requestsApi, listingsApi, messagesApi, usersApi, UserProfile } from '@/services/api'
 import { Listing } from '@/types'
 
@@ -237,6 +239,7 @@ const ListingDetail = () => {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [listingOwnerId, setListingOwnerId] = useState<string | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [showProfileModal, setShowProfileModal] = useState(false)
 
   // Fetch user profile if profileImageUrl is missing
   useEffect(() => {
@@ -583,6 +586,12 @@ const ListingDetail = () => {
       )
     }
     navigate(`/auth?redirect=/dashboard&listing=${listingId}&focus=contact`)
+    return
+  }
+
+  // Check if profile is complete
+  if (!isProfileComplete(user)) {
+    setShowProfileModal(true)
     return
   }
 
@@ -1312,6 +1321,11 @@ const ListingDetail = () => {
       </section>
 
       <Footer />
+      <ProfileCompletionModal 
+        isOpen={showProfileModal} 
+        onClose={() => setShowProfileModal(false)} 
+        action="contact"
+      />
     </div>
   )
 }
