@@ -1,9 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Logo from './Logo'
 import UserAvatar from './UserAvatar'
+import ProfileCompletionModal from './ProfileCompletionModal'
 import { useStore } from '@/store/useStore'
 import { useEffect, useState, useRef } from 'react'
 import { handleLogout as handleLogoutUtil } from '@/utils/auth'
+import { isProfileComplete } from '@/utils/profileValidation'
 import { usersApi } from '@/services/api'
 
 interface HeaderProps {
@@ -33,6 +35,7 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
 
   const [isAuthenticated, setIsAuthenticated] = useState(checkAuthSync)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const profileFetchRef = useRef<string | null>(null)
 
@@ -142,8 +145,15 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
 
   const handleListYourSpace = (e: React.MouseEvent) => {
     if (isAuthenticated) {
-      // Clear any existing listing to start fresh for new listing
       e.preventDefault()
+      
+      // Check if profile is complete
+      if (!isProfileComplete(user)) {
+        setShowProfileModal(true)
+        return
+      }
+      
+      // Clear any existing listing to start fresh for new listing
       setCurrentListing(null)
       localStorage.removeItem('mokogo-listing')
       navigate('/listing/wizard')
@@ -152,6 +162,7 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
   }
 
   return (
+    <>
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-orange-200/50 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 md:px-16 py-4 flex justify-between items-center">
         {/* Left: Logo */}
@@ -358,6 +369,14 @@ const Header = ({ forceGuest = false }: HeaderProps) => {
         </div>
       </div>
     </header>
+    {showProfileModal && (
+      <ProfileCompletionModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        action="list"
+      />
+    )}
+    </>
   )
 }
 

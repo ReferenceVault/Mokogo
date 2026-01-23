@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
+import ProfileCompletionModal from '@/components/ProfileCompletionModal'
+import { useStore } from '@/store/useStore'
+import { isProfileComplete } from '@/utils/profileValidation'
 import { Users, Home, Shield, Lock, DollarSign, Mail, CheckCircle, FileText, MessageSquare, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 
 interface FAQItem {
@@ -17,6 +20,10 @@ interface FAQItem {
 }
 
 const HelpCentre = () => {
+  const navigate = useNavigate()
+  const user = useStore((state) => state.user)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -225,7 +232,34 @@ const HelpCentre = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {quickLinks.map((link, index) => {
                   const Icon = link.icon
-                  return (
+                  const isListYourSpace = link.href === '/listing/wizard'
+                  
+                  const handleClick = (e: React.MouseEvent) => {
+                    if (isListYourSpace) {
+                      e.preventDefault()
+                      if (user && !isProfileComplete(user)) {
+                        setShowProfileModal(true)
+                        return
+                      }
+                      navigate(link.href)
+                    }
+                  }
+                  
+                  return isListYourSpace ? (
+                    <button
+                      key={index}
+                      onClick={handleClick}
+                      className="group relative overflow-hidden rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 via-white to-orange-50/50 p-6 shadow-lg shadow-orange-100/40 transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-orange-200/50"
+                    >
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.12),transparent_55%)]" />
+                      <div className="relative text-center">
+                        <div className="w-12 h-12 rounded-full bg-orange-400/10 flex items-center justify-center mx-auto mb-3 group-hover:bg-orange-400/20 transition-colors">
+                          <Icon className="w-6 h-6 text-orange-500" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900">{link.label}</p>
+                      </div>
+                    </button>
+                  ) : (
                     <Link
                       key={index}
                       to={link.href}
@@ -392,6 +426,11 @@ const HelpCentre = () => {
       </main>
 
       <Footer />
+      <ProfileCompletionModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        action="list"
+      />
     </div>
   )
 }

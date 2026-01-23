@@ -3,7 +3,9 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { Listing } from '@/types'
 import { MoveInDateField } from '@/components/MoveInDateField'
+import ProfileCompletionModal from '@/components/ProfileCompletionModal'
 import { formatPrice, formatDate } from '@/utils/formatters'
+import { isProfileComplete } from '@/utils/profileValidation'
 import { listingsApi, requestsApi, usersApi, messagesApi } from '@/services/api'
 import UserAvatar from './UserAvatar'
 
@@ -55,6 +57,7 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
   const [requestMessage, setRequestMessage] = useState<string | null>(null)
   const [listing, setListing] = useState<Listing | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   // Request status state - fetched from API
   const [requestStatus, setRequestStatus] = useState<{
     status: 'pending' | 'approved' | 'rejected' | null
@@ -447,6 +450,12 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
 
   const handleContactHost = async () => {
     if (!user || !listing) return
+    
+    // Check if profile is complete
+    if (!isProfileComplete(user)) {
+      setShowProfileModal(true)
+      return
+    }
     
     setIsSubmitting(true)
     setRequestMessage(null)
@@ -1055,6 +1064,11 @@ const ListingDetailContent = ({ listingId, onBack, onExplore }: ListingDetailCon
         </section>
       )}
 
+      <ProfileCompletionModal 
+        isOpen={showProfileModal} 
+        onClose={() => setShowProfileModal(false)} 
+        action="contact"
+      />
     </div>
   )
 }
