@@ -79,19 +79,7 @@ const Dashboard = () => {
 
   const userData = user as any
   const isProfileComplete = Boolean(
-    user?.name &&
-    user?.email &&
-    userData?.phoneNumber &&
-    userData?.dateOfBirth &&
-    userData?.gender &&
-    userData?.occupation &&
-    userData?.companyName &&
-    userData?.currentCity &&
-    userData?.area &&
-    userData?.about &&
-    userData?.smoking &&
-    userData?.drinking &&
-    userData?.foodPreference &&
+    checkProfileComplete(user) &&
     userData?.profileImageUrl
   )
 
