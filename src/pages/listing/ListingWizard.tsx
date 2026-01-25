@@ -528,6 +528,10 @@ const ListingWizard = () => {
         if (!dataToValidate.locality || dataToValidate.locality.trim() === '') {
           stepErrors.locality = 'Locality is required'
           newErrors[stepId] = newErrors[stepId] || 'Locality is required'
+        } else if (!dataToValidate.placeId) {
+          // If locality is provided, placeId must exist (user must select from suggestions)
+          stepErrors.locality = 'Please select a valid location from the suggestions'
+          newErrors[stepId] = 'Please select a valid location from the suggestions'
         }
         break
       case 'details':
@@ -642,6 +646,10 @@ const ListingWizard = () => {
         if (updatedValidatedSteps.has(1)) {
           if (dataToSave.city && dataToSave.city.trim()) updateData.city = dataToSave.city
           if (dataToSave.locality && dataToSave.locality.trim()) updateData.locality = dataToSave.locality
+          if (dataToSave.placeId && dataToSave.placeId.trim()) updateData.placeId = dataToSave.placeId
+          if (dataToSave.latitude !== undefined) updateData.latitude = dataToSave.latitude
+          if (dataToSave.longitude !== undefined) updateData.longitude = dataToSave.longitude
+          if (dataToSave.formattedAddress && dataToSave.formattedAddress.trim()) updateData.formattedAddress = dataToSave.formattedAddress
           if (dataToSave.societyName && dataToSave.societyName.trim()) updateData.societyName = dataToSave.societyName
         }
         
@@ -682,6 +690,10 @@ const ListingWizard = () => {
           title: savedListing.title || dataToSave.title || '',
           city: savedListing.city || dataToSave.city || '',
           locality: savedListing.locality || dataToSave.locality || '',
+          placeId: savedListing.placeId || dataToSave.placeId,
+          latitude: savedListing.latitude ?? dataToSave.latitude,
+          longitude: savedListing.longitude ?? dataToSave.longitude,
+          formattedAddress: savedListing.formattedAddress || dataToSave.formattedAddress,
           societyName: savedListing.societyName || dataToSave.societyName,
           bhkType: savedListing.bhkType || dataToSave.bhkType || '',
           roomType: savedListing.roomType || dataToSave.roomType || '',

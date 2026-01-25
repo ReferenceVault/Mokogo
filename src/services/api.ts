@@ -259,6 +259,10 @@ export interface CreateListingRequest {
   title?: string
   city?: string
   locality?: string
+  placeId?: string
+  latitude?: number
+  longitude?: number
+  formattedAddress?: string
   societyName?: string
   bhkType?: string
   roomType?: string
@@ -285,6 +289,10 @@ export interface ListingResponse {
   ownerId: string
   city: string
   locality: string
+  placeId?: string
+  latitude?: number
+  longitude?: number
+  formattedAddress?: string
   societyName?: string
   bhkType: string
   roomType: string
@@ -646,6 +654,52 @@ export interface SubscribeResponse {
 export const subscriptionsApi = {
   subscribe: async (data: SubscribeRequest): Promise<SubscribeResponse> => {
     const response = await api.post<SubscribeResponse>('/subscriptions', data)
+    return response.data
+  },
+}
+
+// Places API interfaces
+export interface AutocompletePrediction {
+  place_id: string
+  description: string
+  structured_formatting: {
+    main_text: string
+    secondary_text: string
+  }
+}
+
+export interface PlaceDetails {
+  place_id: string
+  formatted_address: string
+  geometry: {
+    location: {
+      lat: number
+      lng: number
+    }
+  }
+  address_components: Array<{
+    long_name: string
+    short_name: string
+    types: string[]
+  }>
+  name: string
+}
+
+export const placesApi = {
+  getAutocomplete: async (input: string, city: string): Promise<AutocompletePrediction[]> => {
+    if (!input || input.trim().length < 2 || !city) {
+      return []
+    }
+    const response = await api.get<AutocompletePrediction[]>('/places/autocomplete', {
+      params: { input: input.trim(), city: city.trim() },
+    })
+    return response.data || []
+  },
+
+  getPlaceDetails: async (placeId: string): Promise<PlaceDetails> => {
+    const response = await api.get<PlaceDetails>('/places/details', {
+      params: { place_id: placeId },
+    })
     return response.data
   },
 }

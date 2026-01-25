@@ -44,6 +44,10 @@ export interface Listing {
   title: string
   city: string
   locality: string
+  placeId?: string
+  latitude?: number
+  longitude?: number
+  formattedAddress?: string
   societyName?: string
   bhkType: string
   roomType: string
