@@ -38,7 +38,6 @@ const ExploreProperties = () => {
     }
     return null
   }, [searchParams])
-  const isMikoMode = searchParams.get('miko') === '1'
   const mikoTags = useMemo(() => {
     const tags = searchParams.get('tags') || ''
     return tags

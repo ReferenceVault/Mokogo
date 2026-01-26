@@ -22,7 +22,7 @@ const Step2Location = ({ data, onChange, error, onClearError }: Step2LocationPro
   const [inputValue, setInputValue] = useState(data.locality || '')
   const suggestionsRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Sync input value with data.locality when it changes externally
   useEffect(() => {
