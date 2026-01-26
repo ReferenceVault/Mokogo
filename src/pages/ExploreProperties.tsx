@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SocialSidebar from '@/components/SocialSidebar'
@@ -21,11 +21,47 @@ const ExploreProperties = () => {
     window.scrollTo(0, 0)
   }, [])
 
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const filters = useMemo(() => ({
+    city: searchParams.get('city') || '',
+    area: searchParams.get('area') || '',
+    areaPlaceId: searchParams.get('areaPlaceId') || '',
+    areaLat: searchParams.get('areaLat') ? parseFloat(searchParams.get('areaLat')!) : null,
+    areaLng: searchParams.get('areaLng') ? parseFloat(searchParams.get('areaLng')!) : null,
+    maxRent: searchParams.get('maxRent') || '',
+    moveInDate: searchParams.get('moveInDate') || '',
+  }), [searchParams])
+  const roomTypePreference = useMemo(() => {
+    const value = searchParams.get('roomType')
+    if (value === 'private' || value === 'shared' || value === 'either') {
+      return value
+    }
+    return null
+  }, [searchParams])
+  const isMikoMode = searchParams.get('miko') === '1'
+  const mikoTags = useMemo(() => {
+    const tags = searchParams.get('tags') || ''
+    return tags
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean) as VibeTagId[]
+  }, [searchParams])
+
   useEffect(() => {
     const fetchListings = async () => {
       setIsLoading(true)
       try {
-        const listings = await listingsApi.getAllPublic('live')
+        // Build backend filter object
+        const backendFilters: any = {}
+        if (filters.city) backendFilters.city = filters.city
+        if (filters.area) backendFilters.area = filters.area
+        if (filters.areaLat != null) backendFilters.areaLat = filters.areaLat
+        if (filters.areaLng != null) backendFilters.areaLng = filters.areaLng
+        if (filters.maxRent) backendFilters.maxRent = parseInt(filters.maxRent)
+        if (filters.moveInDate) backendFilters.moveInDate = filters.moveInDate
+        if (roomTypePreference) backendFilters.roomType = roomTypePreference
+
+        const listings = await listingsApi.getAllPublic('live', backendFilters)
         const mappedListings: Listing[] = listings.map((listing: ListingResponse) => ({
           id: listing._id || listing.id,
           title: listing.title,
@@ -63,167 +99,20 @@ const ExploreProperties = () => {
     }
 
     fetchListings()
-  }, [])
+  }, [filters.city, filters.area, filters.areaLat, filters.areaLng, filters.maxRent, filters.moveInDate, roomTypePreference])
 
-  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const isMikoMode = searchParams.get('miko') === '1'
-  const mikoTags = useMemo(() => {
-    const tags = searchParams.get('tags') || ''
-    return tags
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(Boolean) as VibeTagId[]
-  }, [searchParams])
-  const roomTypePreference = useMemo(() => {
-    const value = searchParams.get('roomType')
-    if (value === 'private' || value === 'shared' || value === 'either') {
-      return value
-    }
-    return null
-  }, [searchParams])
-  const filters = useMemo(() => ({
-    city: searchParams.get('city') || '',
-    area: searchParams.get('area') || '',
-    areaPlaceId: searchParams.get('areaPlaceId') || '',
-    areaLat: searchParams.get('areaLat') ? parseFloat(searchParams.get('areaLat')!) : null,
-    areaLng: searchParams.get('areaLng') ? parseFloat(searchParams.get('areaLng')!) : null,
-    maxRent: searchParams.get('maxRent') || '',
-    moveInDate: searchParams.get('moveInDate') || '',
-  }), [searchParams])
-
-  // Calculate distance between two coordinates using Haversine formula (in km)
-  const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371 // Earth's radius in kilometers
-    const dLat = (lat2 - lat1) * Math.PI / 180
-    const dLon = (lon2 - lon1) * Math.PI / 180
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
-  }, [])
-
+  // Backend already handles filtering and sorting, but we still need to filter by Miko tags on client side
   const filteredListings = useMemo(() => {
-    const liveListings = exploreListings.filter(listing => listing.status === 'live')
-    const filtered = liveListings.filter(listing => {
-      const hasMikoFilters =
-        Boolean(filters.city || filters.area || filters.maxRent || filters.moveInDate) ||
-        Boolean(roomTypePreference) ||
-        mikoTags.length > 0
-
-      const cityMatch = filters.city ? listing.city === filters.city : false
-      
-      // Area matching: if coordinates provided, use distance (within 10km), otherwise exact match
-      let areaMatch = false
-      let listingDistance: number | null = null
-      if (filters.area) {
-        if (filters.areaLat !== null && filters.areaLng !== null && listing.latitude && listing.longitude) {
-          // Use distance-based matching (within 10km)
-          listingDistance = calculateDistance(
-            filters.areaLat,
-            filters.areaLng,
-            listing.latitude,
-            listing.longitude
-          )
-          areaMatch = listingDistance <= 10 // 10km radius
-        } else {
-          // Fallback to exact locality match
-          areaMatch = listing.locality === filters.area
-        }
-      }
-      
-      const maxRentMatch = filters.maxRent
-        ? listing.rent <= parseInt(filters.maxRent)
-        : false
-      const moveInDateMatch = filters.moveInDate
-        ? (() => {
-            const filterDate = new Date(filters.moveInDate)
-            filterDate.setHours(0, 0, 0, 0)
-            const listingDate = new Date(listing.moveInDate)
-            listingDate.setHours(0, 0, 0, 0)
-            return listingDate >= filterDate
-          })()
-        : false
-
-      const roomTypeMatch = roomTypePreference
-        ? (() => {
-            const roomType = listing.roomType.toLowerCase()
-            if (roomTypePreference === 'private') {
-              return roomType.includes('private') || roomType.includes('master')
-            }
-            if (roomTypePreference === 'shared') {
-              return roomType.includes('shared')
-            }
-            return true
-          })()
-        : false
-
-      const mikoTagsMatch = mikoTags.length > 0
-        ? (() => {
-            const listingTags = getListingMikoTags(listing)
-            return listingTags.some(tag => mikoTags.includes(tag))
-          })()
-        : false
-
-      if (isMikoMode) {
-        if (filters.city && !cityMatch) return false
-
-        const hasOtherFilters =
-          Boolean(filters.area || filters.maxRent || filters.moveInDate) ||
-          Boolean(roomTypePreference) ||
-          mikoTags.length > 0
-
-        if (!hasMikoFilters || !hasOtherFilters) {
-          return true
-        }
-
-        return (
-          areaMatch ||
-          maxRentMatch ||
-          moveInDateMatch ||
-          roomTypeMatch ||
-          mikoTagsMatch
-        )
-      }
-
-      if (filters.city && !cityMatch) return false
-      if (filters.area && !areaMatch) return false
-      if (filters.maxRent && !maxRentMatch) return false
-      if (filters.moveInDate && !moveInDateMatch) return false
-      if (roomTypePreference && !roomTypeMatch) return false
-
-      return true
-    })
-
-    // Sort by distance if area coordinates are provided
-    if (filters.area && filters.areaLat !== null && filters.areaLng !== null) {
-      return filtered.sort((a, b) => {
-        // Only listings with coordinates can be sorted by distance
-        if (a.latitude && a.longitude && b.latitude && b.longitude) {
-          const distanceA = calculateDistance(
-            filters.areaLat!,
-            filters.areaLng!,
-            a.latitude,
-            a.longitude
-          )
-          const distanceB = calculateDistance(
-            filters.areaLat!,
-            filters.areaLng!,
-            b.latitude,
-            b.longitude
-          )
-          return distanceA - distanceB // Sort ascending (closest first)
-        }
-        // Listings without coordinates go to the end
-        if (a.latitude && a.longitude) return -1
-        if (b.latitude && b.longitude) return 1
-        return 0
-      })
+    // Backend returns filtered and sorted listings, we only need to filter by Miko tags
+    if (mikoTags.length === 0) {
+      return exploreListings
     }
 
-    return filtered
-  }, [exploreListings, filters, isMikoMode, mikoTags, roomTypePreference, calculateDistance])
+    return exploreListings.filter(listing => {
+      const listingTags = getListingMikoTags(listing)
+      return listingTags.some(tag => mikoTags.includes(tag))
+    })
+  }, [exploreListings, mikoTags])
 
   // Calculate listings count per city from actual listings
   const getCityListingsCount = (cityName: string) => {

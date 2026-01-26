@@ -354,8 +354,31 @@ export const listingsApi = {
     }
   },
 
-  getAllPublic: async (status?: string): Promise<ListingResponse[]> => {
-    const params = status ? { status } : {}
+  getAllPublic: async (
+    status?: string,
+    filters?: {
+      city?: string
+      area?: string
+      areaLat?: number
+      areaLng?: number
+      maxRent?: number
+      moveInDate?: string
+      roomType?: string
+      radiusKm?: number
+    }
+  ): Promise<ListingResponse[]> => {
+    const params: any = {}
+    if (status) params.status = status
+    if (filters) {
+      if (filters.city) params.city = filters.city
+      if (filters.area) params.area = filters.area
+      if (filters.areaLat != null) params.areaLat = filters.areaLat
+      if (filters.areaLng != null) params.areaLng = filters.areaLng
+      if (filters.maxRent != null) params.maxRent = filters.maxRent
+      if (filters.moveInDate) params.moveInDate = filters.moveInDate
+      if (filters.roomType) params.roomType = filters.roomType
+      if (filters.radiusKm != null) params.radiusKm = filters.radiusKm
+    }
     try {
       // Use axios directly for public endpoint (no auth token needed)
       const response = await axios.get<ListingResponse[]>(`${API_BASE_URL}/listings/public`, { 

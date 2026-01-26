@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import CustomSelect from '@/components/CustomSelect'
 import { MoveInDateField } from '@/components/MoveInDateField'
@@ -8,6 +8,7 @@ import { getListingMikoTags, getMikoMatchPercent, getMikoMatchScore } from '@/ut
 import MikoTagPills from '@/components/MikoTagPills'
 import { listingsApi, ListingResponse } from '@/services/api'
 import { useStore } from '@/store/useStore'
+import { sortListingsByDistance, isListingWithinRadius } from '@/utils/distance'
 
 interface ExploreContentProps {
   onListingClick: (listingId: string) => void
@@ -45,18 +46,6 @@ const ExploreContent = ({
     }
   })
 
-  // Calculate distance between two coordinates using Haversine formula (in km)
-  const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371 // Earth's radius in kilometers
-    const dLat = (lat2 - lat1) * Math.PI / 180
-    const dLon = (lon2 - lon1) * Math.PI / 180
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
-  }, [])
 
   const [isMikoMode, setIsMikoMode] = useState(() => {
     const params = new URLSearchParams(location.search)
@@ -89,6 +78,10 @@ const ExploreContent = ({
           title: listing.title,
           city: listing.city || '',
           locality: listing.locality || '',
+          placeId: listing.placeId,
+          latitude: listing.latitude,
+          longitude: listing.longitude,
+          formattedAddress: listing.formattedAddress,
           societyName: listing.societyName,
           bhkType: listing.bhkType || '',
           roomType: listing.roomType || '',
@@ -172,13 +165,12 @@ const ExploreContent = ({
       if (filters.area) {
         if (filters.areaLat !== null && filters.areaLng !== null && listing.latitude && listing.longitude) {
           // Use distance-based matching (within 10km)
-          const distance = calculateDistance(
+          areaMatch = isListingWithinRadius(
+            listing,
             filters.areaLat,
             filters.areaLng,
-            listing.latitude,
-            listing.longitude
+            10
           )
-          areaMatch = distance <= 10 // 10km radius
         } else {
           // Fallback to exact locality match
           areaMatch = listing.locality === filters.area
@@ -250,32 +242,11 @@ const ExploreContent = ({
 
     // Sort by distance if area coordinates are provided
     if (filters.area && filters.areaLat !== null && filters.areaLng !== null) {
-      return filtered.sort((a, b) => {
-        // Only listings with coordinates can be sorted by distance
-        if (a.latitude && a.longitude && b.latitude && b.longitude) {
-          const distanceA = calculateDistance(
-            filters.areaLat!,
-            filters.areaLng!,
-            a.latitude,
-            a.longitude
-          )
-          const distanceB = calculateDistance(
-            filters.areaLat!,
-            filters.areaLng!,
-            b.latitude,
-            b.longitude
-          )
-          return distanceA - distanceB // Sort ascending (closest first)
-        }
-        // Listings without coordinates go to the end
-        if (a.latitude && a.longitude) return -1
-        if (b.latitude && b.longitude) return 1
-        return 0
-      })
+      return sortListingsByDistance(filtered, filters.areaLat, filters.areaLng)
     }
 
     return filtered
-  }, [allLiveListings, filters, isMikoMode, roomTypePreference, mikoTags, calculateDistance])
+  }, [allLiveListings, filters, isMikoMode, roomTypePreference, mikoTags])
 
   const rankedListings = useMemo(() => {
     if (!isMikoMode || mikoTags.length === 0) {
