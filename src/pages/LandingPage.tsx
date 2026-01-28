@@ -517,7 +517,7 @@ const LandingPage = () => {
                           options={searchCities.map(city => ({ value: city, label: city }))}
                         />
                       </div>
-                      <div className="[&_button]:h-[50px] [&_button]:py-0 group relative" ref={areaSuggestionsRef}>
+                      <div className="[&_button]:h-[50px] [&_button]:py-0 group relative">
                         <label className="block text-sm font-medium text-stone-700 mb-2">
                           Area / Locality
                         </label>
